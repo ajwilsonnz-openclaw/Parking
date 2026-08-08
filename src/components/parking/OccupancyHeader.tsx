@@ -2,7 +2,6 @@
 
 import React from 'react';
 import { useApp } from '@/lib/context/AppContext';
-import { Car, UserCheck, CheckCircle2, RefreshCw } from 'lucide-react';
 
 export const OccupancyHeader: React.FC = () => {
   const {
@@ -16,42 +15,49 @@ export const OccupancyHeader: React.FC = () => {
   const totalParks = config.total_visitor_parks;
 
   return (
-    <div className="w-full bg-slate-900/90 border border-slate-800 rounded-xl p-2 md:p-2.5 mb-3 shadow-md">
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 md:gap-3 text-center">
-        {/* 1. Parks in Use */}
-        <div className="bg-slate-950/70 rounded-lg px-2.5 py-1.5 border border-slate-800 flex items-center justify-between">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight flex items-center gap-1">
-            <Car className="w-3 h-3 text-rose-400" /> In Use
-          </span>
-          <div className="font-mono text-xs font-extrabold text-white">
-            <span className="text-rose-400">{parksInUse}</span>
-            <span className="text-[10px] text-slate-500 font-normal">/{totalParks}</span>
-          </div>
-        </div>
+    <div className="w-full grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+      {/* 1. Available Visitor Parks */}
+      <div className="app-card p-3.5 flex flex-col items-center justify-center text-center">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+          Available Visitor Parks
+        </span>
+        <span className="text-2xl font-black text-emerald-600">
+          {availableParksIfResidentStays}
+        </span>
+        <span className="text-[10px] text-slate-400 font-medium">out of {totalParks}</span>
+      </div>
 
-        {/* 2. Resident Excess */}
-        <div className="bg-slate-950/70 rounded-lg px-2.5 py-1.5 border border-slate-800 flex items-center justify-between">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight flex items-center gap-1">
-            <UserCheck className="w-3 h-3 text-amber-400" /> Res Excess
-          </span>
-          <span className="font-mono text-xs font-extrabold text-amber-400">{parksInUseByResident}</span>
-        </div>
+      {/* 2. Visitor Spots Occupied */}
+      <div className="app-card p-3.5 flex flex-col items-center justify-center text-center">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+          Visitor Spots Occupied
+        </span>
+        <span className="text-2xl font-black text-slate-800">
+          {parksInUse}
+        </span>
+        <span className="text-[10px] text-slate-400 font-medium">active sessions</span>
+      </div>
 
-        {/* 3. Avail (Resident Stays) */}
-        <div className="bg-slate-950/70 rounded-lg px-2.5 py-1.5 border border-slate-800 flex items-center justify-between">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight flex items-center gap-1">
-            <CheckCircle2 className="w-3 h-3 text-emerald-400" /> Avail (Stays)
-          </span>
-          <span className="font-mono text-xs font-extrabold text-emerald-400">{availableParksIfResidentStays}</span>
-        </div>
+      {/* 3. Resident Overflow */}
+      <div className="app-card p-3.5 flex flex-col items-center justify-center text-center">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+          Resident Overflow
+        </span>
+        <span className="text-2xl font-black text-amber-600">
+          {parksInUseByResident}
+        </span>
+        <span className="text-[10px] text-slate-400 font-medium">excess parked</span>
+      </div>
 
-        {/* 4. Avail (Resident Moves) */}
-        <div className="bg-slate-950/70 rounded-lg px-2.5 py-1.5 border border-slate-800 flex items-center justify-between">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight flex items-center gap-1">
-            <RefreshCw className="w-3 h-3 text-sky-400" /> Avail (Moves)
-          </span>
-          <span className="font-mono text-xs font-extrabold text-sky-400">{availableParksIfResidentMoves}</span>
-        </div>
+      {/* 4. Potential Max Availability */}
+      <div className="app-card p-3.5 flex flex-col items-center justify-center text-center">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+          Max Potential Capacity
+        </span>
+        <span className="text-2xl font-black text-blue-600">
+          {availableParksIfResidentMoves}
+        </span>
+        <span className="text-[10px] text-slate-400 font-medium">if overflow vacates</span>
       </div>
     </div>
   );

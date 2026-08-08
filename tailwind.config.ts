@@ -13,29 +13,27 @@ const config: Config = {
         brand: {
           50: '#f0f7ff',
           100: '#e0effe',
-          200: '#bae0fd',
-          500: '#0284c7',
-          600: '#0284c7',
-          700: '#0369a1',
-          900: '#0c4a6e',
+          500: '#0055b8',
+          600: '#0052b4',
+          700: '#004294',
+          800: '#003475',
+          900: '#002554',
         },
-        dark: {
-          bg: '#090d16',
-          card: '#111827',
-          border: '#1f293d',
-          hover: '#1e293b'
+        app: {
+          bg: '#f8fafc',
+          card: '#ffffff',
+          border: '#e2e8f0',
+          text: '#0f172a',
+          subtext: '#64748b',
         }
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
         mono: ['JetBrains Mono', 'monospace'],
-        plate: ['FE-Schrift', 'Impact', 'Arial Black', 'sans-serif']
       },
       boxShadow: {
-        'glow-cyan': '0 0 20px rgba(6, 182, 212, 0.25)',
-        'glow-emerald': '0 0 20px rgba(16, 185, 129, 0.25)',
-        'glow-amber': '0 0 20px rgba(245, 158, 11, 0.25)',
-        'glow-rose': '0 0 20px rgba(244, 63, 94, 0.25)',
+        'card': '0 2px 8px rgba(15, 23, 42, 0.05)',
+        'card-hover': '0 4px 16px rgba(15, 23, 42, 0.08)',
       }
     },
   },

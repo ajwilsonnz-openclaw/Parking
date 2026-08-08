@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useApp } from '@/lib/context/AppContext';
-import { Car, Bell, Eye, Users, Sliders, User } from 'lucide-react';
+import { Car, Bell, User, Shield, Sliders } from 'lucide-react';
 import { Role } from '@/types';
 
 interface HeaderProps {
@@ -18,93 +18,54 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const { currentUser, switchRole, config } = useApp();
 
+  const getPageTitle = () => {
+    switch (activeTab) {
+      case 'dashboard': return 'CAR PARK DASHBOARD';
+      case 'verify': return 'VERIFY VEHICLES';
+      case 'management': return 'MANAGEMENT PORTAL';
+      case 'admin': return 'ADMIN CONSOLE';
+      case 'account': return 'PROFILE';
+      default: return 'MILLENNIUM VILLAGE';
+    }
+  };
+
   return (
-    <header className="sticky top-0 z-40 w-full glass-panel rounded-none border-x-0 border-t-0 border-b border-slate-800/80 px-4 lg:px-8 py-2.5 mb-4">
+    <header className="sticky top-0 z-40 w-full bg-[#0052b4] text-white shadow-md px-4 lg:px-8 py-3.5 mb-5">
       <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
-        {/* Brand Logo & Building Complex Name */}
+        {/* Left: Building Logo Badge */}
         <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => setActiveTab('dashboard')}>
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-sky-500 to-sky-700 flex items-center justify-center text-white shadow-glow-cyan">
+          <div className="w-8 h-8 rounded-lg bg-white/15 border border-white/20 flex items-center justify-center text-white">
             <Car className="w-4 h-4" />
           </div>
-          <div>
-            <h1 className="text-base font-black tracking-tight text-white">{config.complex_name}</h1>
-            <p className="text-[10px] text-slate-400 hidden sm:block">Car Park Management</p>
-          </div>
+          <span className="text-xs font-black tracking-wider uppercase hidden sm:inline">
+            {config.complex_name}
+          </span>
         </div>
 
-        {/* Desktop Quick Nav Links */}
-        <nav className="hidden md:flex items-center gap-1.5 bg-slate-900/80 p-1 rounded-xl border border-slate-800">
-          <button
-            onClick={() => setActiveTab('dashboard')}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-              activeTab === 'dashboard' ? 'bg-sky-600 text-white shadow' : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <Car className="w-3.5 h-3.5" /> Park
-          </button>
+        {/* Center: Page Title (Matching Screenshot 1-4 Header Title Style) */}
+        <div className="text-center">
+          <h1 className="text-sm sm:text-base font-extrabold tracking-widest uppercase text-white">
+            {getPageTitle()}
+          </h1>
+        </div>
 
-          <button
-            onClick={() => setActiveTab('verify')}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-              activeTab === 'verify' ? 'bg-sky-600 text-white shadow' : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <Eye className="w-3.5 h-3.5 text-sky-400" /> Verify
-          </button>
-
-          {currentUser?.role === 'management' || currentUser?.role === 'admin' ? (
-            <button
-              onClick={() => setActiveTab('management')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                activeTab === 'management' ? 'bg-purple-600 text-white shadow' : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <Users className="w-3.5 h-3.5" /> Management
-            </button>
-          ) : null}
-
-          {currentUser?.role === 'admin' && (
-            <button
-              onClick={() => setActiveTab('admin')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                activeTab === 'admin' ? 'bg-rose-600 text-white shadow' : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <Sliders className="w-3.5 h-3.5" /> Admin Controls
-            </button>
-          )}
-
-          <button
-            onClick={() => setActiveTab('account')}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-              activeTab === 'account' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <User className="w-3.5 h-3.5" /> Account
-          </button>
-        </nav>
-
-        {/* Right Tools: Role Switcher & Push Notification Setup */}
+        {/* Right Tools: Role Selector & Push Notification Helper */}
         <div className="flex items-center gap-2">
           {/* Quick Role Switcher */}
-          <div className="flex items-center gap-1 bg-slate-900/90 px-2.5 py-1 rounded-xl border border-slate-800 text-xs">
-            <span className="text-[10px] text-slate-400 uppercase font-semibold hidden sm:inline">Role:</span>
-            <select
-              value={currentUser?.role || 'user'}
-              onChange={(e) => switchRole(e.target.value as Role)}
-              className="bg-transparent text-xs font-extrabold text-sky-400 focus:outline-none cursor-pointer"
-            >
-              <option value="user">Resident</option>
-              <option value="management">Management</option>
-              <option value="admin">Admin</option>
-            </select>
-          </div>
+          <select
+            value={currentUser?.role || 'user'}
+            onChange={(e) => switchRole(e.target.value as Role)}
+            className="bg-white/15 border border-white/25 rounded-lg px-2 py-1 text-[11px] font-bold text-white focus:outline-none cursor-pointer"
+          >
+            <option value="user" className="text-slate-900">Resident</option>
+            <option value="management" className="text-slate-900">Management</option>
+            <option value="admin" className="text-slate-900">Admin</option>
+          </select>
 
-          {/* Alert Permission Button */}
           <button
             onClick={onOpenPushGuide}
-            className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-sky-400 hover:text-white hover:border-sky-500 transition-colors relative"
-            title="Notification Setup"
+            className="p-1.5 rounded-lg bg-white/15 hover:bg-white/25 border border-white/25 text-white transition-colors relative"
+            title="App Alerts Setup"
           >
             <Bell className="w-4 h-4" />
           </button>

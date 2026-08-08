@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Carpark, ParkingSession } from '@/types';
-import { Star, CheckCircle2 } from 'lucide-react';
+import { Star, CheckCircle2, Clock } from 'lucide-react';
 import { PlateCard } from '@/components/ui/PlateCard';
 import { CountdownTimer } from './CountdownTimer';
 import { useApp } from '@/lib/context/AppContext';
@@ -23,40 +23,40 @@ export const SpotCard: React.FC<SpotCardProps> = ({ spot, session, onBook, onRel
 
   return (
     <div
-      className={`glass-panel p-4 rounded-2xl border flex flex-col justify-between transition-all duration-300 relative group hover:-translate-y-1 ${
-        isFav ? 'ring-2 ring-amber-400/50' : ''
+      className={`app-card p-4 flex flex-col justify-between transition-all duration-200 ${
+        isFav ? 'ring-2 ring-amber-400' : ''
       } ${
         isOccupied
           ? isResidentExcess
-            ? 'border-amber-500/40 bg-slate-900/90'
-            : 'border-rose-500/40 bg-slate-900/90'
-          : 'border-slate-800 bg-slate-900/70 hover:border-emerald-500/60 hover:shadow-glow-emerald'
+            ? 'border-amber-300 bg-amber-50/30'
+            : 'border-rose-200 bg-rose-50/20'
+          : 'hover:border-blue-400 hover:shadow-md'
       }`}
     >
-      {/* Card Header: Spot Badge, Section, Favourite Star */}
-      <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-3">
+      {/* Card Header */}
+      <div className="flex items-center justify-between border-b border-slate-100 pb-2.5 mb-3">
         <div className="flex items-center gap-2">
-          <span className="font-mono text-sm font-extrabold text-white bg-slate-800 px-3 py-1 rounded-xl border border-slate-700 shadow-sm">
+          <span className="font-mono text-sm font-black text-slate-900 bg-slate-100 px-3 py-1 rounded-xl border border-slate-200">
             {spot.spot_number}
           </span>
-          <span className="text-xs text-slate-400 font-medium">{spot.section}</span>
+          <span className="text-xs text-slate-500 font-medium">{spot.section}</span>
         </div>
 
         <button
           onClick={() => toggleFavourite(spot.spot_number)}
-          className="p-1.5 rounded-xl text-slate-400 hover:text-amber-400 hover:bg-slate-800 transition-colors"
+          className="p-1 rounded-lg text-slate-300 hover:text-amber-500 transition-colors"
           title={isFav ? 'Remove Favourite' : 'Pin Favourite'}
         >
           <Star className={`w-4 h-4 ${isFav ? 'fill-amber-400 text-amber-400' : ''}`} />
         </button>
       </div>
 
-      {/* Card Body: Session Details or Open Bay */}
+      {/* Card Body */}
       {isOccupied && session ? (
-        <div className="flex flex-col gap-3 my-1">
-          <div className="flex items-center justify-between bg-slate-950/80 p-2.5 rounded-xl border border-slate-800">
+        <div className="flex flex-col gap-2.5 my-1">
+          <div className="flex items-center justify-between bg-slate-50 p-2.5 rounded-xl border border-slate-200">
             <div>
-              <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-semibold">
+              <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-bold">
                 Vehicle Plate
               </span>
               <div className="mt-1">
@@ -66,15 +66,15 @@ export const SpotCard: React.FC<SpotCardProps> = ({ spot, session, onBook, onRel
 
             <div className="text-right">
               <span
-                className={`text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-full ${
+                className={`text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full ${
                   isResidentExcess
-                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                    : 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                    ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                    : 'bg-rose-100 text-rose-800 border border-rose-300'
                 }`}
               >
-                {isResidentExcess ? 'Resident Excess' : 'Visitor Parked'}
+                {isResidentExcess ? 'Resident Overflow' : 'Visitor Session'}
               </span>
-              <span className="text-xs text-slate-400 block mt-1">{session.unit_number}</span>
+              <span className="text-xs text-slate-600 block mt-1 font-semibold">{session.unit_number}</span>
             </div>
           </div>
 
@@ -85,36 +85,36 @@ export const SpotCard: React.FC<SpotCardProps> = ({ spot, session, onBook, onRel
           />
         </div>
       ) : (
-        <div className="py-4 flex flex-col items-center justify-center text-center">
-          <div className="w-10 h-10 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 mb-2 shadow">
-            <CheckCircle2 className="w-6 h-6" />
+        <div className="py-3 flex flex-col items-center justify-center text-center">
+          <div className="w-9 h-9 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 mb-1.5 shadow-sm">
+            <CheckCircle2 className="w-5 h-5" />
           </div>
-          <span className="text-sm font-bold text-white">Available Spot</span>
-          <span className="text-xs text-slate-400 mt-0.5">Ready for booking</span>
+          <span className="text-xs font-black uppercase text-emerald-700 tracking-wide">Available Visitor Park</span>
+          <span className="text-[11px] text-slate-400 mt-0.5">Ready for booking</span>
         </div>
       )}
 
-      {/* Action Buttons */}
-      <div className="mt-3 pt-3 border-t border-slate-800">
+      {/* Card Footer Button */}
+      <div className="mt-3 pt-2.5 border-t border-slate-100">
         {isOccupied && session ? (
           isUserOwner ? (
             <button
               onClick={() => onRelease(session.id)}
-              className="w-full py-2 px-3 rounded-xl bg-rose-600/90 hover:bg-rose-500 text-white text-xs font-bold transition-all shadow text-center"
+              className="w-full py-2 px-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all shadow text-center"
             >
-              Release Carpark Now
+              Release Park Now
             </button>
           ) : (
-            <div className="w-full text-center text-xs text-slate-400 italic py-1">
+            <div className="w-full text-center text-xs text-slate-400 italic py-1 font-medium">
               In use by {session.unit_number}
             </div>
           )
         ) : (
           <button
             onClick={() => onBook(spot)}
-            className="w-full py-2 px-3 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold transition-all shadow text-center"
+            className="w-full py-2 px-3 rounded-xl bg-[#0052b4] hover:bg-blue-700 text-white text-xs font-bold transition-all shadow text-center"
           >
-            Book Carpark Spot
+            Book This Park
           </button>
         )}
       </div>

@@ -16,64 +16,74 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
   const { currentUser } = useApp();
 
   return (
-    <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-950/95 backdrop-blur-lg border-t border-slate-800 px-4 py-2 flex items-center justify-around shadow-2xl">
+    <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#0052b4] text-white border-t border-blue-800/50 px-3 py-2 flex items-center justify-around shadow-2xl">
       {/* 1. Park Tab */}
       <button
         onClick={() => setActiveTab('dashboard')}
         className={`flex flex-col items-center gap-1 transition-all ${
-          activeTab === 'dashboard' ? 'text-sky-400 font-bold scale-105' : 'text-slate-400 hover:text-white'
+          activeTab === 'dashboard' ? 'text-white font-bold scale-105 opacity-100' : 'text-white/70 hover:text-white'
         }`}
       >
-        <Car className="w-5 h-5" />
-        <span className="text-[10px]">Park</span>
+        <div className={`p-1 rounded-lg ${activeTab === 'dashboard' ? 'bg-white/20' : ''}`}>
+          <Car className="w-5 h-5" />
+        </div>
+        <span className="text-[10px] tracking-wide">Park</span>
       </button>
 
       {/* 2. Verify Tab */}
       <button
         onClick={() => setActiveTab('verify')}
         className={`flex flex-col items-center gap-1 transition-all ${
-          activeTab === 'verify' ? 'text-sky-400 font-bold scale-105' : 'text-slate-400 hover:text-white'
+          activeTab === 'verify' ? 'text-white font-bold scale-105 opacity-100' : 'text-white/70 hover:text-white'
         }`}
       >
-        <Eye className="w-5 h-5" />
-        <span className="text-[10px]">Verify</span>
+        <div className={`p-1 rounded-lg ${activeTab === 'verify' ? 'bg-white/20' : ''}`}>
+          <Eye className="w-5 h-5" />
+        </div>
+        <span className="text-[10px] tracking-wide">Verify</span>
       </button>
 
-      {/* 3. Manage Tab (If Management / Admin) */}
+      {/* 3. Manage Tab */}
       {(currentUser?.role === 'management' || currentUser?.role === 'admin') && (
         <button
           onClick={() => setActiveTab('management')}
           className={`flex flex-col items-center gap-1 transition-all ${
-            activeTab === 'management' ? 'text-purple-400 font-bold scale-105' : 'text-slate-400 hover:text-white'
+            activeTab === 'management' ? 'text-white font-bold scale-105 opacity-100' : 'text-white/70 hover:text-white'
           }`}
         >
-          <Shield className="w-5 h-5 text-purple-400" />
-          <span className="text-[10px]">Manage</span>
+          <div className={`p-1 rounded-lg ${activeTab === 'management' ? 'bg-white/20' : ''}`}>
+            <Shield className="w-5 h-5" />
+          </div>
+          <span className="text-[10px] tracking-wide">Manage</span>
         </button>
       )}
 
-      {/* 4. Admin Tab (If Admin) */}
+      {/* 4. Admin Tab */}
       {currentUser?.role === 'admin' && (
         <button
           onClick={() => setActiveTab('admin')}
           className={`flex flex-col items-center gap-1 transition-all ${
-            activeTab === 'admin' ? 'text-rose-400 font-bold scale-105' : 'text-slate-400 hover:text-white'
+            activeTab === 'admin' ? 'text-white font-bold scale-105 opacity-100' : 'text-white/70 hover:text-white'
           }`}
         >
-          <Sliders className="w-5 h-5 text-rose-400" />
-          <span className="text-[10px]">Admin</span>
+          <div className={`p-1 rounded-lg ${activeTab === 'admin' ? 'bg-white/20' : ''}`}>
+            <Sliders className="w-5 h-5" />
+          </div>
+          <span className="text-[10px] tracking-wide">Admin</span>
         </button>
       )}
 
-      {/* 5. Account Tab */}
+      {/* 5. Profile Tab (Matching Fire Emergency Profile Tab Name) */}
       <button
         onClick={() => setActiveTab('account')}
         className={`flex flex-col items-center gap-1 transition-all ${
-          activeTab === 'account' ? 'text-white font-bold scale-105' : 'text-slate-400 hover:text-white'
+          activeTab === 'account' ? 'text-white font-bold scale-105 opacity-100' : 'text-white/70 hover:text-white'
         }`}
       >
-        <User className="w-5 h-5" />
-        <span className="text-[10px]">Account</span>
+        <div className={`p-1 rounded-lg ${activeTab === 'account' ? 'bg-white/20' : ''}`}>
+          <User className="w-5 h-5" />
+        </div>
+        <span className="text-[10px] tracking-wide">Profile</span>
       </button>
     </div>
   );

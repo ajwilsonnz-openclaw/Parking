@@ -4,30 +4,36 @@
 
 @layer base {
   body {
-    @apply bg-[#090d16] text-slate-100 antialiased font-sans selection:bg-sky-500 selection:text-white min-h-screen;
-    background-image: 
-      radial-gradient(at 0% 0%, rgba(14, 165, 233, 0.08) 0px, transparent 50%),
-      radial-gradient(at 100% 100%, rgba(99, 102, 241, 0.08) 0px, transparent 50%);
-    background-attachment: fixed;
+    @apply bg-[#f8fafc] text-slate-900 antialiased font-sans min-h-screen selection:bg-blue-600 selection:text-white;
   }
 }
 
-/* Custom License Plate FE-Schrift styling */
+/* Fire Emergency Style Clean Card Panels */
+.app-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 1.25rem;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
+}
+
+.app-card-interactive {
+  @apply app-card transition-all duration-200 hover:border-blue-500/40 hover:shadow-md active:scale-[0.99];
+}
+
+/* License Plate Badge */
 .rego-plate {
-  background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%);
+  background: #ffffff;
   color: #0f172a;
-  font-family: 'Impact', 'FE-Schrift', 'Arial Black', sans-serif;
-  letter-spacing: 0.12em;
-  border: 2.5px solid #0f172a;
+  font-family: 'Impact', 'Arial Black', sans-serif;
+  letter-spacing: 0.1em;
+  border: 2px solid #0f172a;
   border-radius: 6px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.8);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 4px 12px;
+  padding: 3px 10px;
   text-transform: uppercase;
   user-select: none;
-  position: relative;
 }
 
 .rego-plate-nz {
@@ -41,31 +47,8 @@
   left: 0;
   top: 0;
   bottom: 0;
-  width: 14px;
-  background-color: #0284c7;
-}
-
-/* Glassmorphic Cards */
-.glass-panel {
-  background: rgba(17, 24, 39, 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 1rem;
-}
-
-.glass-panel-interactive {
-  @apply glass-panel transition-all duration-300 hover:border-sky-500/30 hover:shadow-glow-cyan hover:-translate-y-0.5;
-}
-
-/* Status indicator pulse animation */
-@keyframes pulse-slow {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.6; transform: scale(0.95); }
-}
-
-.animate-pulse-slow {
-  animation: pulse-slow 2.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  width: 12px;
+  background-color: #0052b4;
 }
 
 /* Custom Scrollbar */
@@ -74,12 +57,12 @@
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #090d16;
+  background: #f8fafc;
 }
 ::-webkit-scrollbar-thumb {
-  background: #1f293d;
+  background: #cbd5e1;
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #0284c7;
+  background: #0052b4;
 }
