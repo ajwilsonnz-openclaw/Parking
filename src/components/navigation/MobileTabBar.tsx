@@ -7,13 +7,11 @@ import { useApp } from '@/lib/context/AppContext';
 interface MobileTabBarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
-  onOpenLookup: () => void;
 }
 
 export const MobileTabBar: React.FC<MobileTabBarProps> = ({
   activeTab,
   setActiveTab,
-  onOpenLookup,
 }) => {
   const { currentUser } = useApp();
 
@@ -32,10 +30,12 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
 
       {/* 2. Verify Tab */}
       <button
-        onClick={onOpenLookup}
-        className="flex flex-col items-center gap-1 text-slate-400 hover:text-sky-400 transition-all"
+        onClick={() => setActiveTab('verify')}
+        className={`flex flex-col items-center gap-1 transition-all ${
+          activeTab === 'verify' ? 'text-sky-400 font-bold scale-105' : 'text-slate-400 hover:text-white'
+        }`}
       >
-        <Eye className="w-5 h-5 text-sky-400" />
+        <Eye className="w-5 h-5" />
         <span className="text-[10px]">Verify</span>
       </button>
 

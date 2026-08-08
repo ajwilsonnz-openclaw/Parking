@@ -9,14 +9,12 @@ interface HeaderProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
   onOpenPushGuide: () => void;
-  onOpenLookup: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   activeTab,
   setActiveTab,
   onOpenPushGuide,
-  onOpenLookup,
 }) => {
   const { currentUser, switchRole, config } = useApp();
 
@@ -46,10 +44,12 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
 
           <button
-            onClick={onOpenLookup}
-            className="px-3.5 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-white transition-all flex items-center gap-1.5"
+            onClick={() => setActiveTab('verify')}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+              activeTab === 'verify' ? 'bg-sky-600 text-white shadow' : 'text-slate-400 hover:text-white'
+            }`}
           >
-            <Eye className="w-3.5 h-3.5 text-sky-400" /> Verify Spot
+            <Eye className="w-3.5 h-3.5 text-sky-400" /> Verify
           </button>
 
           {currentUser?.role === 'management' || currentUser?.role === 'admin' ? (
