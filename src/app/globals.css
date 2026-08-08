@@ -8,50 +8,33 @@
   }
 }
 
-/* Fire Emergency Style Clean Card Panels */
-.app-card {
+/* ChatGPT Mockup Style Cards */
+.mockup-card {
   background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 1.25rem;
-  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
+  border: 1px solid #f1f5f9;
+  border-radius: 1.5rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
 }
 
-.app-card-interactive {
-  @apply app-card transition-all duration-200 hover:border-blue-500/40 hover:shadow-md active:scale-[0.99];
+.mockup-card-interactive {
+  @apply mockup-card transition-all duration-200 hover:shadow-mockup-hover active:scale-[0.98];
 }
 
-/* License Plate Badge */
-.rego-plate {
+/* Rego Badge */
+.rego-badge {
   background: #ffffff;
   color: #0f172a;
   font-family: 'Impact', 'Arial Black', sans-serif;
-  letter-spacing: 0.1em;
-  border: 2px solid #0f172a;
+  letter-spacing: 0.08em;
+  border: 1.5px solid #0f172a;
   border-radius: 6px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 3px 10px;
+  padding: 2px 8px;
   text-transform: uppercase;
-  user-select: none;
 }
 
-.rego-plate-nz {
-  position: relative;
-  overflow: hidden;
-}
-
-.rego-plate-nz::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 12px;
-  background-color: #0052b4;
-}
-
-/* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -62,7 +45,4 @@
 ::-webkit-scrollbar-thumb {
   background: #cbd5e1;
   border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #0052b4;
 }

@@ -3,43 +3,33 @@
 import React, { useState } from 'react';
 import { Header } from '@/components/navigation/Header';
 import { MobileTabBar } from '@/components/navigation/MobileTabBar';
-import { DashboardView } from '@/components/views/DashboardView';
+import { HomeView } from '@/components/views/HomeView';
+import { BookingsView } from '@/components/views/BookingsView';
 import { VerifyView } from '@/components/views/VerifyView';
-import { ManagementView } from '@/components/views/ManagementView';
-import { AdminView } from '@/components/views/AdminView';
-import { AccountView } from '@/components/views/AccountView';
+import { MoreView } from '@/components/views/MoreView';
 import { PushPermissionGuide } from '@/components/pwa/PushPermissionGuide';
-import { RentalModal } from '@/components/parking/RentalModal';
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<string>('dashboard');
-
+  const [activeTab, setActiveTab] = useState<string>('home');
   const [showPushGuide, setShowPushGuide] = useState<boolean>(false);
-  const [showRental, setShowRental] = useState<boolean>(false);
 
   return (
-    <div className="min-h-screen flex flex-col">
-      {/* Top Header */}
-      <Header
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        onOpenPushGuide={() => setShowPushGuide(true)}
-      />
+    <div className="min-h-screen flex flex-col bg-[#f8fafc]">
+      {/* Top App Header */}
+      <Header onOpenPushGuide={() => setShowPushGuide(true)} />
 
-      {/* Main Container View Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-4 lg:px-8 py-2">
-        {activeTab === 'dashboard' && <DashboardView onOpenRental={() => setShowRental(true)} />}
+      {/* Main View Area */}
+      <main className="flex-1 max-w-lg w-full mx-auto px-4 py-2">
+        {activeTab === 'home' && <HomeView onNavigateTab={(t) => setActiveTab(t)} />}
+        {activeTab === 'bookings' && <BookingsView />}
         {activeTab === 'verify' && <VerifyView />}
-        {activeTab === 'management' && <ManagementView />}
-        {activeTab === 'admin' && <AdminView />}
-        {activeTab === 'account' && <AccountView onOpenRental={() => setShowRental(true)} />}
+        {activeTab === 'more' && <MoreView />}
       </main>
 
-      {/* Modals */}
+      {/* App Push / PWA Install Guide */}
       <PushPermissionGuide isOpen={showPushGuide} onClose={() => setShowPushGuide(false)} />
-      <RentalModal isOpen={showRental} onClose={() => setShowRental(false)} />
 
-      {/* Native Mobile App Bottom Navigation Bar */}
+      {/* Restructured Bottom Mobile Navigation Bar */}
       <MobileTabBar
         activeTab={activeTab}
         setActiveTab={setActiveTab}

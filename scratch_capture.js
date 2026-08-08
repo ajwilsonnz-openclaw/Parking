@@ -35,32 +35,43 @@ async function run() {
 
     const artifactsDir = 'C:\\Users\\Adam\\.gemini\\antigravity\\brain\\452e4066-f75c-45a2-a265-460842fbf5f8';
     
-    // Shot 1: Dashboard Park View
-    const shot1 = path.join(artifactsDir, 'mobile_park_view.png');
+    // Shot 1: Home View
+    const shot1 = path.join(artifactsDir, 'mockup_home_view.png');
     await page.screenshot({ path: shot1, fullPage: false });
-    console.log('Saved mobile_park_view.png');
+    console.log('Saved mockup_home_view.png');
 
-    // Shot 2: Verify View
+    // Shot 2: Bookings View
     await page.evaluate(() => {
       const tabs = Array.from(document.querySelectorAll('button'));
-      const verifyBtn = tabs.find(b => b.textContent.includes('Verify'));
-      if (verifyBtn) verifyBtn.click();
+      const btn = tabs.find(b => b.textContent.includes('Bookings'));
+      if (btn) btn.click();
     });
     await new Promise(r => setTimeout(r, 1000));
-    const shot2 = path.join(artifactsDir, 'mobile_verify_view.png');
+    const shot2 = path.join(artifactsDir, 'mockup_bookings_view.png');
     await page.screenshot({ path: shot2, fullPage: false });
-    console.log('Saved mobile_verify_view.png');
+    console.log('Saved mockup_bookings_view.png');
 
-    // Shot 3: Account View
+    // Shot 3: Verify View
     await page.evaluate(() => {
       const tabs = Array.from(document.querySelectorAll('button'));
-      const accBtn = tabs.find(b => b.textContent.includes('Account'));
-      if (accBtn) accBtn.click();
+      const btn = tabs.find(b => b.textContent.includes('Verify'));
+      if (btn) btn.click();
     });
     await new Promise(r => setTimeout(r, 1000));
-    const shot3 = path.join(artifactsDir, 'mobile_account_view.png');
+    const shot3 = path.join(artifactsDir, 'mockup_verify_view.png');
     await page.screenshot({ path: shot3, fullPage: false });
-    console.log('Saved mobile_account_view.png');
+    console.log('Saved mockup_verify_view.png');
+
+    // Shot 4: More View
+    await page.evaluate(() => {
+      const tabs = Array.from(document.querySelectorAll('button'));
+      const btn = tabs.find(b => b.textContent.includes('More'));
+      if (btn) btn.click();
+    });
+    await new Promise(r => setTimeout(r, 1000));
+    const shot4 = path.join(artifactsDir, 'mockup_more_view.png');
+    await page.screenshot({ path: shot4, fullPage: false });
+    console.log('Saved mockup_more_view.png');
 
     await page.close();
     await browser.disconnect();

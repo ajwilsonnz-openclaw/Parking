@@ -11,29 +11,25 @@ const config: Config = {
     extend: {
       colors: {
         brand: {
-          50: '#f0f7ff',
-          100: '#e0effe',
-          500: '#0055b8',
-          600: '#0052b4',
-          700: '#004294',
-          800: '#003475',
-          900: '#002554',
+          50: '#eff6ff',
+          100: '#dbeafe',
+          500: '#0066ff',
+          600: '#005ce6',
+          700: '#0052cc',
+          800: '#003d99',
+          900: '#002966',
         },
-        app: {
-          bg: '#f8fafc',
-          card: '#ffffff',
-          border: '#e2e8f0',
-          text: '#0f172a',
-          subtext: '#64748b',
-        }
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
-        mono: ['JetBrains Mono', 'monospace'],
+      },
+      borderRadius: {
+        '3xl': '1.5rem',
+        '4xl': '2rem',
       },
       boxShadow: {
-        'card': '0 2px 8px rgba(15, 23, 42, 0.05)',
-        'card-hover': '0 4px 16px rgba(15, 23, 42, 0.08)',
+        'mockup': '0 4px 20px rgba(0, 0, 0, 0.03)',
+        'mockup-hover': '0 8px 30px rgba(0, 0, 0, 0.06)',
       }
     },
   },

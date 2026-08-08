@@ -1,8 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Car, Eye, User, Shield, Sliders } from 'lucide-react';
-import { useApp } from '@/lib/context/AppContext';
+import { Home, Calendar, Eye, MoreHorizontal } from 'lucide-react';
 
 interface MobileTabBarProps {
   activeTab: string;
@@ -13,78 +12,53 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
   activeTab,
   setActiveTab,
 }) => {
-  const { currentUser } = useApp();
-
   return (
-    <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#0052b4] text-white border-t border-blue-800/50 px-3 py-2 flex items-center justify-around shadow-2xl">
-      {/* 1. Park Tab */}
-      <button
-        onClick={() => setActiveTab('dashboard')}
-        className={`flex flex-col items-center gap-1 transition-all ${
-          activeTab === 'dashboard' ? 'text-white font-bold scale-105 opacity-100' : 'text-white/70 hover:text-white'
-        }`}
-      >
-        <div className={`p-1 rounded-lg ${activeTab === 'dashboard' ? 'bg-white/20' : ''}`}>
-          <Car className="w-5 h-5" />
-        </div>
-        <span className="text-[10px] tracking-wide">Park</span>
-      </button>
+    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-100 px-6 py-2.5 max-w-lg mx-auto shadow-lg">
+      <div className="flex items-center justify-between">
+        {/* 1. Home */}
+        <button
+          onClick={() => setActiveTab('home')}
+          className={`flex flex-col items-center gap-1 transition-all ${
+            activeTab === 'home' ? 'text-blue-600 font-bold scale-105' : 'text-slate-400 hover:text-slate-600'
+          }`}
+        >
+          <Home className="w-5 h-5" />
+          <span className="text-[10px] font-semibold">Home</span>
+        </button>
 
-      {/* 2. Verify Tab */}
-      <button
-        onClick={() => setActiveTab('verify')}
-        className={`flex flex-col items-center gap-1 transition-all ${
-          activeTab === 'verify' ? 'text-white font-bold scale-105 opacity-100' : 'text-white/70 hover:text-white'
-        }`}
-      >
-        <div className={`p-1 rounded-lg ${activeTab === 'verify' ? 'bg-white/20' : ''}`}>
+        {/* 2. Bookings */}
+        <button
+          onClick={() => setActiveTab('bookings')}
+          className={`flex flex-col items-center gap-1 transition-all ${
+            activeTab === 'bookings' ? 'text-blue-600 font-bold scale-105' : 'text-slate-400 hover:text-slate-600'
+          }`}
+        >
+          <Calendar className="w-5 h-5" />
+          <span className="text-[10px] font-semibold">Bookings</span>
+        </button>
+
+        {/* 3. Verify */}
+        <button
+          onClick={() => setActiveTab('verify')}
+          className={`flex flex-col items-center gap-1 transition-all ${
+            activeTab === 'verify' ? 'text-blue-600 font-bold scale-105' : 'text-slate-400 hover:text-slate-600'
+          }`}
+        >
           <Eye className="w-5 h-5" />
-        </div>
-        <span className="text-[10px] tracking-wide">Verify</span>
-      </button>
+          <span className="text-[10px] font-semibold">Verify</span>
+        </button>
 
-      {/* 3. Manage Tab */}
-      {(currentUser?.role === 'management' || currentUser?.role === 'admin') && (
+        {/* 4. More */}
         <button
-          onClick={() => setActiveTab('management')}
+          onClick={() => setActiveTab('more')}
           className={`flex flex-col items-center gap-1 transition-all ${
-            activeTab === 'management' ? 'text-white font-bold scale-105 opacity-100' : 'text-white/70 hover:text-white'
+            activeTab === 'more' ? 'text-blue-600 font-bold scale-105' : 'text-slate-400 hover:text-slate-600'
           }`}
         >
-          <div className={`p-1 rounded-lg ${activeTab === 'management' ? 'bg-white/20' : ''}`}>
-            <Shield className="w-5 h-5" />
-          </div>
-          <span className="text-[10px] tracking-wide">Manage</span>
+          <MoreHorizontal className="w-5 h-5" />
+          <span className="text-[10px] font-semibold">More</span>
         </button>
-      )}
-
-      {/* 4. Admin Tab */}
-      {currentUser?.role === 'admin' && (
-        <button
-          onClick={() => setActiveTab('admin')}
-          className={`flex flex-col items-center gap-1 transition-all ${
-            activeTab === 'admin' ? 'text-white font-bold scale-105 opacity-100' : 'text-white/70 hover:text-white'
-          }`}
-        >
-          <div className={`p-1 rounded-lg ${activeTab === 'admin' ? 'bg-white/20' : ''}`}>
-            <Sliders className="w-5 h-5" />
-          </div>
-          <span className="text-[10px] tracking-wide">Admin</span>
-        </button>
-      )}
-
-      {/* 5. Profile Tab (Matching Fire Emergency Profile Tab Name) */}
-      <button
-        onClick={() => setActiveTab('account')}
-        className={`flex flex-col items-center gap-1 transition-all ${
-          activeTab === 'account' ? 'text-white font-bold scale-105 opacity-100' : 'text-white/70 hover:text-white'
-        }`}
-      >
-        <div className={`p-1 rounded-lg ${activeTab === 'account' ? 'bg-white/20' : ''}`}>
-          <User className="w-5 h-5" />
-        </div>
-        <span className="text-[10px] tracking-wide">Profile</span>
-      </button>
-    </div>
+      </div>
+    </nav>
   );
 };
