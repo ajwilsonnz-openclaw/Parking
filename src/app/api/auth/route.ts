@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { queryDb } from '@/lib/db';
 import { WhitelistEntry } from '@/types';
 
-export const dynamic = 'force-dynamic';
+export const runtime = 'edge';
 
 export async function POST(req: NextRequest) {
   try {

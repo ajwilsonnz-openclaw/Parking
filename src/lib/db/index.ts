@@ -1,54 +1,55 @@
-import path from 'path';
-import fs from 'fs';
+// Cloudflare D1 & Local SQLite Database Query Helper
+let localDbInstance: any = null;
 
-let localDb: any = null;
-
-export function getLocalDb() {
+function getLocalDb() {
   if (typeof window !== 'undefined') return null;
-  if (!localDb) {
+  if (!localDbInstance) {
     try {
       const Database = require('better-sqlite3');
-      const dbPath = path.join(process.cwd(), 'parking.sqlite');
-      localDb = new Database(dbPath);
-      localDb.pragma('journal_mode = WAL');
+      const path = require('path');
+      const fs = require('fs');
 
-      const tableCheck = localDb.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='whitelist'").get();
+      const dbPath = path.join(process.cwd(), 'parking.sqlite');
+      localDbInstance = new Database(dbPath);
+      localDbInstance.pragma('journal_mode = WAL');
+
+      const tableCheck = localDbInstance.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='whitelist'").get();
       if (!tableCheck) {
         const schemaPath = path.join(process.cwd(), 'schema.sql');
         if (fs.existsSync(schemaPath)) {
           const schemaSql = fs.readFileSync(schemaPath, 'utf8');
-          localDb.exec(schemaSql);
+          localDbInstance.exec(schemaSql);
         }
       }
     } catch (err) {
-      console.warn('SQLite initialization skipped or fallback active:', err);
+      console.warn('Local SQLite initialization skipped (Edge Runtime context):', err);
     }
   }
-  return localDb;
+  return localDbInstance;
 }
 
 export async function queryDb<T = any>(sql: string, params: any[] = []): Promise<T[]> {
-  // 1. Cloudflare Pages / Worker Environment with D1 binding
+  // 1. Cloudflare Pages / Worker Edge Runtime environment with D1 binding
   // @ts-ignore
   if (typeof process !== 'undefined' && process.env && process.env.DB) {
     try {
       // @ts-ignore
       const stmt = process.env.DB.prepare(sql).bind(...params);
       const res = await stmt.all();
-      return res.results as T[];
+      return (res.results || []) as T[];
     } catch (e) {
-      console.error('D1 query error:', e);
+      console.error('Cloudflare D1 query error:', e);
       return [];
     }
   }
 
-  // 2. Local Node.js environment SQLite DB
+  // 2. Local Node environment fallback
   try {
     const db = getLocalDb();
     if (!db) return [];
     const stmt = db.prepare(sql);
     if (sql.trim().toUpperCase().startsWith('SELECT')) {
-      return stmt.all(...params) as T[];
+      return (stmt.all(...params) || []) as T[];
     } else {
       stmt.run(...params);
       return [] as T[];
