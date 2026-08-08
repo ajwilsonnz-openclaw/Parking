@@ -5,9 +5,11 @@ function getLocalDb() {
   if (typeof window !== 'undefined') return null;
   if (!localDbInstance) {
     try {
-      const Database = require('better-sqlite3');
-      const path = require('path');
-      const fs = require('fs');
+      // Use eval require to prevent Webpack Edge bundler from analyzing node-native dependencies
+      const req = eval('require');
+      const Database = req('better-sqlite3');
+      const path = req('path');
+      const fs = req('fs');
 
       const dbPath = path.join(process.cwd(), 'parking.sqlite');
       localDbInstance = new Database(dbPath);
@@ -22,7 +24,7 @@ function getLocalDb() {
         }
       }
     } catch (err) {
-      console.warn('Local SQLite initialization skipped (Edge Runtime context):', err);
+      // Skipped safely in Cloudflare Edge Runtime
     }
   }
   return localDbInstance;
