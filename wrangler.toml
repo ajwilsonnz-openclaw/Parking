@@ -1,8 +1,8 @@
 name = "parking-pwa"
 compatibility_date = "2024-09-23"
-pages_build_output_dir = ".next"
+pages_build_output_dir = ".vercel/output/static"
 
 [[d1_databases]]
 binding = "DB"
 database_name = "mv-parking-db"
-database_id = "edbe1681-abe9-482d-ad46-9574797a24c8" # Cloudflare will populate on creation
+database_id = "00000000-0000-0000-0000-000000000000"
