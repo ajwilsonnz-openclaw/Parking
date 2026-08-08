@@ -24,15 +24,15 @@ export const VisualSpotMap: React.FC<VisualSpotMapProps> = ({ onSelectSpot }) =>
   };
 
   return (
-    <div className="w-full space-y-4">
-      {/* Floor / Area Selector Pills */}
-      <div className="glass-panel p-3.5 flex items-center justify-between gap-3">
+    <div className="w-full space-y-3">
+      {/* Floor / Area Selection Pills */}
+      <div className="glass-panel p-3 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <Layers className="w-4 h-4 text-sky-400" />
-          <span className="text-sm font-bold text-white">Car Park Floor Plan</span>
+          <span className="text-xs font-bold text-white uppercase tracking-wider">Floor Plan</span>
         </div>
 
-        <div className="flex items-center gap-1 bg-slate-900/90 p-1 rounded-xl border border-slate-800">
+        <div className="flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800">
           {areaList.map((section) => (
             <button
               key={section}
@@ -40,9 +40,9 @@ export const VisualSpotMap: React.FC<VisualSpotMapProps> = ({ onSelectSpot }) =>
                 setSelectedSection(section);
                 setSelectedSpot(null);
               }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                 selectedSection === section
-                  ? 'bg-sky-600 text-white shadow-md'
+                  ? 'bg-sky-600 text-white shadow'
                   : 'text-slate-400 hover:text-white'
               }`}
             >
@@ -53,11 +53,11 @@ export const VisualSpotMap: React.FC<VisualSpotMapProps> = ({ onSelectSpot }) =>
       </div>
 
       {/* Entrance Flow Header */}
-      <div className="flex items-center justify-between text-[11px] text-amber-400 font-mono font-semibold uppercase tracking-wider px-2">
+      <div className="flex items-center justify-between text-[10px] text-amber-400 font-mono font-bold uppercase tracking-wider px-1">
         <div className="flex items-center gap-1">
           <span>ENTRANCE</span>
-          <ChevronRight className="w-3.5 h-3.5 animate-pulse text-amber-400" />
-          <ChevronRight className="w-3.5 h-3.5 animate-pulse text-amber-400" />
+          <ChevronRight className="w-3 h-3 animate-pulse" />
+          <ChevronRight className="w-3 h-3 animate-pulse" />
         </div>
         <div className="flex items-center gap-3 text-slate-400 font-sans normal-case">
           <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-glow-emerald"></span> Available</span>
@@ -65,8 +65,8 @@ export const VisualSpotMap: React.FC<VisualSpotMapProps> = ({ onSelectSpot }) =>
         </div>
       </div>
 
-      {/* High-End Visual Parking Bay Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 md:gap-4 p-3.5 bg-slate-950/90 rounded-2xl border border-slate-800/90 shadow-2xl">
+      {/* Modern High-Precision Car Park Grid */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 p-3 bg-slate-950/95 rounded-2xl border border-slate-800 shadow-2xl">
         {filteredSpots.map((spot) => {
           const session = getSpotSession(spot.id);
           const isFav = favourites.includes(spot.spot_number);
@@ -80,18 +80,18 @@ export const VisualSpotMap: React.FC<VisualSpotMapProps> = ({ onSelectSpot }) =>
               onClick={() => setSelectedSpot(spot)}
               className={`relative rounded-2xl p-3 border-2 transition-all duration-300 flex flex-col justify-between min-h-[165px] cursor-pointer group ${
                 isSelected
-                  ? 'border-sky-400 bg-sky-950/50 ring-4 ring-sky-500/40 shadow-glow-cyan scale-[1.03]'
+                  ? 'border-sky-400 bg-sky-950/60 ring-4 ring-sky-500/40 shadow-glow-cyan scale-[1.02]'
                   : isOccupied
                   ? isResidentExcess
-                    ? 'border-dashed border-amber-500/40 bg-slate-900/90 hover:border-amber-400'
-                    : 'border-dashed border-rose-500/40 bg-slate-900/90 hover:border-rose-400'
-                  : 'border-dashed border-slate-700 bg-slate-900/60 hover:border-emerald-500/60 hover:bg-slate-900/90'
+                    ? 'border-dashed border-amber-500/50 bg-slate-900/90 hover:border-amber-400'
+                    : 'border-dashed border-rose-500/50 bg-slate-900/90 hover:border-rose-400'
+                  : 'border-dashed border-slate-700/80 bg-slate-900/40 hover:border-emerald-500/60 hover:bg-slate-900/80'
               }`}
             >
               {/* Parking Bay Header: Spot Badge & Favourite Star */}
               <div className="flex items-center justify-between mb-1">
                 <span
-                  className={`px-3 py-1 rounded-full text-xs font-mono font-extrabold shadow-sm ${
+                  className={`px-2.5 py-0.5 rounded-full text-xs font-mono font-extrabold shadow-sm ${
                     isSelected
                       ? 'bg-sky-500 text-white'
                       : 'bg-slate-900 text-slate-200 border border-slate-700'
@@ -107,22 +107,57 @@ export const VisualSpotMap: React.FC<VisualSpotMapProps> = ({ onSelectSpot }) =>
                   }}
                   className="p-1 text-slate-500 hover:text-amber-400 transition-colors"
                 >
-                  <Star className={`w-4 h-4 ${isFav ? 'fill-amber-400 text-amber-400' : ''}`} />
+                  <Star className={`w-3.5 h-3.5 ${isFav ? 'fill-amber-400 text-amber-400' : ''}`} />
                 </button>
               </div>
 
-              {/* Parking Bay Center: HD Top-Down Vehicle Asset or Available Tag */}
-              <div className="my-1.5 flex flex-col items-center justify-center relative">
+              {/* Parking Bay Center: Unmistakable Top-Down Sedan Vehicle Graphic */}
+              <div className="my-2 flex flex-col items-center justify-center relative">
                 {isOccupied ? (
                   <div className="flex flex-col items-center group-hover:scale-105 transition-transform">
-                    {/* HD Top-Down Vehicle Image Graphic */}
-                    <div className="w-20 h-16 relative flex items-center justify-center overflow-hidden rounded-lg">
-                      <img
-                        src={isResidentExcess ? '/cars/car_red.jpg' : '/cars/car_white.jpg'}
-                        alt="Parked Vehicle"
-                        className="w-full h-full object-contain drop-shadow-md rounded-lg"
+                    {/* Precision Top-Down Car Graphic with Wheels, Hood, Glass & Lights */}
+                    <svg viewBox="0 0 120 60" className="w-24 h-12 drop-shadow-xl">
+                      {/* Car Body Base */}
+                      <rect
+                        x="15"
+                        y="10"
+                        width="90"
+                        height="40"
+                        rx="12"
+                        fill={isResidentExcess ? '#f59e0b' : '#38bdf8'}
+                        stroke="#0f172a"
+                        strokeWidth="2"
                       />
-                    </div>
+                      {/* Roof / Cabin */}
+                      <rect
+                        x="38"
+                        y="16"
+                        width="44"
+                        height="28"
+                        rx="6"
+                        fill="#0284c7"
+                        stroke="#0f172a"
+                        strokeWidth="1.5"
+                      />
+                      {/* Front Windshield */}
+                      <path d="M 38 17 Q 32 30 38 43 Z" fill="#0f172a" opacity="0.9" />
+                      {/* Rear Windshield */}
+                      <path d="M 82 17 Q 88 30 82 43 Z" fill="#0f172a" opacity="0.9" />
+                      {/* Side Mirrors */}
+                      <rect x="36" y="5" width="6" height="5" rx="2" fill="#0f172a" />
+                      <rect x="36" y="50" width="6" height="5" rx="2" fill="#0f172a" />
+                      {/* Wheels (4 Corners) */}
+                      <rect x="22" y="6" width="16" height="4" rx="1.5" fill="#090d16" />
+                      <rect x="22" y="50" width="16" height="4" rx="1.5" fill="#090d16" />
+                      <rect x="82" y="6" width="16" height="4" rx="1.5" fill="#090d16" />
+                      <rect x="82" y="50" width="16" height="4" rx="1.5" fill="#090d16" />
+                      {/* Bright Headlights */}
+                      <ellipse cx="17" cy="16" rx="2" ry="3" fill="#fef08a" />
+                      <ellipse cx="17" cy="44" rx="2" ry="3" fill="#fef08a" />
+                      {/* Bright Taillights */}
+                      <ellipse cx="103" cy="16" rx="2" ry="3" fill="#ef4444" />
+                      <ellipse cx="103" cy="44" rx="2" ry="3" fill="#ef4444" />
+                    </svg>
 
                     {session?.vehicle_plate && (
                       <div className="mt-1">
@@ -131,9 +166,9 @@ export const VisualSpotMap: React.FC<VisualSpotMapProps> = ({ onSelectSpot }) =>
                     )}
                   </div>
                 ) : (
-                  <div className="flex flex-col items-center py-3 text-emerald-400">
-                    <CheckCircle2 className="w-6 h-6 mb-1 text-emerald-400/80 group-hover:scale-110 transition-transform" />
-                    <span className="text-[11px] font-extrabold tracking-wider uppercase bg-emerald-950/80 px-2.5 py-0.5 rounded-full border border-emerald-500/40 shadow">
+                  <div className="flex flex-col items-center py-2.5 text-emerald-400">
+                    <CheckCircle2 className="w-6 h-6 mb-1 text-emerald-400/90 group-hover:scale-110 transition-transform" />
+                    <span className="text-[10px] font-extrabold tracking-wider uppercase bg-emerald-950/80 px-2.5 py-0.5 rounded-full border border-emerald-500/40 shadow">
                       Available
                     </span>
                   </div>
@@ -141,7 +176,7 @@ export const VisualSpotMap: React.FC<VisualSpotMapProps> = ({ onSelectSpot }) =>
               </div>
 
               {/* Bay Status Footer */}
-              <div className="text-[11px] text-center font-medium border-t border-slate-800/80 pt-1.5 text-slate-400">
+              <div className="text-[10px] text-center font-medium border-t border-slate-800/80 pt-1 text-slate-400">
                 {isSelected ? (
                   <span className="text-sky-400 font-bold">Selected Spot</span>
                 ) : isOccupied ? (
@@ -155,8 +190,8 @@ export const VisualSpotMap: React.FC<VisualSpotMapProps> = ({ onSelectSpot }) =>
         })}
       </div>
 
-      {/* Floating Primary Action Bar */}
-      <div className="sticky bottom-20 md:bottom-4 z-30 pt-2">
+      {/* Floating Action Bar */}
+      <div className="sticky bottom-20 md:bottom-4 z-30 pt-1">
         <button
           onClick={() => {
             if (selectedSpot) {
