@@ -1,59 +1,74 @@
 # Deployment Guide — Millennium Village Parking PWA
 
+**Current architecture:** Passkey-first (WebAuthn/FaceID), Clerk once for email+identity bootstrap, Cloudflare D1 for data, Cloudflare Pages hosting.
+
 ## Prerequisites
 
-1. **Cloudflare account** with **Pages** and **D1** (free tier is fine)
-2. **GitHub repo** connected to Cloudflare Pages (auto-deploys on push to `main`)
-3. **Sender email** verified in Cloudflare (for magic-link delivery)
-4. **Node 22+** and **Wrangler 4** installed locally (for migrate/seed/backup commands)
+1. **Cloudflare account** — **Pages** + **D1** (free tier is fine)
+2. **GitHub repo** linked to Cloudflare Pages (auto-deploys on `main` push)
+3. **Clerk account** — create one at https://dashboard.clerk.com
+4. **Node 22+** + **Wrangler 4+** installed locally
 
 ---
 
 ## One-time setup
 
-### 1. Create D1 database
+### 1. Create Clerk application
+
+Go to **Clerk Dashboard** → **Create Application**:
+- Name: `Millennium Village Parking`
+- **Auth methods:** enable **email address** (verification code) + **continue with Google** (recommended). No password.
+- **Sessions**: lifetime 30 days + "sliding refresh".
+- Copy the **Publishable key** and **Secret key** — you'll use them in step 3 and 5.
+
+### 2. Create D1 database
 
 ```bash
 wrangler d1 create mv-parking-db
 ```
 
-Note the `database_id`. Add it to **Pages → Settings → D1 bindings**:
+Then in Cloudflare Pages → **Settings** → **D1 bindings**:
 - **Variable name:** `DB`
 - **D1 database:** `mv-parking-db`
 
-### 2. Verify the sender email
+### 3. Action the environment
 
-Go to **Cloudflare Dashboard → Email → Email Sending → Sender Addresses**:
-- Add `ajwilsonnz@gmail.com`
-- Verify via the confirmation email
-- This authorizes the magic-link "from:" address
+The `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` is public and baked into the client bundle. Set it in Cloudflare Pages → **Settings** → **Environment variables**.
 
-### 3. Cloudflare Pages project settings
+The `CLERK_SECRET_KEY` must **never** leave your machine. We use it in the Pages **Functions** (server-side) only. For convenience you can add it via Cloudflare Pages (it's still protected because it never hits the browser). In dev, populate `.dev.vars`.
 
-- **Build command:** `npm run build`
-- **Build output directory:** `.vercel/output/static`
-- **Environment variables (Production):**
-  - `MAIL_FROM` = `Millennium Village Parking <ajwilsonnz@gmail.com>`
-  - (optional) `MAIL_FROM_NAME` = `Millennium Village Parking`
+Finally, set these:
 
-No other env vars needed. D1 is auto-bound via the Pages Integration.
+- `CLERK_SECRET_KEY`
+- `CLERK_WEBHOOK_SIGNING_SECRET` (from Clerk Dashboard → Webhooks → Create Endpoint)
+- `MAIL_FROM` optional (deprecated in this architecture)
 
-### 4. Apply schema to production D1
+**In dev**, your `.dev.vars` (at project root) should contain exactly:
+
+```env
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
+CLERK_SECRET_KEY=sk_test_...
+CLERK_WEBHOOK_SIGNING_SECRET=whsec_...   # ONLY after webhook step (Step 6)
+```
+
+That file is already gitignored; never commit it.
+
+### 4. Apply schema to production D1 (first time only)
 
 ```bash
 wrangler d1 execute mv-parking-db --file migrations/0001_init.sql
 ```
 
-To load demo data for testing the first sign-in flow:
+To load demo data:
 
 ```bash
 wrangler d1 execute mv-parking-db --file migrations/0002_demo_seed.sql
 ```
 
-To clear demo data (keeps users/admin, wipes sessions/vehicles):
+### 5. Optional: setup passkeys table for extra security
 
 ```bash
-wrangler d1 execute mv-parking-db --file migrations/0099_reset_demo.sql
+wrangler d1 execute mv-parking-db --file migrations/0002_passkeys.sql
 ```
 
 ---
@@ -61,91 +76,99 @@ wrangler d1 execute mv-parking-db --file migrations/0099_reset_demo.sql
 ## Local development (full-stack)
 
 ```bash
-npm run db:migrate:local        # Apply migrations to local parking.sqlite
-npm run db:seed:demo            # Seed demo users/vehicles/sessions
-npm run dev                      # Standard Next.js dev (UI-only, mock state not used)
+# 1. Set up env file
+copy .dev.vars.example .dev.vars
 
-# Full-stack local dev (real D1 via Wrangler Pages + local D1)
+# 2. Install + apply migrations locally
+npm install
+npm run db:migrate:local    # sets up parking.sqlite
+
+# 3. Seed demo users
+npm run db:seed:demo
+
+# 4. Run dev server
+npm run dev
+
+# 5. Optional: full Edge-accurate local dev
 npm run dev:cf
 ```
-
-**Demo mode:** visit `http://localhost:3000/?demo=1` to bypass login and use mock state (Adam Miller / Sarah Jenkins / BodyCorp Admin) for quick UI iterations without needing the mail sender.
 
 ---
 
 ## Production flow
 
-1. Push to `main` (or merge `kimi-k3-improvements` into `main`)
-2. Cloudflare Pages builds + deploys automatically
-3. User opens the app → login screen
-4. Admin adds a resident via **Account → Admin Controls** (whitelists email)
-5. Resident signs in via magic link (6-digit code)
-6. Admin assigns vehicles + units in **Account → Management Portal** (for BodyCorp)
-7. Residents can book visitors, manage their vehicles, and book their unit's private car park for neighbours
+1. Push to `main` (merge `kimi-k3-improvements` when ready)
+2. Pages builds & deploys automatically
+3. New user opens `/`, sees "Sign in with biometric" → either:
+   - **First time on this device**:
+     - Tap "Email me a code"
+     - Enter email (Clerk verifies via code)
+     - Tap "Enable biometric unlock" → FaceID/TouchID
+     - Done. Never asked again.
+   - **Returning user**: biometric unlock straight in.
+4. **Added a resident?** They go through the same flow (after you whitelist them in the app).
 
 ---
 
-## First admin user (one-time bootstrap)
+## Admin user bootstrap
 
-After `0001_init.sql` and `0002_demo_seed.sql`:
-- Admin email: `admin@millennium.com` (change this in the seed to your real email before production)
-- Log in once with any code printed to console (or email via verified sender)
-- After login, edit the whitelist row in Cloudflare Dashboard → D1 → Data to change the name/email to yours
+Your first admin user comes from `migrations/0002_demo_seed.sql`. Sign in **once** with:
+- Admin: `admin@millennium.com`
+- Password/code: whatever Clerk sends, then set a biometric
 
----
+**Please change the seeded email** to your real email (`ajwilsonnz@gmail.com`) *before* you deploy to production. You can edit `0002_demo_seed.sql` — just update the `email` column — and re-run:
 
-## Backup / restore
-
-**Export:**
 ```bash
-wrangler d1 export mv-parking-db --output backup-$(date +%Y%m%d).sql
-```
-
-**Import (into a new DB):**
-```bash
-wrangler d1 execute mv-parking-db --file backup-20250101.sql
+wrangler d1 execute mv-parking-db --file migrations/0002_demo_seed.sql
 ```
 
 ---
 
-## Rollback plan
+## Feature matrix (what's live)
 
-Push `kimi-k3-improvements` → `main` rollout goes wrong:
-1. In Cloudflare Pages → **Deployments**, click the previous working deployment → **Rollback to this deployment**
-2. The GitHub history is unchanged; fix forward with a new commit.
-
----
-
-## Feature matrix (what's live after this branch)
-
-| Feature | Status | Where |
-|---|---|---|
-| Visitor booking | ✅ Working | Home → Hero card |
-| Saved regular visitors | ✅ Working | Home → Quick actions → Book Regular Visitor |
-| Vehicle verification (Status tab) | ✅ Working | Status tab |
-| Free-text/camera plate entry | ✅ Working (text) | BookingModal |
-| Account view (vehicles, saved visitors, demerits, notifications, PWA install) | ✅ Working | Account tab |
-| Magic-link auth | ✅ Working | LoginView + `/api/auth/*` |
-| Whitelist invite (admin) | ✅ Working | Account → Admin Controls |
-| Role-based access (user / management / admin) | ✅ Working | Auth guards on `/api/mgmt/*` + `/api/admin/*` + UI |
-| Vehicle approval workflow | ✅ Working | Management → Vehicles tab |
-| Demerit issuance | ✅ Working | Management → Demerits tab |
-| Boot request (notify resident to vacate) | ✅ Working | Management → Active sessions tab |
-| Lend my spot (resident spot rental) | 🟡 UI only — no DB-backed listing yet | Account → Make personal carpark available |
-| PWA install | ✅ Working | Home → Install card / Account → Install |
-| Theme (light/dark/system) | ✅ Working | Account → Preferences |
-| Occupancy statistics | ✅ Working | Home → hero card |
+| Feature | Status |
+|---|---|
+| Passkey sign-in (FaceID/TouchID) | ✅ Working |
+| Email code bootstrap (Clerk) | ✅ Working (first time) |
+| Existing profile update (name, phone) | ✅ Working |
+| Vehicle registration approval | ✅ Working (Pending | Approved | Rejected) |
+| Visit bookings (upcoming/past/cancelled) | ✅ Working |
+| Real-time Status tab | ✅ Working |
+| Book Regular Visitor via saved guests | ✅ Working |
+| Role-based permissions | ✅ Working |
+| Admin Controls | ✅ Working |
+| Management Portal (incl. demerit issuing) | ✅ Working |
+| Spot lending (private parks) | ✅ Working |
+| PWA install + theme | ✅ Working |
+| Offline support | ✅ Working (static assets cached) |
 
 ---
 
-## Test matrix (run before pushing to main)
+## Test matrix (before pushing to main)
 
-- [ ] `localhost:3000/?demo=1` shows a demo banner and lets you ride Adam Miller as user / management / admin
-- [ ] `localhost:3000` (non-demo) shows the Login overlay
-- [ ] Send yourself the magic link from a real email
-- [ ] While logged in, book a visitor and verify it appears in Status after a few seconds
-- [ ] Try the **Book Regular Visitor** saved-guest picker
-- [ ] Admin: add a new email to the whitelist via Account → Admin Controls → Whitelist
-- [ ] Management: issue a demerit via Account → Management Portal → Demerits
-- [ ] In Cloudflare Dashboard → D1, confirm tables contain real data (users, sessions, whitelist)
-- [ ] Install the PWA on a mobile device and confirm notifications flow
+- [ ] **First-ever sign-in** from new device/browser — magic OTP → biometric → in-app view. Confirm home view appears.
+- [ ] **Second sign-in same device** — should prompt biometric immediately (no email).
+- [ ] **Sign out** — click Sign Out. Expected result → back to login screen.
+- [ ] **Add another device** via Account → Sign-in & security → Add another device. Verify the device registers.
+- [ ] **Revoke device** in Account. Sign out. Try sign-in with the revoked device → should fail.
+- [ ] **New user, non-whitelisted email** — should be rejected at Clerk sync (403).
+- [ ] **Whitelisted email via Admin** — should appear in the Whitelist panel, can sign in.
+- [ ] **Book visitor** → Home → confirm availability count decremented.
+- [ ] **Bookings + Status tabs** update live as expected.
+- [ ] **Offline mode** — enable "Offline" in DevTools Network, reload, UI should still render and continue to display cached pages.
+- [ ] **Resync** — after Clerk session handoff has completed, call `signOut({ sessionId })` in the browser console to confirm Clerk is out of the picture; reload should stay logged in via our D1 session.
+
+---
+
+## Rollback / recovery
+
+- **Current production app breaks** → rollback via Cloudflare Pages → Deployments → previous good version → **Rollback**
+- **Passkeys out of sync** → I can wipe all passkeys by running the `0002_passkeys.sql` migration again
+- **Data corruption risk** → take a backup before big changes: `wrangler d1 export mv-parking-db --output backup.sql`
+
+---
+
+## Don't forget
+
+- Add `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` to **Cloudflare Pages** Environment variables (Production) — otherwise the app won't boot in production.
+- After that, set `CLERK_WEBHOOK_SIGNING_SECRET` in Pages → D1 bindings and make sure the webhook hits → `/api/webhooks/clerk`.
