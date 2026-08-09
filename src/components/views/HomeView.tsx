@@ -18,13 +18,14 @@ import {
   Car
 } from 'lucide-react';
 import { BookingModal } from '@/components/parking/BookingModal';
+import { InstallPromptCard } from '@/components/pwa/InstallPromptCard';
 
 interface HomeViewProps {
   onNavigateTab: (tab: string) => void;
 }
 
 export const HomeView: React.FC<HomeViewProps> = ({ onNavigateTab }) => {
-  const { config, sessions, carparks, availableParksIfResidentStays } = useApp();
+  const { config, sessions, carparks } = useApp();
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [showRulesModal, setShowRulesModal] = useState(false);
 
@@ -33,6 +34,9 @@ export const HomeView: React.FC<HomeViewProps> = ({ onNavigateTab }) => {
 
   return (
     <div className="space-y-4 max-w-lg mx-auto pb-24 animate-fade-in">
+      {/* PWA Install prompt (dismissible, auto-hides when installed) */}
+      <InstallPromptCard />
+
       {/* 1. Building Selector Row & Settings Button */}
       <div className="flex items-center gap-2">
         <div className="flex-1 mockup-card p-3 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors">

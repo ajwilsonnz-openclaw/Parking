@@ -153,7 +153,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if ('Notification' in window && Notification.permission === 'granted') {
       try {
-        new Notification(title, { body: message, icon: '/icon-192.png' });
+        new Notification(title, { body: message, icon: '/icons/icon-192.png' });
       } catch (e) {}
     }
   };
