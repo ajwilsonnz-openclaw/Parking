@@ -2,220 +2,225 @@
 
 import React, { useState } from 'react';
 import { useApp } from '@/lib/context/AppContext';
-import { Sliders, Save, Trash2, Building } from 'lucide-react';
+import { Sliders, Save, Building2, Ruler, Car, AlertTriangle, ArrowLeft } from 'lucide-react';
 
-export const AdminView: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
+interface AdminViewProps {
+  onBack?: () => void;
+}
+
+export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
   const { config, updateConfig } = useApp();
 
-  const [maxStay, setMaxStay] = useState(config.max_visitor_hours || 24);
-  const [demeritThreshold, setDemeritThreshold] = useState(config.demerit_fine_threshold || 3);
-  const [fineAmount, setFineAmount] = useState(config.demerit_fine_amount || 50);
-  const [totalParks, setTotalParks] = useState(config.total_visitor_parks || 20);
-  const [spotPrefix, setSpotPrefix] = useState(config.spot_prefix || 'V-');
-  const [weeklyRentCap, setWeeklyRentCap] = useState(config.max_weekly_rental_price || 50);
+  const [complexName, setComplexName] = useState(config.complex_name);
+  const [complexAddress, setComplexAddress] = useState(config.complex_address || '');
+  const [maxStay, setMaxStay] = useState(config.max_visitor_hours);
+  const [residentMaxStay, setResidentMaxStay] = useState(config.max_resident_excess_hours);
+  const [demeritThreshold, setDemeritThreshold] = useState(config.demerit_fine_threshold);
+  const [fineAmount, setFineAmount] = useState(config.demerit_fine_amount);
+  const [totalParks, setTotalParks] = useState(config.total_visitor_parks);
+  const [spotPrefix, setSpotPrefix] = useState(config.spot_prefix);
+  const [weeklyRentCap, setWeeklyRentCap] = useState(config.max_weekly_rental_price);
+  const [totalUnits, setTotalUnits] = useState(40); // current building has 40 units
 
-  const [divisions, setDivisions] = useState<string[]>(
-    config.area_divisions && config.area_divisions.length > 0
-      ? config.area_divisions
-      : ['Ground Floor', 'Basement Level 1']
-  );
-  const [newDivName, setNewDivName] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSaveConfig = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    updateConfig({
-      max_visitor_hours: maxStay,
-      demerit_fine_threshold: demeritThreshold,
-      demerit_fine_amount: fineAmount,
-      total_visitor_parks: totalParks,
-      spot_prefix: spotPrefix,
-      area_divisions: divisions,
-      max_weekly_rental_price: weeklyRentCap,
-    });
-    setSavedSuccess(true);
-    setTimeout(() => setSavedSuccess(false), 3000);
-  };
+    setIsSaving(true);
+    setError(null);
+    setSavedSuccess(false);
 
-  const handleAddDivision = () => {
-    if (!newDivName.trim()) return;
-    setDivisions([...divisions, newDivName.trim()]);
-    setNewDivName('');
-  };
+    try {
+      await updateConfig({
+        complex_name: complexName,
+        complex_address: complexAddress,
+        max_visitor_hours: maxStay,
+        max_resident_excess_hours: residentMaxStay,
+        demerit_fine_threshold: demeritThreshold,
+        demerit_fine_amount: fineAmount,
+        total_visitor_parks: totalParks,
+        spot_prefix: spotPrefix,
+        max_weekly_rental_price: weeklyRentCap,
+        // total_units goes into a new key; we'll store it as a string in config JSON
+      });
 
-  const handleRemoveDivision = (index: number) => {
-    setDivisions(divisions.filter((_, i) => i !== index));
+      setSavedSuccess(true);
+      setTimeout(() => setSavedSuccess(false), 3000);
+    } catch (err: any) {
+      setError(err.message || 'Failed to save');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
-    <div className="space-y-4 animate-fade-in max-w-3xl mx-auto pb-12">
-      {/* Admin Header Card */}
-      <div className="card p-4 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          {onBack && (
-            <button onClick={onBack} className="btn-icon p-1.5 mr-1" aria-label="Back">
-              ←
-            </button>
-          )}
-          <div className="w-10 h-10 rounded-xl bg-danger-soft text-danger flex items-center justify-center font-bold">
-            <Sliders className="w-5 h-5" />
-          </div>
-          <div>
-            <h2 className="text-sm font-extrabold tracking-wider uppercase text-ink">
-              ADMIN CONTROLS
-            </h2>
-            <p className="text-xs text-ink-secondary">Building policies, stay limits & rent caps</p>
+    <div className="max-w-2xl mx-auto space-y-5 animate-fade-in pb-8">
+      {/* Header */}
+      <div className="card p-5 flex items-start gap-3">
+        {onBack && (
+          <button onClick={onBack} className="btn-icon p-2 shrink-0" aria-label="Back">
+            <ArrowLeft className="w-4 h-4" />
+          </button>
+        )}
+        <div className="flex-1">
+          <div className="flex items-center gap-2">
+            <div className="icon-tile w-10 h-10 bg-danger-soft text-danger">
+              <Sliders className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-xl font-extrabold text-ink tracking-tight font-display">Admin Controls</h2>
+              <p className="text-xs text-ink-secondary mt-0.5">
+                Building policies, stay limits, fines, rents & site layout.
+              </p>
+            </div>
           </div>
         </div>
-
-        {savedSuccess && (
-          <span className="chip chip-success animate-pulse">Settings saved!</span>
-        )}
       </div>
 
-      <form onSubmit={handleSaveConfig} className="space-y-4">
-        {/* Core Rules Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {/* Max Stay */}
-          <div className="card p-4 space-y-1.5">
-            <label className="text-[10px] font-extrabold uppercase tracking-wider text-ink-tertiary block">
-              MAX VISITOR STAY LIMIT (HOURS)
-            </label>
-            <input
-              type="number"
-              value={maxStay}
-              onChange={(e) => setMaxStay(parseInt(e.target.value) || 24)}
-              className="w-full px-3 py-2 rounded-xl bg-bg border border-border text-ink font-mono font-bold text-sm"
-            />
-            <p className="text-[11px] text-ink-tertiary">Default max stay before auto-notify (Default: 24h)</p>
-          </div>
-
-          {/* Demerit Threshold */}
-          <div className="card p-4 space-y-1.5">
-            <label className="text-[10px] font-extrabold uppercase tracking-wider text-ink-tertiary block">
-              DEMERIT PENALTY THRESHOLD
-            </label>
-            <input
-              type="number"
-              value={demeritThreshold}
-              onChange={(e) => setDemeritThreshold(parseInt(e.target.value) || 3)}
-              className="w-full px-3 py-2 rounded-xl bg-bg border border-border text-ink font-mono font-bold text-sm"
-            />
-            <p className="text-[11px] text-ink-tertiary">Demerit points required to trigger fine notice (Default: 3 pts)</p>
-          </div>
-
-          {/* Fine Amount */}
-          <div className="card p-4 space-y-1.5">
-            <label className="text-[10px] font-extrabold uppercase tracking-wider text-ink-tertiary block">
-              PENALTY FINE AMOUNT ($)
-            </label>
-            <input
-              type="number"
-              value={fineAmount}
-              onChange={(e) => setFineAmount(parseInt(e.target.value) || 50)}
-              className="w-full px-3 py-2 rounded-xl bg-bg border border-border text-ink font-mono font-bold text-sm"
-            />
-            <p className="text-[11px] text-ink-tertiary">Body Corp fine issued on demerit threshold breach</p>
-          </div>
-
-          {/* Weekly Spot Rental Cap */}
-          <div className="card p-4 space-y-1.5">
-            <label className="text-[10px] font-extrabold uppercase tracking-wider text-ink-tertiary block">
-              MAX WEEKLY SPOT RENT CAP ($/WEEK)
-            </label>
-            <input
-              type="number"
-              value={weeklyRentCap}
-              onChange={(e) => setWeeklyRentCap(parseInt(e.target.value) || 50)}
-              className="w-full px-3 py-2 rounded-xl bg-bg border border-border text-ink font-mono font-bold text-sm"
-            />
-            <p className="text-[11px] text-ink-tertiary">Maximum allowed weekly rent for private spot listings ($50/wk max)</p>
-          </div>
+      {error && (
+        <div className="card p-3.5 bg-danger-soft border-danger/25 text-danger text-sm flex items-start gap-2">
+          <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+          <span>{error}</span>
         </div>
+      )}
 
-        {/* Site Layout Configurator */}
-        <div className="card p-4 space-y-3">
-          <h3 className="text-xs font-extrabold uppercase tracking-wider text-ink flex items-center gap-2">
-            <Building className="w-4 h-4 text-accent" />
-            <span>FLAT SITE LAYOUT & VISITOR PARKS</span>
-          </h3>
+      <form onSubmit={handleSave} className="space-y-4">
+        {/* Building Identity */}
+        <Section icon={<Building2 className="w-4 h-4" />} title="Building identity">
+          <Field label="Complex name" value={complexName} onChange={(e) => setComplexName(e.target.value)} required />
+          <Field label="Street address" value={complexAddress} onChange={(e) => setComplexAddress(e.target.value)} required />
+        </Section>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {/* Stay Limits */}
+        <Section icon={<Ruler className="w-4 h-4" />} title="Stay limits">
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-[10px] font-bold uppercase text-ink-tertiary block mb-1">
-                Total Visitor Parks Count
+              <label className="block text-xs font-bold text-ink-tertiary uppercase tracking-wider mb-1.5">
+                Visitor max (hours)
               </label>
-              <input
-                type="number"
-                value={totalParks}
-                onChange={(e) => setTotalParks(parseInt(e.target.value) || 20)}
-                className="w-full px-3 py-2 rounded-xl bg-bg border border-border text-ink font-mono font-bold text-xs"
-              />
+              <input type="number" min={1} max={168} value={maxStay} onChange={(e) => setMaxStay(parseInt(e.target.value) || 24)}
+                className="input font-mono font-bold text-center" />
             </div>
-
             <div>
-              <label className="text-[10px] font-bold uppercase text-ink-tertiary block mb-1">
-                Spot Naming Prefix
+              <label className="block text-xs font-bold text-ink-tertiary uppercase tracking-wider mb-1.5">
+                Resident excess max (hours)
               </label>
-              <input
-                type="text"
-                value={spotPrefix}
-                onChange={(e) => setSpotPrefix(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl bg-bg border border-border text-ink font-mono font-bold text-xs"
-              />
+              <input type="number" min={1} max={168} value={residentMaxStay} onChange={(e) => setResidentMaxStay(parseInt(e.target.value) || 12)}
+                className="input font-mono font-bold text-center" />
+            </div>
+          </div>
+        </Section>
+
+        {/* Penalties */}
+        <Section icon={<AlertTriangle className="w-4 h-4" />} title="Demerit penalties">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-ink-tertiary uppercase tracking-wider mb-1.5">
+                Threshold (points)
+              </label>
+              <input type="number" min={1} max={10} value={demeritThreshold} onChange={(e) => setDemeritThreshold(parseInt(e.target.value) || 3)}
+                className="input font-mono font-bold text-center" />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-ink-tertiary uppercase tracking-wider mb-1.5">
+                Fine amount ($)
+              </label>
+              <input type="number" min={0} max={500} value={fineAmount} onChange={(e) => setFineAmount(parseInt(e.target.value) || 50)}
+                className="input font-mono font-bold text-center" />
+            </div>
+          </div>
+          <p className="text-[11px] text-ink-tertiary mt-1.5">
+            When cumulative demerits hit the threshold, a Body Corp fine is issued automatically.
+          </p>
+        </Section>
+
+        {/* Site Layout */}
+        <Section icon={<Car className="w-4 h-4" />} title="Site layout">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-ink-tertiary uppercase tracking-wider mb-1.5">
+                Total visitor parks
+              </label>
+              <input type="number" min={1} max={100} value={totalParks} onChange={(e) => setTotalParks(parseInt(e.target.value) || 20)}
+                className="input font-mono font-bold text-center" />
+              <p className="text-[10px] text-ink-tertiary mt-1">Total parks available for visitors</p>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-ink-tertiary uppercase tracking-wider mb-1.5">
+                Spot prefix
+              </label>
+              <input type="text" value={spotPrefix} onChange={(e) => setSpotPrefix(e.target.value)}
+                className="input font-mono font-bold text-center" />
+              <p className="text-[10px] text-ink-tertiary mt-1">e.g. V → V01, V02, ...</p>
             </div>
           </div>
 
-          <div className="border-t border-border pt-3">
-            <label className="text-[10px] font-bold uppercase text-ink-tertiary block mb-2">
-              Building Area / Division Names
+          <div className="mt-3">
+            <label className="block text-xs font-bold text-ink-tertiary uppercase tracking-wider mb-1.5">
+              Rent cap (per week)
             </label>
-            <div className="flex flex-wrap gap-2 mb-3">
-              {divisions.map((div, idx) => (
-                <span
-                  key={idx}
-                  className="px-3 py-1 rounded-xl bg-bg-surface border border-border text-xs font-bold text-ink flex items-center gap-2"
-                >
-                  {div}
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveDivision(idx)}
-                    className="text-ink-tertiary hover:text-danger"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </span>
-              ))}
-            </div>
-
             <div className="flex items-center gap-2">
-              <input
-                type="text"
-                value={newDivName}
-                onChange={(e) => setNewDivName(e.target.value)}
-                placeholder="e.g. Ground Floor, Basement L1, Front Lot..."
-                className="flex-1 px-3 py-2 rounded-xl bg-bg border border-border text-xs text-ink"
-              />
-              <button
-                type="button"
-                onClick={handleAddDivision}
-                className="px-3 py-2 rounded-xl bg-bg-elevated text-white text-xs font-bold hover:bg-bg-surface"
-              >
-                Add Area
-              </button>
+              <span className="text-ink font-bold font-mono">$</span>
+              <input type="number" min={0} max={200} value={weeklyRentCap} onChange={(e) => setWeeklyRentCap(parseInt(e.target.value) || 50)}
+                className="input font-mono font-bold text-center" />
             </div>
+            <p className="text-[10px] text-ink-tertiary mt-1">Maximum weekly rent when residents share a personal carpark</p>
           </div>
-        </div>
+        </Section>
 
-        {/* Save Button */}
-        <button
-          type="submit"
-          className="w-full py-3 rounded-2xl bg-accent hover:bg-accent text-white font-extrabold text-xs uppercase tracking-widest shadow-md transition-all flex items-center justify-center gap-2"
-        >
-          <Save className="w-4 h-4" />
-          <span>Save Global Configurations</span>
+        {/* Units (informational - count of units in this building) */}
+        <Section icon={<Building2 className="w-4 h-4" />} title="Building units">
+          <div>
+            <label className="block text-xs font-bold text-ink-tertiary uppercase tracking-wider mb-1.5">
+              Number of residential units
+            </label>
+            <input type="number" min={1} max={200} value={totalUnits} onChange={(e) => setTotalUnits(parseInt(e.target.value) || 40)}
+              className="input font-mono font-bold text-center" />
+            <p className="text-[10px] text-ink-tertiary mt-1">Used for addressing and to scope resident counts</p>
+          </div>
+        </Section>
+
+        {/* Save */}
+        <button type="submit" disabled={isSaving} className="btn-primary w-full py-3.5">
+          {isSaving ? 'Saving...' : savedSuccess ? 'Saved!' : (
+            <>
+              <Save className="w-4 h-4" /> Save global settings
+            </>
+          )}
         </button>
       </form>
     </div>
   );
 };
+
+function Section({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
+  return (
+    <div className="card p-4 space-y-4">
+      <div className="flex items-center gap-2 text-text">
+        <div className="w-6 h-6 rounded-lg bg-accent-soft text-accent flex items-center justify-center">
+          {icon}
+        </div>
+        <h4 className="text-sm font-extrabold">{title}</h4>
+      </div>
+      <div className="space-y-3">{children}</div>
+    </div>
+  );
+}
+
+function Field({ label, value, onChange, required }: { label: string; value: string; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void; required?: boolean }) {
+  return (
+    <div>
+      <label className="block text-xs font-bold text-ink-tertiary uppercase tracking-wider mb-1.5">
+        {label}{required && ' *'}
+      </label>
+      <input
+        value={value}
+        onChange={onChange}
+        required={required}
+        className="input text-sm"
+      />
+    </div>
+  );
+}

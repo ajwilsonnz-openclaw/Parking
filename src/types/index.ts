@@ -88,6 +88,7 @@ export interface SystemConfig {
   max_resident_excess_hours: number; // default 12
   max_weekly_rental_price: number; // default 50.00
   complex_name: string;
+  complex_address?: string;
   demerit_fine_threshold: number; // default 3
   demerit_fine_amount: number; // default 50
   tow_agency_name: string;
