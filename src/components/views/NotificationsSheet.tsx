@@ -26,7 +26,7 @@ function formatTimestamp(ts: string): string {
 }
 
 export const NotificationsSheet: React.FC<NotificationsSheetProps> = ({ isOpen, onClose }) => {
-  const { notificationLog } = useApp();
+  const { notifications } = useApp();
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} maxWidth="md">
@@ -40,7 +40,7 @@ export const NotificationsSheet: React.FC<NotificationsSheetProps> = ({ isOpen, 
         </div>
       </div>
 
-      {notificationLog.length === 0 ? (
+      {notifications.length === 0 ? (
         <div className="card p-6 text-center">
           <CheckCircle2 className="w-10 h-10 text-success mx-auto mb-2 opacity-60" />
           <h4 className="text-sm font-bold text-ink">All caught up</h4>
@@ -48,7 +48,7 @@ export const NotificationsSheet: React.FC<NotificationsSheetProps> = ({ isOpen, 
         </div>
       ) : (
         <div className="space-y-2 max-h-[60vh] overflow-y-auto -mx-2 px-2">
-          {notificationLog.map((n) => (
+          {notifications.map((n) => (
             <div
               key={n.id}
               className="card p-3.5"
@@ -56,10 +56,10 @@ export const NotificationsSheet: React.FC<NotificationsSheetProps> = ({ isOpen, 
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
                   <h4 className="text-sm font-bold text-ink">{n.title}</h4>
-                  <p className="text-xs text-ink-secondary mt-1 leading-relaxed">{n.message}</p>
+                  <p className="text-xs text-ink-secondary mt-1 leading-relaxed">{n.message || n.body}</p>
                 </div>
                 <span className="text-[10px] text-ink-tertiary font-semibold shrink-0 mt-0.5">
-                  {formatTimestamp(n.timestamp)}
+                  {formatTimestamp(n.created_at || n.timestamp)}
                 </span>
               </div>
             </div>

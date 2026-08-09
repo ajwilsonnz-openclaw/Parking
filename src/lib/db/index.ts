@@ -1,11 +1,14 @@
-// Cloudflare D1 & Local SQLite Database Query Helper
+// Cloudflare D1 helper - safe in both Edge & local Node runtimes.
+// Uses getRequestContext() when available (Cloudflare Pages), falls back to
+// better-sqlite3 at dev time (via eval-require to dodge bundler analysis).
+
 let localDbInstance: any = null;
 
 function getLocalDb() {
   if (typeof window !== 'undefined') return null;
   if (!localDbInstance) {
     try {
-      // Use eval require to prevent Webpack Edge bundler from analyzing node-native dependencies
+      // Use eval-require so Webpack's Edge build doesn't try to bundle native bindings
       const req = eval('require');
       const Database = req('better-sqlite3');
       const path = req('path');
@@ -15,23 +18,34 @@ function getLocalDb() {
       localDbInstance = new Database(dbPath);
       localDbInstance.pragma('journal_mode = WAL');
 
-      const tableCheck = localDbInstance.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='whitelist'").get();
-      if (!tableCheck) {
-        const schemaPath = path.join(process.cwd(), 'schema.sql');
-        if (fs.existsSync(schemaPath)) {
-          const schemaSql = fs.readFileSync(schemaPath, 'utf8');
-          localDbInstance.exec(schemaSql);
+      // Auto-apply migrations if any table missing
+      const hasUsers = localDbInstance
+        .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
+        .get();
+      if (!hasUsers) {
+        const migrationsDir = path.join(process.cwd(), 'migrations');
+        if (fs.existsSync(migrationsDir)) {
+          const files = fs.readdirSync(migrationsDir)
+            .filter((f: string) => f.endsWith('.sql'))
+            .sort();
+          for (const file of files) {
+            const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
+            localDbInstance.exec(sql);
+          }
         }
       }
     } catch (err) {
-      // Skipped safely in Cloudflare Edge Runtime
+      // Not on Node, or migrations already applied. Safe to ignore.
     }
   }
   return localDbInstance;
 }
 
+/**
+ * Run a query. Returns array of rows for SELECT, otherwise affected.
+ */
 export async function queryDb<T = any>(sql: string, params: any[] = []): Promise<T[]> {
-  // 1. Cloudflare Pages / Worker Edge Runtime environment with D1 binding
+  // Cloudflare Pages: use bound D1 from request context
   // @ts-ignore
   if (typeof process !== 'undefined' && process.env && process.env.DB) {
     try {
@@ -40,12 +54,12 @@ export async function queryDb<T = any>(sql: string, params: any[] = []): Promise
       const res = await stmt.all();
       return (res.results || []) as T[];
     } catch (e) {
-      console.error('Cloudflare D1 query error:', e);
+      console.error('D1 query error:', e);
       return [];
     }
   }
 
-  // 2. Local Node environment fallback
+  // Local dev: use sqlite
   try {
     const db = getLocalDb();
     if (!db) return [];
@@ -60,4 +74,40 @@ export async function queryDb<T = any>(sql: string, params: any[] = []): Promise
     console.error('Local SQLite error:', err);
     return [] as T[];
   }
+}
+
+/**
+ * Run a write query. Returns { lastID, changes }.
+ */
+export async function execDb(sql: string, params: any[] = []): Promise<{ lastID?: number; changes?: number }> {
+  // Cloudflare Pages
+  // @ts-ignore
+  if (typeof process !== 'undefined' && process.env && process.env.DB) {
+    try {
+      // @ts-ignore
+      const res = await process.env.DB.prepare(sql).bind(...params).run();
+      return { lastID: res.meta?.last_row_id, changes: res.meta?.changes };
+    } catch (e) {
+      console.error('D1 exec error:', e);
+      return {};
+    }
+  }
+
+  // Local dev
+  try {
+    const db = getLocalDb();
+    if (!db) return {};
+    const stmt = db.prepare(sql);
+    const result = stmt.run(...params);
+    return { lastID: result.lastInsertRowid, changes: result.changes };
+  } catch (err) {
+    console.error('Local SQLite exec error:', err);
+    return {};
+  }
+}
+
+/** Get a single row */
+export async function queryDbOne<T = any>(sql: string, params: any[] = []): Promise<T | null> {
+  const rows = await queryDb<T>(sql, params);
+  return rows.length ? rows[0] : null;
 }

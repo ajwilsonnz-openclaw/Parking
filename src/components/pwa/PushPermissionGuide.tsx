@@ -11,7 +11,17 @@ interface PushPermissionGuideProps {
 }
 
 export const PushPermissionGuide: React.FC<PushPermissionGuideProps> = ({ isOpen, onClose }) => {
-  const { addNotificationLog } = useApp();
+  // Need a safe way to trigger a local notification without API
+  const triggerTestNotification = () => {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      try {
+        new Notification('Test alert', {
+          body: 'Your parking session on spot V03 has 15 minutes remaining!',
+          icon: '/icons/icon-192.png',
+        });
+      } catch {}
+    }
+  };
   const [permissionState, setPermissionState] = useState<NotificationPermission>('default');
   const [osType, setOsType] = useState<'ios' | 'android' | 'desktop'>('desktop');
 
@@ -32,7 +42,7 @@ export const PushPermissionGuide: React.FC<PushPermissionGuideProps> = ({ isOpen
       const res = await Notification.requestPermission();
       setPermissionState(res);
       if (res === 'granted') {
-        addNotificationLog('Notifications enabled!', "You'll now receive instant carpark expiry reminders.");
+        
       }
     } catch (e) {
       console.error(e);
@@ -40,7 +50,7 @@ export const PushPermissionGuide: React.FC<PushPermissionGuideProps> = ({ isOpen
   };
 
   const sendTestAlert = () => {
-    addNotificationLog('Test alert', 'Your parking session on spot V-03 has 15 minutes remaining!');
+    
   };
 
   return (

@@ -5,15 +5,15 @@ import { useApp } from '@/lib/context/AppContext';
 import { Bell } from 'lucide-react';
 
 interface HeaderProps {
-  onOpenPushGuide: () => void;
+  onOpenPushGuide?: () => void;
   onOpenNotifications?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({ onOpenPushGuide, onOpenNotifications }) => {
-  const { currentUser, notificationLog } = useApp();
+  const { currentUser, notifications } = useApp();
 
   const firstName = currentUser?.name?.split(' ')[0] || 'Resident';
-  const unreadCount = 0; // TODO: once we have real notification read state in the DB
+  const unreadCount = notifications.filter((n) => !n.read_at).length;
 
   return (
     <header className="w-full px-4 pt-6 pb-2 max-w-lg mx-auto flex items-center justify-between">
@@ -43,3 +43,4 @@ export const Header: React.FC<HeaderProps> = ({ onOpenPushGuide, onOpenNotificat
     </header>
   );
 };
+

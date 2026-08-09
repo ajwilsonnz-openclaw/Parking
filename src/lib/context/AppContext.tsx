@@ -1,290 +1,230 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useMemo, useCallback, useState, useEffect } from 'react';
 import {
-  Carpark,
-  ParkingSession,
-  User,
-  UnitVehicle,
-  DemeritRecord,
-  SpotRental,
-  SystemConfig,
-  WhitelistEntry,
-  Role,
-  SessionType,
-  SavedGuest,
+  Carpark, ParkingSession, User, UnitVehicle, DemeritRecord,
+  SpotRental, SystemConfig, WhitelistEntry, Role, SessionType, SavedGuest,
 } from '@/types';
-import {
-  INITIAL_CONFIG,
-  INITIAL_USERS,
-  INITIAL_VEHICLES,
-  INITIAL_CARPARKS,
-  INITIAL_SESSIONS,
-  INITIAL_DEMERITS,
-  INITIAL_SPOT_RENTALS,
-  INITIAL_WHITELIST,
-} from '@/lib/mockData';
+import { useAppState, apiPost, apiDelete } from '@/lib/hooks/useAppState';
+
+const FAV_STORAGE_KEY = 'mv_parking_favs';
 
 interface AppContextType {
   currentUser: User | null;
-  setCurrentUser: (user: User | null) => void;
-  switchRole: (role: Role) => void;
+  isAuthed: boolean;
+  isLoading: boolean;
+  refetch: () => void;
+  logout: () => Promise<void>;
+
   config: SystemConfig;
-  updateConfig: (newConfig: Partial<SystemConfig>) => void;
   carparks: Carpark[];
   sessions: ParkingSession[];
   vehicles: UnitVehicle[];
   demerits: DemeritRecord[];
   rentals: SpotRental[];
   whitelist: WhitelistEntry[];
+  savedGuests: SavedGuest[];
+  notifications: any[];
   favourites: string[];
-  toggleFavourite: (spotNumber: string) => void;
+
   bookSpot: (
-    spotId: string,
+    carparkId: string,
     spotNumber: string,
     vehiclePlate: string,
     durationHours: number,
     sessionType: SessionType,
     visitorName?: string,
-    visitorPhone?: string
-  ) => boolean;
-  releaseSpot: (sessionId: string) => void;
-  rentOutSpot: (spotNumber: string, availableWeeks: number, pricePerWeek: number) => void;
-  bookRentedSpot: (rentalId: string, renterPlate: string) => void;
+    visitorPhone?: string,
+    savedGuestId?: string
+  ) => Promise<boolean>;
+  releaseSpot: (sessionId: string) => Promise<void>;
+
+  addSavedGuest: (guest: { name: string; plate: string; phone?: string; make_model_color?: string }) => Promise<void>;
+  removeSavedGuest: (guestId: string) => Promise<void>;
+
+  addVehicle: (plateNumber: string, makeModelColor: string) => Promise<void>;
+  removeVehicle: (vehicleId: string) => Promise<void>;
+
+  addWhitelistedUser: (email: string, name: string, unitNumber: string, phone: string, role: Role) => Promise<void>;
+  removeWhitelistedUser: (whitelistId: string) => Promise<void>;
+
   issueDemerit: (
-    unitNumber: string,
-    vehiclePlate: string,
-    spotNumber: string,
-    violationType: DemeritRecord['violation_type'],
-    description: string,
-    demeritPoints: number
-  ) => void;
-  addWhitelistedUser: (email: string, name: string, unitNumber: string, phone: string, role: Role) => void;
-  savedGuests: SavedGuest[];
-  addSavedGuest: (guest: Omit<SavedGuest, 'id' | 'user_id' | 'created_at'>) => void;
-  removeSavedGuest: (guestId: string) => void;
-  // Computed Occupancy metrics
+    unitNumber: string, vehiclePlate: string, spotNumber: string,
+    violationType: DemeritRecord['violation_type'], description: string, demeritPoints: number
+  ) => Promise<{ triggered_fine?: boolean; fine_amount?: number }>;
+
+  bootRequest: (sessionId: string) => Promise<void>;
+
+  rentOutSpot: (spotNumber: string, weeks: number, pricePerWeek: number) => Promise<void>;
+  bookRentedSpot: (rentalId: string, plate: string) => Promise<void>;
+
+  toggleFavourite: (spotNumber: string) => void;
+
+  updateConfig: (partial: Partial<SystemConfig>) => Promise<void>;
+
+  addNotificationLog: (title: string, message: string) => void;
+  sendDirectAlert: (unitNumber: string, message: string, alertType: 'in_app' | 'sms' | 'call') => Promise<void>;
+
   parksInUse: number;
   parksInUseByResident: number;
   availableParksIfResidentStays: number;
   availableParksIfResidentMoves: number;
   longestResidentSessionToBoot: ParkingSession | null;
-  sendDirectAlert: (unitNumber: string, message: string, alertType: 'in_app' | 'sms' | 'call') => void;
-  notificationLog: { id: string; title: string; message: string; timestamp: string }[];
-  addNotificationLog: (title: string, message: string) => void;
+
+  setCurrentUser: (user: User | null) => void;
+  switchRole: (role: Role) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState<User | null>(INITIAL_USERS[0]);
-  const [config, setConfig] = useState<SystemConfig>(INITIAL_CONFIG);
-  const [carparks, setCarparks] = useState<Carpark[]>(INITIAL_CARPARKS);
-  const [sessions, setSessions] = useState<ParkingSession[]>(INITIAL_SESSIONS);
-  const [vehicles, setVehicles] = useState<UnitVehicle[]>(INITIAL_VEHICLES);
-  const [demerits, setDemerits] = useState<DemeritRecord[]>(INITIAL_DEMERITS);
-  const [rentals, setRentals] = useState<SpotRental[]>(INITIAL_SPOT_RENTALS);
-  const [whitelist, setWhitelist] = useState<WhitelistEntry[]>(INITIAL_WHITELIST);
-  const [savedGuests, setSavedGuests] = useState<SavedGuest[]>([
-    {
-      id: 'sg-1',
-      user_id: 'usr-1',
-      name: 'Mark Taylor',
-      phone: '+64 21 555 9911',
-      plate: 'MTT123',
-      make_model_color: 'White Toyota Camry',
-      created_at: new Date().toISOString(),
-    },
-  ]);
-  const [favourites, setFavourites] = useState<string[]>(['V01', 'V04']);
-  const [notificationLog, setNotificationLog] = useState<{ id: string; title: string; message: string; timestamp: string }[]>([
-    { id: 'notif-1', title: 'Welcome to Millennium Village Parking', message: 'Your PWA is active and configured for Millennium Village.', timestamp: new Date().toISOString() }
-  ]);
+  const { data, isLoading, invalidate } = useAppState();
 
+  // Favourites — persisted in localStorage
+  const [favourites, setFavourites] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const saved = localStorage.getItem(FAV_STORAGE_KEY);
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
+
+  // Demo mode via ?demo=1
+  const [demoUser, setDemoUser] = useState<User | null>(null);
+  const [isDemoMode, setIsDemoMode] = useState(false);
   useEffect(() => {
-    const savedFavs = localStorage.getItem('mv_parking_favs');
-    if (savedFavs) {
-      try { setFavourites(JSON.parse(savedFavs)); } catch (e) {}
+    if (typeof window === 'undefined') return;
+    const urlDemo = window.location.search.includes('demo=1');
+    if (urlDemo) {
+      sessionStorage.setItem('mvp-demo', '1');
+      setIsDemoMode(true);
+    } else {
+      setIsDemoMode(sessionStorage.getItem('mvp-demo') === '1');
     }
   }, []);
 
-  const toggleFavourite = (spotNumber: string) => {
-    setFavourites((prev) => {
-      const next = prev.includes(spotNumber) ? prev.filter((s) => s !== spotNumber) : [...prev, spotNumber];
-      localStorage.setItem('mv_parking_favs', JSON.stringify(next));
-      return next;
-    });
-  };
+  const currentUser: User | null = useMemo(() => {
+    if (isDemoMode && demoUser) return demoUser;
+    return data?.user || null;
+  }, [data?.user, isDemoMode, demoUser]);
 
-  const switchRole = (role: Role) => {
-    const found = INITIAL_USERS.find((u) => u.role === role) || {
-      id: `usr-${role}`,
-      email: `${role}@millennium.com`,
-      name: `${role.toUpperCase()} User`,
-      unit_number: role === 'user' ? 'Unit 12' : 'Body Corp Office',
-      phone: '+64 21 555 0100',
-      role,
-      status: 'active',
-      created_at: new Date().toISOString(),
+  const config: SystemConfig = useMemo(() => {
+    if (data?.config) return data.config;
+    return {
+      max_visitor_hours: 24,
+      max_resident_excess_hours: 12,
+      max_weekly_rental_price: 50.0,
+      complex_name: 'Millennium Village',
+      complex_address: '548 Albany Highway, Albany',
+      demerit_fine_threshold: 3,
+      demerit_fine_amount: 50,
+      tow_agency_name: 'Citywide Towing & Recovery',
+      tow_agency_phone: '+64 9 555 8697',
+      total_visitor_parks: 20,
+      spot_prefix: 'V',
+      area_divisions: [],
     };
-    setCurrentUser(found);
-    addNotificationLog('Role Switched', `Now operating under ${role.toUpperCase()} access privileges.`);
-  };
+  }, [data?.config]);
 
-  const updateConfig = (newConfig: Partial<SystemConfig>) => {
-    setConfig((prev) => {
-      const updated = { ...prev, ...newConfig };
-      // Regenerate visitor carparks if total_visitor_parks or spot_prefix changed
-      if (newConfig.total_visitor_parks !== undefined || newConfig.spot_prefix !== undefined) {
-        const total = updated.total_visitor_parks;
-        const prefix = updated.spot_prefix || 'V';
+  const carparks = data?.carparks || [];
+  const sessions = data?.sessions || [];
+  const vehicles = data?.vehicles || [];
+  const demerits = data?.demerits || [];
+  const rentals = data?.rentals || [];
+  const whitelist = data?.whitelist || [];
+  const savedGuests = data?.savedGuests || [];
+  const notifications = data?.notifications || [];
 
-        const newParks: Carpark[] = Array.from({ length: total }, (_, i) => {
-          const num = (i + 1).toString().padStart(2, '0');
-          return {
-            id: `spot-${num}`,
-            spot_number: `${prefix}${num}`,
-            section: '',
-            status: (i === 2 || i === 4 || i === 7 ? 'occupied' : 'available') as Carpark['status'],
-            is_rentable_private: false,
-            is_favourite: i === 0 || i === 3,
-          };
-        });
-        setCarparks(newParks);
-      }
-      return updated;
-    });
-    addNotificationLog('Admin Setting Updated', 'System configuration updated successfully.');
-  };
-
-  const addNotificationLog = (title: string, message: string) => {
-    setNotificationLog((prev) => [
-      { id: Date.now().toString(), title, message, timestamp: new Date().toISOString() },
-      ...prev.slice(0, 19),
-    ]);
-
-    if ('Notification' in window && Notification.permission === 'granted') {
-      try {
-        new Notification(title, { body: message, icon: '/icons/icon-192.png' });
-      } catch (e) {}
-    }
-  };
-
-  // Occupancy metrics calculations
-  const activeVisitorSessions = sessions.filter((s) => s.is_active);
-  const parksInUse = activeVisitorSessions.length;
-  const residentExcessSessions = activeVisitorSessions.filter((s) => s.session_type === 'resident_excess');
+  // Occupancy
+  const activeSessions = sessions.filter((s: any) => s.is_active);
+  const parksInUse = activeSessions.length;
+  const residentExcessSessions = activeSessions.filter((s: any) => s.session_type === 'resident_excess');
   const parksInUseByResident = residentExcessSessions.length;
-
   const totalVisitorParks = config.total_visitor_parks;
   const availableParksIfResidentStays = Math.max(0, totalVisitorParks - parksInUse);
   const availableParksIfResidentMoves = Math.max(0, totalVisitorParks - (parksInUse - parksInUseByResident));
+  const longestResidentSessionToBoot = residentExcessSessions.length > 0
+    ? [...residentExcessSessions].sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())[0]
+    : null;
 
-  const longestResidentSessionToBoot =
-    residentExcessSessions.length > 0
-      ? [...residentExcessSessions].sort(
-          (a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
-        )[0]
-      : null;
-
-  const bookSpot = (
-    spotId: string,
+  // ─── API mutations ───────────────────────────
+  const bookSpot = useCallback(async (
+    carparkId: string,
     spotNumber: string,
     vehiclePlate: string,
     durationHours: number,
     sessionType: SessionType,
     visitorName?: string,
-    visitorPhone?: string
-  ): boolean => {
-    const startTime = new Date();
-    const endTime = new Date(startTime.getTime() + durationHours * 3600 * 1000);
+    visitorPhone?: string,
+    savedGuestId?: string
+  ) => {
+    try {
+      await apiPost('/api/sessions', {
+        carparkId, spotNumber, vehiclePlate, durationHours, sessionType, visitorName, visitorPhone, savedGuestId,
+      });
+      invalidate();
+      return true;
+    } catch (e: any) {
+      console.error('Book spot failed:', e);
+      return false;
+    }
+  }, [invalidate]);
 
-    const newSession: ParkingSession = {
-      id: `sess-${Date.now()}`,
-      spot_id: spotId,
-      spot_number: spotNumber,
-      unit_number: currentUser?.unit_number || 'Unit 12',
-      vehicle_plate: vehiclePlate,
-      session_type: sessionType,
-      start_time: startTime.toISOString(),
-      expected_end_time: endTime.toISOString(),
-      is_active: true,
-      created_by_user_id: currentUser?.id || 'usr-1',
-      visitor_name: visitorName,
-      visitor_phone: visitorPhone,
-    };
+  const releaseSpot = useCallback(async (sessionId: string) => {
+    try {
+      await apiPost(`/api/sessions/${sessionId}/release`, {});
+      invalidate();
+    } catch (e: any) { console.error(e); }
+  }, [invalidate]);
 
-    setSessions((prev) => [newSession, ...prev]);
+  const addSavedGuest = useCallback(async (guest: { name: string; plate: string; phone?: string; make_model_color?: string }) => {
+    try {
+      await apiPost('/api/me/saved-guests', guest);
+      invalidate();
+    } catch (e: any) { console.error(e); }
+  }, [invalidate]);
 
-    setCarparks((prev) =>
-      prev.map((spot) => (spot.id === spotId ? { ...spot, status: 'occupied' } : spot))
-    );
+  const removeSavedGuest = useCallback(async (guestId: string) => {
+    try {
+      await apiDelete(`/api/me/saved-guests?id=${encodeURIComponent(guestId)}`);
+      invalidate();
+    } catch (e: any) { console.error(e); }
+  }, [invalidate]);
 
-    addNotificationLog(
-      'Carpark Booked!',
-      `Spot ${spotNumber} booked for plate ${vehiclePlate} (${sessionType.toUpperCase()}) for ${durationHours}h.`
-    );
-    return true;
-  };
+  const addVehicle = useCallback(async (plateNumber: string, makeModelColor: string) => {
+    try {
+      await apiPost('/api/me/vehicles', { plate_number: plateNumber, make_model_color: makeModelColor });
+      invalidate();
+    } catch (e: any) {
+      alert(e?.message || 'Failed to register vehicle');
+    }
+  }, [invalidate]);
 
-  const releaseSpot = (sessionId: string) => {
-    const targetSession = sessions.find((s) => s.id === sessionId);
-    if (!targetSession) return;
+  const removeVehicle = useCallback(async (vehicleId: string) => {
+    try {
+      await apiDelete(`/api/me/vehicles?id=${encodeURIComponent(vehicleId)}`);
+      invalidate();
+    } catch (e: any) { console.error(e); }
+  }, [invalidate]);
 
-    setSessions((prev) =>
-      prev.map((s) =>
-        s.id === sessionId ? { ...s, is_active: false, end_time: new Date().toISOString() } : s
-      )
-    );
+  const addWhitelistedUser = useCallback(async (email: string, name: string, unitNumber: string, phone: string, role: Role) => {
+    try {
+      await apiPost('/api/admin/whitelist', { email, name, unit_number: unitNumber, phone, role });
+      invalidate();
+    } catch (e: any) {
+      console.error(e);
+      throw e;
+    }
+  }, [invalidate]);
 
-    setCarparks((prev) =>
-      prev.map((spot) =>
-        spot.id === targetSession.spot_id ? { ...spot, status: 'available' } : spot
-      )
-    );
+  const removeWhitelistedUser = useCallback(async (whitelistId: string) => {
+    try {
+      await apiDelete(`/api/admin/whitelist?id=${encodeURIComponent(whitelistId)}`);
+      invalidate();
+    } catch (e: any) { console.error(e); }
+  }, [invalidate]);
 
-    addNotificationLog('Spot Released', `Session for ${targetSession.spot_number} has been completed.`);
-  };
-
-  const rentOutSpot = (spotNumber: string, availableWeeks: number, pricePerWeek: number) => {
-    const now = new Date();
-    const until = new Date(now.getTime() + availableWeeks * 7 * 24 * 3600 * 1000);
-
-    const newRental: SpotRental = {
-      id: `rent-${Date.now()}`,
-      owner_unit_number: currentUser?.unit_number || 'Unit 12',
-      spot_number: spotNumber,
-      available_from: now.toISOString(),
-      available_until: until.toISOString(),
-      price_per_week: Math.min(pricePerWeek, config.max_weekly_rental_price),
-      is_free: pricePerWeek === 0,
-      status: 'listed',
-    };
-
-    setRentals((prev) => [newRental, ...prev]);
-    addNotificationLog(
-      'Spot Listed for Rent',
-      `${spotNumber} listed for rent at ${pricePerWeek === 0 ? 'FREE' : `$${pricePerWeek}/wk`}.`
-    );
-  };
-
-  const bookRentedSpot = (rentalId: string, renterPlate: string) => {
-    setRentals((prev) =>
-      prev.map((r) =>
-        r.id === rentalId
-          ? {
-              ...r,
-              status: 'booked',
-              renter_unit_number: currentUser?.unit_number || 'Unit 12',
-              renter_plate: renterPlate,
-            }
-          : r
-      )
-    );
-    addNotificationLog('Spot Rented', `Successfully reserved rented spot for plate ${renterPlate}.`);
-  };
-
-  const issueDemerit = (
+  const issueDemerit = useCallback(async (
     unitNumber: string,
     vehiclePlate: string,
     spotNumber: string,
@@ -292,115 +232,130 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     description: string,
     demeritPoints: number
   ) => {
-    const existingUnitDemerits = demerits.filter((d) => d.unit_number === unitNumber);
-    const totalPoints = existingUnitDemerits.reduce((sum, d) => sum + d.demerit_points, 0) + demeritPoints;
+    try {
+      const res = await apiPost<{ triggered_fine?: boolean; fine_amount?: number }>('/api/mgmt/demerits', {
+        unit_number: unitNumber, vehicle_plate: vehiclePlate, spot_number: spotNumber,
+        violation_type: violationType, description, demerit_points: demeritPoints,
+      });
+      invalidate();
+      return res;
+    } catch (e: any) {
+      console.error(e);
+      return {};
+    }
+  }, [invalidate]);
 
-    const fineAmount = totalPoints >= config.demerit_fine_threshold ? config.demerit_fine_amount : 0;
+  const bootRequest = useCallback(async (sessionId: string) => {
+    try {
+      await apiPost('/api/mgmt/boot-request', { sessionId });
+      invalidate();
+    } catch (e: any) { console.error(e); }
+  }, [invalidate]);
 
-    const newDemerit: DemeritRecord = {
-      id: `dem-${Date.now()}`,
-      unit_number: unitNumber,
-      vehicle_plate: vehiclePlate,
-      spot_number: spotNumber,
-      violation_type: violationType,
-      description,
-      demerit_points: demeritPoints,
-      fine_amount: fineAmount,
-      status: 'issued',
-      created_at: new Date().toISOString(),
-    };
+  const rentOutSpot = useCallback(async (spotNumber: string, weeks: number, pricePerWeek: number) => {
+    // Will be wired to a real API in Phase 5
+    console.log('rentOutSpot called:', spotNumber, weeks, pricePerWeek);
+  }, []);
 
-    setDemerits((prev) => [newDemerit, ...prev]);
-    addNotificationLog(
-      'Demerit Notice Issued',
-      `${unitNumber} issued ${demeritPoints} pts for ${violationType.toUpperCase()}.${
-        fineAmount > 0 ? ` $${fineAmount} BodyCorp fine triggered!` : ''
-      }`
-    );
-  };
+  const bookRentedSpot = useCallback(async (rentalId: string, plate: string) => {
+    console.log('bookRentedSpot called:', rentalId, plate);
+  }, []);
 
-  const addWhitelistedUser = (
-    email: string,
-    name: string,
-    unitNumber: string,
-    phone: string,
-    role: Role
-  ) => {
-    const newEntry: WhitelistEntry = {
-      id: `w-${Date.now()}`,
-      email,
-      name,
-      unit_number: unitNumber,
-      phone,
+  const toggleFavourite = useCallback((spotNumber: string) => {
+    setFavourites((prev) => {
+      const next = prev.includes(spotNumber) ? prev.filter((s) => s !== spotNumber) : [...prev, spotNumber];
+      try { localStorage.setItem(FAV_STORAGE_KEY, JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }, []);
+
+  const updateConfig = useCallback(async (partial: Partial<SystemConfig>) => {
+    try {
+      await apiPost('/api/admin/config', partial);
+      invalidate();
+    } catch (e: any) { console.error(e); }
+  }, [invalidate]);
+
+  const addNotificationLog = useCallback((_title: string, _message: string) => {
+    // Server-side persists; no local notifications until Phase 5 wires the full loop
+  }, []);
+
+  const sendDirectAlert = useCallback(async (_unitNumber: string, _message: string, _alertType: 'in_app' | 'sms' | 'call') => {
+    // Server-side in Phase 5
+    return Promise.resolve();
+  }, []);
+
+  const logout = useCallback(async () => {
+    try {
+      await apiPost('/api/auth/logout', {});
+      setDemoUser(null);
+      if (typeof window !== 'undefined') sessionStorage.removeItem('mvp-demo');
+      invalidate();
+      window.location.href = '/';
+    } catch (e: any) { console.error(e); }
+  }, [invalidate]);
+
+  const setCurrentUser = useCallback((user: User | null) => {
+    if (isDemoMode) setDemoUser(user);
+  }, [isDemoMode]);
+
+  const switchRole = useCallback((role: Role) => {
+    if (!isDemoMode || !data?.user) return;
+    const base = data.user;
+    const newUser: User = {
+      ...base,
       role,
-      added_at: new Date().toISOString(),
+      unit_number: role === 'user' ? 'Unit 12' : role === 'management' ? 'Body Corp Office' : 'Body Corp HQ',
     };
+    setDemoUser(newUser);
+  }, [isDemoMode, data?.user]);
 
-    setWhitelist((prev) => [newEntry, ...prev]);
-    addNotificationLog('User Whitelisted', `${email} (${unitNumber}) added with ${role.toUpperCase()} role.`);
+  const value: AppContextType = {
+    currentUser,
+    isAuthed: !!currentUser,
+    isLoading,
+    refetch: invalidate,
+    logout,
+    config,
+    carparks,
+    sessions,
+    vehicles,
+    demerits,
+    rentals,
+    whitelist,
+    savedGuests,
+    notifications,
+    favourites,
+    bookSpot,
+    releaseSpot,
+    addSavedGuest,
+    removeSavedGuest,
+    addVehicle,
+    removeVehicle,
+    addWhitelistedUser,
+    removeWhitelistedUser,
+    issueDemerit,
+    bootRequest,
+    rentOutSpot,
+    bookRentedSpot,
+    toggleFavourite,
+    updateConfig,
+    addNotificationLog,
+    sendDirectAlert,
+    parksInUse,
+    parksInUseByResident,
+    availableParksIfResidentStays,
+    availableParksIfResidentMoves,
+    longestResidentSessionToBoot,
+    setCurrentUser,
+    switchRole,
   };
 
-  const addSavedGuest = (guest: Omit<SavedGuest, 'id' | 'user_id' | 'created_at'>) => {
-    const newGuest: SavedGuest = {
-      id: `sg-${Date.now()}`,
-      user_id: currentUser?.id || 'usr-1',
-      ...guest,
-      created_at: new Date().toISOString(),
-    };
-    setSavedGuests((prev) => [newGuest, ...prev]);
-    addNotificationLog('Regular visitor saved', `${guest.name} added to your regular visitors.`);
-  };
-
-  const removeSavedGuest = (guestId: string) => {
-    setSavedGuests((prev) => prev.filter((g) => g.id !== guestId));
-  };
-
-  const sendDirectAlert = (unitNumber: string, message: string, alertType: 'in_app' | 'sms' | 'call') => {
-    addNotificationLog(`Direct Alert to ${unitNumber}`, `[${alertType.toUpperCase()}] ${message}`);
-  };
-
-  return (
-    <AppContext.Provider
-      value={{
-        currentUser,
-        setCurrentUser,
-        switchRole,
-        config,
-        updateConfig,
-        carparks,
-        sessions,
-        vehicles,
-        demerits,
-        rentals,
-        whitelist,
-        savedGuests,
-        addSavedGuest,
-        removeSavedGuest,
-        favourites,
-        toggleFavourite,
-        bookSpot,
-        releaseSpot,
-        rentOutSpot,
-        bookRentedSpot,
-        issueDemerit,
-        addWhitelistedUser,
-        parksInUse,
-        parksInUseByResident,
-        availableParksIfResidentStays,
-        availableParksIfResidentMoves,
-        longestResidentSessionToBoot,
-        sendDirectAlert,
-        notificationLog,
-        addNotificationLog,
-      }}
-    >
-      {children}
-    </AppContext.Provider>
-  );
+  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 };
 
 export const useApp = () => {
-  const context = useContext(AppContext);
-  if (!context) throw new Error('useApp must be used within an AppProvider');
-  return context;
+  const ctx = useContext(AppContext);
+  if (!ctx) throw new Error('useApp must be used within an AppProvider');
+  return ctx;
 };
