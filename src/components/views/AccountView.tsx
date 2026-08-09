@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useApp } from '@/lib/context/AppContext';
 import { useTheme } from '@/lib/theme/ThemeProvider';
-import { User, Car, Award, ChevronRight, Smartphone, Moon, Sun, Monitor, LogOut, Shield, Sliders, Plus, Trash2, Users, Key } from 'lucide-react';
+import { User, Award, ChevronRight, Smartphone, Moon, Sun, Monitor, LogOut, Shield, Sliders, Plus, Trash2, Users, Key } from 'lucide-react';
 import { PlateCard } from '@/components/ui/PlateCard';
 import { Modal } from '@/components/ui/Modal';
 import { useInstallPrompt } from '@/lib/hooks/useInstallPrompt';
@@ -25,7 +25,6 @@ export const AccountView: React.FC<AccountViewProps> = ({ onOpenManagement, onOp
   const unitVehicles = vehicles.filter((v) => v.unit_number === unitNumber);
   const unitDemerits = demerits.filter((d) => d.unit_number === unitNumber);
   const totalDemeritPoints = unitDemerits.reduce((s, d) => s + d.demerit_points, 0);
-  const assignedSpotCount = carparks.filter((c) => c.owner_unit_number === unitNumber).length || 0;
   const mySpot = carparks.find((c) => c.owner_unit_number === unitNumber);
 
   const isManagementOrAdmin = currentUser?.role === 'management' || currentUser?.role === 'admin';
@@ -47,8 +46,8 @@ export const AccountView: React.FC<AccountViewProps> = ({ onOpenManagement, onOp
       {/* KPIs */}
       <div className="grid grid-cols-2 gap-3">
         <div className="card p-4 text-center">
-          <span className="text-[10px] font-extrabold uppercase tracking-wider text-ink-tertiary block mb-1">Assigned Parks</span>
-          <span className="text-3xl font-black text-ink">{assignedSpotCount}</span>
+          <span className="text-[10px] font-extrabold uppercase tracking-wider text-ink-tertiary block mb-1">Unit</span>
+          <span className="text-3xl font-black text-ink">{currentUser?.unit_number?.replace(/^Unit\s+/i, '') || '-'}</span>
         </div>
         <div className="card p-4 text-center">
           <span className="text-[10px] font-extrabold uppercase tracking-wider text-ink-tertiary block mb-1">Demerit Points</span>
@@ -74,7 +73,7 @@ export const AccountView: React.FC<AccountViewProps> = ({ onOpenManagement, onOp
             className="w-full btn-ghost text-xs flex items-center justify-center gap-1.5 border border-dashed border-border rounded-2xl py-2.5"
           >
             <Key className="w-3.5 h-3.5" />
-            Lend my spot to a neighbour
+            Make personal carpark available
           </button>
         )}
       </div>

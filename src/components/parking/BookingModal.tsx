@@ -137,10 +137,10 @@ export const BookingModal: React.FC<BookingModalProps> = ({
           </div>
         </div>
 
-        {/* Plate picker — different per session type */}
+        {/* Plate picker - different per session type */}
         {sessionType === 'visitor' ? (
           <div className="space-y-3">
-            {/* Saved guests — mobile-friendly, big touch targets */}
+            {/* Saved guests - mobile-friendly, big touch targets */}
             {savedGuests.length > 0 && (
               <div>
                 <button
@@ -247,7 +247,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
             )}
           </div>
         ) : (
-          // Resident excess — choose from own registered vehicles only
+          // Resident excess - choose from own registered vehicles only
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-ink-tertiary mb-2">
               Your vehicle

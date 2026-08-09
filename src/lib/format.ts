@@ -34,7 +34,7 @@ export const fmtTime = (iso: string | Date): string => {
 };
 
 export const fmtTimeRange = (startIso: string, endIso: string): string =>
-  `${fmtTime(startIso)} – ${fmtTime(endIso)}`;
+  `${fmtTime(startIso)} - ${fmtTime(endIso)}`;
 
 /** "(6 hrs)" style duration between two ISO timestamps */
 export const fmtDuration = (startIso: string, endIso: string): string => {
@@ -54,7 +54,7 @@ export const fmtDuration = (startIso: string, endIso: string): string => {
 /** Relative time like "in 2h" / "3h ago" */
 export const fmtRelative = (iso: string): string => {
   const d = new Date(iso);
-  if (isNaN(d.getTime())) return ''; // invalid date — return empty rather than crash
+  if (isNaN(d.getTime())) return ''; // invalid date - return empty rather than crash
   const ms = d.getTime() - Date.now();
   const abs = Math.abs(ms);
   const rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
@@ -67,7 +67,7 @@ export const fmtRelative = (iso: string): string => {
 /** Get {dow: 'MON', day: '10', mon: 'AUG'} blocks for the booking card date */
 export const dateBlockParts = (iso: string): { dow: string; day: string; mon: string } => {
   const d = new Date(iso);
-  if (isNaN(d.getTime())) return { dow: '—', day: '—', mon: '—' };
+  if (isNaN(d.getTime())) return { dow: '-', day: '-', mon: '-' };
   return {
     dow: new Intl.DateTimeFormat('en-NZ', { weekday: 'short' }).format(d).toUpperCase(),
     day: String(d.getDate()),

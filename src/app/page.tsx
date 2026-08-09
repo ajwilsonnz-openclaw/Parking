@@ -33,7 +33,7 @@ function Shell() {
   const isManagementOrAdmin = currentUser?.role === 'management' || currentUser?.role === 'admin';
 
   if (!mounted) {
-    // Render nothing until client mounts — avoids hydration mismatch with mock time values
+    // Render nothing until client mounts - avoids hydration mismatch with mock time values
     return <div className="min-h-screen" style={{ backgroundColor: 'var(--bg-app)' }} />;
   }
 

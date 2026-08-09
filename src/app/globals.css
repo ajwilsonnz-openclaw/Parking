@@ -98,7 +98,7 @@
 
 /* ─── Component utilities ─────────────────────────────────────── */
 @layer components {
-  /* Primary card — frosted glass, adapts to theme */
+  /* Primary card - frosted glass, adapts to theme */
   .card {
     @apply rounded-3xl border backdrop-saturate-150;
     background-color: var(--bg-glass);

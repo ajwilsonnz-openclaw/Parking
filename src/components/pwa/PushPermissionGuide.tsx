@@ -97,7 +97,7 @@ export const PushPermissionGuide: React.FC<PushPermissionGuideProps> = ({ isOpen
             <div className="font-bold text-text flex items-center gap-2 pt-1">
               <PlusSquare className="w-4 h-4 text-accent" /> Step 2: Add to Home Screen
             </div>
-            <p className="pl-6">Launch from the home screen icon — push notifications require it.</p>
+            <p className="pl-6">Launch from the home screen icon - push notifications require it.</p>
           </>
         )}
         {osType === 'android' && (

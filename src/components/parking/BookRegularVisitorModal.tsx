@@ -12,7 +12,7 @@ interface BookRegularVisitorModalProps {
 }
 
 /**
- * Book a "regular visitor" — someone saved for quick re-booking.
+ * Book a "regular visitor" - someone saved for quick re-booking.
  * If no saved guests, guide user to add one via walking through the normal booking flow.
  */
 export const BookRegularVisitorModal: React.FC<BookRegularVisitorModalProps> = ({ isOpen, onClose }) => {

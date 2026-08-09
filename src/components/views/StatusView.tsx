@@ -7,7 +7,7 @@ import { PlateCard } from '@/components/ui/PlateCard';
 import { fmtTimeRange } from '@/lib/format';
 
 /**
- * "Status" — verify which vehicles are authorised to be parked right now.
+ * "Status" - verify which vehicles are authorised to be parked right now.
  */
 export const StatusView: React.FC = () => {
   const { sessions } = useApp();
@@ -125,7 +125,7 @@ function StatusCard({
             session.session_type === 'resident_excess' ? 'chip-warning' : 'chip-success'
           }`}
         >
-          {session.session_type === 'resident_excess' ? 'Resident overflow' : 'Authorised visitor'}
+          {session.session_type === 'resident_excess' ? 'Resident' : 'Visitor'}
         </span>
       </div>
 

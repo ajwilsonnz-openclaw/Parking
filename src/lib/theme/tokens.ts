@@ -1,12 +1,12 @@
 /**
- * Design Tokens — Millennium Village Parking
+ * Design Tokens - Millennium Village Parking
  *
  * Single source of truth for all colors. Consumed by:
  *   1. globals.css  (as CSS custom properties)
  *   2. tailwind.config.ts (as Tailwind utilities referencing the CSS vars)
  *
- * Light theme: crisp, airy, iOS-like — the look from the mockup.
- * Dark theme:  deep navy glass — sophisticated, not inverted.
+ * Light theme: crisp, airy, iOS-like - the look from the mockup.
+ * Dark theme:  deep navy glass - sophisticated, not inverted.
  */
 
 export const tokens = {
@@ -26,7 +26,7 @@ export const tokens = {
     text2: '#475569',           // slate-600
     text3: '#94a3b8',           // slate-400
 
-    // Accent — electric blue
+    // Accent - electric blue
     accent: '#0066ff',
     accentHover: '#0058e6',
     accentSoft: '#e8f0ff',      // tinted bg for chips

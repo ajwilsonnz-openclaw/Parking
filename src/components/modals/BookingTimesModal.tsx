@@ -43,7 +43,7 @@ export const BookingTimesModal: React.FC<BookingTimesModalProps> = ({ isOpen, on
           </div>
         </div>
         <p className="text-xs text-ink-tertiary">
-          Tip: booking durations update automatically — you don't need to re-book if your visitor stays longer than expected.
+          Tip: booking durations update automatically - you don't need to re-book if your visitor stays longer than expected.
         </p>
       </div>
 

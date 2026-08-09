@@ -44,7 +44,7 @@ export const NotificationsSheet: React.FC<NotificationsSheetProps> = ({ isOpen, 
         <div className="card p-6 text-center">
           <CheckCircle2 className="w-10 h-10 text-success mx-auto mb-2 opacity-60" />
           <h4 className="text-sm font-bold text-ink">All caught up</h4>
-          <p className="text-xs text-ink-tertiary mt-1">You're up to date — we'll let you know when something needs your attention.</p>
+          <p className="text-xs text-ink-tertiary mt-1">You're up to date - we'll let you know when something needs your attention.</p>
         </div>
       ) : (
         <div className="space-y-2 max-h-[60vh] overflow-y-auto -mx-2 px-2">
