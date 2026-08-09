@@ -17,6 +17,7 @@ export interface UnitVehicle {
   plate_number: string;
   make_model_color: string;
   is_primary: boolean;
+  status: 'pending' | 'approved' | 'rejected';
 }
 
 export interface AssignedSpot {

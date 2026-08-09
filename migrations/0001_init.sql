@@ -1,9 +1,6 @@
--- Millennium Village Parking - D1 Schema (idempotent, safe to re-run)
--- Includes: users, whitelist (invite only), otp_codes, auth_sessions,
---           unit_vehicles, carparks, parking_sessions, spot_rentals,
---           demerits, saved_guests, notifications, system_config
+-- Identity layer: users, whitelist (invites), D1-resident sessions
+-- Cloudflare D1 / SQLite
 
--- ─────────── 1. Auth & Users ───────────
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
   email TEXT UNIQUE NOT NULL,
@@ -27,18 +24,7 @@ CREATE TABLE IF NOT EXISTS whitelist (
   added_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS otp_codes (
-  id TEXT PRIMARY KEY,
-  email TEXT NOT NULL,
-  code TEXT NOT NULL,
-  purpose TEXT CHECK(purpose IN ('magic_link','add_vehicle','add_guest')) DEFAULT 'magic_link',
-  metadata TEXT,
-  expires_at DATETIME NOT NULL,
-  used INTEGER DEFAULT 0,
-  attempts INTEGER DEFAULT 0,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
+-- D1-resident sessions: our app-specific session (separate from Clerk)
 CREATE TABLE IF NOT EXISTS auth_sessions (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -48,11 +34,10 @@ CREATE TABLE IF NOT EXISTS auth_sessions (
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   last_seen_at DATETIME
 );
-
 CREATE INDEX IF NOT EXISTS idx_auth_sessions_user ON auth_sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_auth_sessions_expires ON auth_sessions(expires_at);
 
--- ─────────── 2. Real-world data ───────────
+-- Registered vehicles (approval workflow: pending → approved/rejected)
 CREATE TABLE IF NOT EXISTS unit_vehicles (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -65,10 +50,9 @@ CREATE TABLE IF NOT EXISTS unit_vehicles (
   requested_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   approved_at DATETIME
 );
-
 CREATE INDEX IF NOT EXISTS idx_unit_vehicles_user ON unit_vehicles(user_id);
-CREATE INDEX IF NOT EXISTS idx_unit_vehicles_status ON unit_vehicles(status);
 
+-- Carparks (visitor, plus optional private spots resident may lend)
 CREATE TABLE IF NOT EXISTS carparks (
   id TEXT PRIMARY KEY,
   spot_number TEXT UNIQUE NOT NULL,
@@ -79,6 +63,7 @@ CREATE TABLE IF NOT EXISTS carparks (
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Parking sessions (who parked where)
 CREATE TABLE IF NOT EXISTS parking_sessions (
   id TEXT PRIMARY KEY,
   carpark_id TEXT NOT NULL REFERENCES carparks(id),
@@ -97,11 +82,10 @@ CREATE TABLE IF NOT EXISTS parking_sessions (
   saved_guest_id TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
-
 CREATE INDEX IF NOT EXISTS idx_sessions_active ON parking_sessions(is_active);
 CREATE INDEX IF NOT EXISTS idx_sessions_user ON parking_sessions(user_id);
-CREATE INDEX IF NOT EXISTS idx_sessions_spot ON parking_sessions(spot_number);
 
+-- Saved "regular visitors" (quick re-booking)
 CREATE TABLE IF NOT EXISTS saved_guests (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -111,10 +95,9 @@ CREATE TABLE IF NOT EXISTS saved_guests (
   make_model_color TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
-
 CREATE INDEX IF NOT EXISTS idx_saved_guests_user ON saved_guests(user_id);
 
--- ─────────── 3. Admin / Management ───────────
+-- Demerit records
 CREATE TABLE IF NOT EXISTS demerits (
   id TEXT PRIMARY KEY,
   unit_number TEXT NOT NULL,
@@ -129,17 +112,16 @@ CREATE TABLE IF NOT EXISTS demerits (
   issued_by_user_id TEXT NOT NULL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
-
 CREATE INDEX IF NOT EXISTS idx_demerits_user ON demerits(user_id);
-CREATE INDEX IF NOT EXISTS idx_demerits_unit ON demerits(unit_number);
 
+-- Personal carpark sharing (friendly)
 CREATE TABLE IF NOT EXISTS spot_rentals (
   id TEXT PRIMARY KEY,
   carpark_id TEXT NOT NULL REFERENCES carparks(id),
   owner_user_id TEXT NOT NULL REFERENCES users(id),
   spot_number TEXT NOT NULL,
   available_from DATETIME,
-  available_until DATETIME, -- NULL = indefinite
+  available_until DATETIME,
   price_per_week REAL DEFAULT 0,
   is_free INTEGER DEFAULT 1,
   status TEXT CHECK(status IN ('listed','booked','completed','cancelled')) DEFAULT 'listed',
@@ -148,7 +130,7 @@ CREATE TABLE IF NOT EXISTS spot_rentals (
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
--- ─────────── 4. Notifications & Config ───────────
+-- In-app notification log
 CREATE TABLE IF NOT EXISTS notifications (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -158,9 +140,9 @@ CREATE TABLE IF NOT EXISTS notifications (
   read_at DATETIME,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
-
 CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, created_at);
 
+-- System config
 CREATE TABLE IF NOT EXISTS system_config (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL

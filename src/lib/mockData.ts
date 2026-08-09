@@ -1,4 +1,4 @@
-import { Carpark, ParkingSession, User, UnitVehicle, DemeritRecord, SpotRental, SystemConfig, WhitelistEntry } from '@/types';
+﻿import { Carpark, ParkingSession, User, UnitVehicle, DemeritRecord, SpotRental, SystemConfig, WhitelistEntry } from '@/types';
 
 const now = new Date();
 
@@ -60,10 +60,10 @@ export const INITIAL_USERS: User[] = [
 ];
 
 export const INITIAL_VEHICLES: UnitVehicle[] = [
-  { id: 'v-1', unit_number: 'Unit 12', plate_number: 'GHJ125', make_model_color: 'White Tesla Model 3', is_primary: true },
-  { id: 'v-2', unit_number: 'Unit 12', plate_number: 'KXM890', make_model_color: 'Silver Mazda CX-5', is_primary: false },
-  { id: 'v-3', unit_number: 'Unit 8', plate_number: 'PQR334', make_model_color: 'Black BMW 330i', is_primary: true },
-  { id: 'v-4', unit_number: 'Unit 27', plate_number: 'BZT761', make_model_color: 'Blue Toyota RAV4', is_primary: true },
+  { id: 'v-1', unit_number: 'Unit 12', plate_number: 'GHJ125', make_model_color: 'White Tesla Model 3', is_primary: true, status: 'approved' },
+  { id: 'v-2', unit_number: 'Unit 12', plate_number: 'KXM890', make_model_color: 'Silver Mazda CX-5', is_primary: false, status: 'approved' },
+  { id: 'v-3', unit_number: 'Unit 8', plate_number: 'PQR334', make_model_color: 'Black BMW 330i', is_primary: true, status: 'approved' },
+  { id: 'v-4', unit_number: 'Unit 27', plate_number: 'BZT761', make_model_color: 'Blue Toyota RAV4', is_primary: true, status: 'approved' },
 ];
 
 export const INITIAL_CARPARKS: Carpark[] = (Array.from({ length: 20 }, (_, i) => {
@@ -71,7 +71,7 @@ export const INITIAL_CARPARKS: Carpark[] = (Array.from({ length: 20 }, (_, i) =>
   const status: Carpark['status'] = i === 2 || i === 4 || i === 7 || i === 11 || i === 15 ? 'occupied' : 'available';
   return {
     id: `spot-${num}`,
-    spot_number: `V${num}`,     // short form: V01…V20
+    spot_number: `V${num}`,     // short form: V01â€¦V20
     section: '',                // no physical sections here
     status,
     is_rentable_private: false,
@@ -237,3 +237,4 @@ export const INITIAL_WHITELIST: WhitelistEntry[] = [
   { id: 'w-3', email: 'admin@millennium.com', name: 'BodyCorp Admin', unit_number: 'Body Corp HQ', phone: '+64 21 555 0999', role: 'admin', added_at: '2026-08-01T00:00:00.000Z' },
   { id: 'w-4', email: 'unit8@millennium.com', name: 'David Chen', unit_number: 'Unit 8', phone: '+64 21 555 0441', role: 'user', added_at: '2026-08-01T00:00:00.000Z' },
 ];
+

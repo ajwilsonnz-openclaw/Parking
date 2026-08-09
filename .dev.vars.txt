@@ -1,0 +1,9 @@
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_dG9sZXJhbnQtY2xhbS0xNi5jbGVyay5hY2NvdW50cy5kZXYk
+CLERK_SECRET_KEY=sk_test_Bh3L5GeRgkLkWhUEOpS1ARZHe3L0sJ1u9iNGlB8jlk
+
+# Where Clerk webhooks will point when deployed. For local dev we will
+# run a tunnel so Clerk can reach your laptop — see note below.
+
+# The URL that's allowed to call the backend API. For local dev:
+CLERK_WEBHOOK_SIGNING_SECRET=   # leave blank until Step 6
+NEXT_PUBLIC_APP_URL=http://localhost:3000

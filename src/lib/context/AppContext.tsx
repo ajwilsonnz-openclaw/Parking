@@ -78,7 +78,7 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { data, isLoading, invalidate } = useAppState();
+  const { data, isLoading, refetch: invalidate } = useAppState();
 
   // Favourites — persisted in localStorage
   const [favourites, setFavourites] = useState<string[]>(() => {

@@ -1,13 +1,17 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '@/lib/context/AppContext';
 import { useTheme } from '@/lib/theme/ThemeProvider';
-import { User, Award, ChevronRight, Smartphone, Moon, Sun, Monitor, LogOut, Shield, Sliders, Plus, Trash2, Users, Key } from 'lucide-react';
+import {
+  User, Award, ChevronRight, Smartphone, Moon, Sun, Monitor,
+  LogOut, Shield, Sliders, Trash2, Users, Key, Fingerprint, PlusCircle,
+} from 'lucide-react';
 import { PlateCard } from '@/components/ui/PlateCard';
-import { Modal } from '@/components/ui/Modal';
 import { useInstallPrompt } from '@/lib/hooks/useInstallPrompt';
+import { useAuth } from '@clerk/nextjs';
 import { RentalModal } from '@/components/parking/RentalModal';
+import { startRegistration } from '@simplewebauthn/browser';
 
 interface AccountViewProps {
   onOpenManagement?: () => void;
@@ -16,9 +20,10 @@ interface AccountViewProps {
 }
 
 export const AccountView: React.FC<AccountViewProps> = ({ onOpenManagement, onOpenAdmin, onOpenPushGuide }) => {
-  const { currentUser, vehicles, demerits, carparks, config, switchRole, savedGuests, removeSavedGuest } = useApp();
+  const { currentUser, vehicles, demerits, carparks, config, logout, savedGuests, removeSavedGuest } = useApp();
   const { theme, setTheme } = useTheme();
   const { canInstall, isInstalled, isIos, install } = useInstallPrompt();
+  const { signOut } = useAuth();
   const [showRentalModal, setShowRentalModal] = useState(false);
 
   const unitNumber = currentUser?.unit_number || 'Unit 402';
@@ -30,6 +35,13 @@ export const AccountView: React.FC<AccountViewProps> = ({ onOpenManagement, onOp
   const isManagementOrAdmin = currentUser?.role === 'management' || currentUser?.role === 'admin';
   const isAdmin = currentUser?.role === 'admin';
 
+  const handleSignOut = async () => {
+    if (!confirm('Sign out of Millennium Village Parking on this device?')) return;
+    try { await fetch('/api/auth/logout', { method: 'POST' }); } catch {}
+    try { await signOut(); } catch {}
+    window.location.href = '/';
+  };
+
   return (
     <div className="space-y-5 animate-fade-in max-w-lg mx-auto pb-32">
       {/* Profile header */}
@@ -39,7 +51,7 @@ export const AccountView: React.FC<AccountViewProps> = ({ onOpenManagement, onOp
         </div>
         <h2 className="text-xl font-extrabold text-ink tracking-tight font-display">{currentUser?.name}</h2>
         <div className="text-xs font-bold text-accent uppercase tracking-widest mt-0.5">
-          {currentUser?.role} • {unitNumber}
+          {currentUser?.role} Â· {unitNumber}
         </div>
       </div>
 
@@ -58,20 +70,15 @@ export const AccountView: React.FC<AccountViewProps> = ({ onOpenManagement, onOp
       {/* Contact */}
       <div className="card p-4 space-y-3">
         <div className="flex items-center gap-3">
-          <div className="icon-tile w-10 h-10">
-            <User className="w-5 h-5" />
-          </div>
+          <div className="icon-tile w-10 h-10"><User className="w-5 h-5" /></div>
           <div className="flex-1 min-w-0">
             <span className="text-[10px] font-extrabold uppercase tracking-wider text-ink-tertiary block">Home Unit</span>
-            <span className="text-sm font-bold text-ink truncate block">{unitNumber} • {currentUser?.phone}</span>
+            <span className="text-sm font-bold text-ink truncate block">{unitNumber} Â· {currentUser?.phone}</span>
             <span className="text-[11px] text-ink-secondary truncate block">{currentUser?.email}</span>
           </div>
         </div>
         {mySpot && (
-          <button
-            onClick={() => setShowRentalModal(true)}
-            className="w-full btn-ghost text-xs flex items-center justify-center gap-1.5 border border-dashed border-border rounded-2xl py-2.5"
-          >
+          <button onClick={() => setShowRentalModal(true)} className="w-full btn-ghost text-xs flex items-center justify-center gap-1.5 border border-dashed border-border rounded-2xl py-2.5">
             <Key className="w-3.5 h-3.5" />
             Make personal carpark available
           </button>
@@ -81,7 +88,7 @@ export const AccountView: React.FC<AccountViewProps> = ({ onOpenManagement, onOp
       {/* Registered Vehicles */}
       <Section title="Registered Vehicles">
         {unitVehicles.length === 0 ? (
-          <div className="card p-4 text-center text-xs text-ink-tertiary">No vehicles registered yet.</div>
+          <div className="card p-4 text-xs text-ink-tertiary text-center">No vehicles registered yet.</div>
         ) : (
           unitVehicles.map((v) => (
             <div key={v.id} className="card p-3.5 flex items-center justify-between gap-3">
@@ -89,7 +96,7 @@ export const AccountView: React.FC<AccountViewProps> = ({ onOpenManagement, onOp
                 <PlateCard plate={v.plate_number} size="sm" />
                 <span className="text-xs text-ink-secondary block mt-1.5 font-medium truncate">{v.make_model_color}</span>
               </div>
-              <span className="chip chip-success shrink-0">Approved</span>
+              <span className="chip chip-success shrink-0">{v.status === 'pending' ? 'Pending approval' : 'Approved'}</span>
             </div>
           ))
         )}
@@ -110,21 +117,20 @@ export const AccountView: React.FC<AccountViewProps> = ({ onOpenManagement, onOp
                   <Users className="w-3.5 h-3.5 text-ink-tertiary" />
                   <span className="text-xs text-ink font-bold truncate">{g.name}</span>
                   {g.make_model_color && (
-                    <span className="text-[11px] text-ink-tertiary truncate">· {g.make_model_color}</span>
+                    <span className="text-[11px] text-ink-tertiary truncate">Â· {g.make_model_color}</span>
                   )}
                 </div>
               </div>
-              <button
-                onClick={() => removeSavedGuest(g.id)}
-                className="btn-icon p-2 text-danger hover:bg-danger-soft"
-                aria-label="Remove"
-              >
+              <button onClick={() => removeSavedGuest(g.id)} className="btn-icon p-2 text-danger hover:bg-danger-soft" aria-label="Remove">
                 <Trash2 className="w-4 h-4" />
               </button>
             </div>
           ))
         )}
       </Section>
+
+      {/* Sign-in & security (passkey manager) */}
+      <SignInSecurityCard />
 
       {/* Demerit history */}
       <Section title="Demerit history">
@@ -138,7 +144,7 @@ export const AccountView: React.FC<AccountViewProps> = ({ onOpenManagement, onOp
           unitDemerits.map((d) => (
             <div key={d.id} className="card p-3.5 space-y-2">
               <div className="flex items-start justify-between gap-3">
-                <span className="chip chip-warning text-[10px] uppercase">+{d.demerit_points} Pts • {d.spot_number}</span>
+                <span className="chip chip-warning text-[10px] uppercase">+{d.demerit_points} Pts Â· {d.spot_number}</span>
                 {d.fine_amount > 0 && <span className="chip chip-danger text-[10px]">${d.fine_amount} fine</span>}
               </div>
               <p className="text-xs text-ink-secondary leading-relaxed">{d.description}</p>
@@ -149,26 +155,22 @@ export const AccountView: React.FC<AccountViewProps> = ({ onOpenManagement, onOp
 
       {/* Preferences: Theme + PWA install */}
       <Section title="Preferences">
-        {/* Theme toggle */}
         <div className="card p-1.5 grid grid-cols-3 gap-1">
           <ThemeTab icon={<Monitor className="w-4 h-4" />} label="System" value="system" current={theme} onSelect={setTheme} />
           <ThemeTab icon={<Sun className="w-4 h-4" />} label="Light" value="light" current={theme} onSelect={setTheme} />
           <ThemeTab icon={<Moon className="w-4 h-4" />} label="Dark" value="dark" current={theme} onSelect={setTheme} />
         </div>
 
-        {/* Install app */}
         {!isInstalled && (
           <button
             onClick={() => (isIos ? onOpenPushGuide?.() : install())}
             disabled={!canInstall && !isIos}
             className="card-interactive w-full p-3.5 flex items-center gap-3 text-left disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            <div className="icon-tile w-9 h-9">
-              <Smartphone className="w-5 h-5" />
-            </div>
+            <div className="icon-tile w-9 h-9"><Smartphone className="w-5 h-5" /></div>
             <div className="flex-1 min-w-0">
               <h4 className="text-xs font-bold text-ink">
-                {canInstall ? 'Install Millennium Village Parking' : isIos ? 'Install Millennium Village Parking' : 'Install Millennium Village Parking'}
+                Install Millennium Village Parking
               </h4>
               <p className="text-[11px] text-ink-secondary font-medium truncate">
                 {canInstall ? 'Tap to add this app to your home screen' : isIos ? 'Add to Home Screen via Share menu' : 'Add to your home screen for quick access'}
@@ -180,7 +182,7 @@ export const AccountView: React.FC<AccountViewProps> = ({ onOpenManagement, onOp
       </Section>
 
       {/* Building Controls (role-gated) */}
-      {(isManagementOrAdmin) && (
+      {isManagementOrAdmin && (
         <Section title="Building controls">
           {isManagementOrAdmin && (
             <ControlRow
@@ -201,16 +203,13 @@ export const AccountView: React.FC<AccountViewProps> = ({ onOpenManagement, onOp
         </Section>
       )}
 
-      {/* Sign out (demo-only) */}
-      <button
-        onClick={() => switchRole('user')}
-        className="card-interactive w-full py-3.5 rounded-2xl text-center font-extrabold text-xs uppercase tracking-widest text-ink-secondary hover:text-ink transition-all flex items-center justify-center gap-2"
-      >
+      {/* Sign out */}
+      <button onClick={handleSignOut}
+        className="card-interactive w-full py-3.5 rounded-2xl text-center font-extrabold text-xs uppercase tracking-widest text-ink-secondary hover:text-ink transition-all flex items-center justify-center gap-2">
         <LogOut className="w-4 h-4" />
-        <span>Sign out (demo)</span>
+        <span>Sign out</span>
       </button>
 
-      {/* Rental modal */}
       {mySpot && (
         <RentalModal
           spot={mySpot}
@@ -258,3 +257,114 @@ function ControlRow({ icon, title, description, onClick }: { icon: React.ReactNo
     </button>
   );
 }
+
+function SignInSecurityCard() {
+  const { currentUser } = useApp();
+  const [passkeys, setPasskeys] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/me/passkeys');
+        if (res.ok) {
+          const data = await res.json();
+          setPasskeys(data.passkeys || []);
+        }
+      } catch {}
+      setLoading(false);
+    })();
+  }, []);
+
+  const addAnother = async () => {
+    try {
+      setLoading(true);
+      const optRes = await fetch('/api/auth/passkeys/register-options', { method: 'POST' });
+      const optData = await optRes.json();
+      if (!optRes.ok) throw new Error(optData.error);
+      const attestation = await startRegistration(optData.options as any);
+      const verRes = await fetch('/api/auth/passkeys/register-verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ challengeId: optData.challengeId, attestation, deviceLabel: null }),
+      });
+      const verData = await verRes.json();
+      if (!verRes.ok) throw new Error(verData.error);
+      const res = await fetch('/api/me/passkeys');
+      if (res.ok) {
+        const data = await res.json();
+        setPasskeys(data.passkeys || []);
+      }
+    } catch (e: any) {
+      if (e?.name !== 'NotAllowedError') alert(e.message || 'Failed to add passkey');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const removePasskey = async (id: string) => {
+    if (!confirm('Remove this device from your account?')) return;
+    try {
+      await fetch('/api/me/passkeys?id=' + encodeURIComponent(id), { method: 'DELETE' });
+      setPasskeys((prev) => prev.filter((p) => p.id !== id));
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const findDeviceLabel = (pk: any) => {
+    const ua = pk.platform || '';
+    if (/iPhone/i.test(ua)) return 'This iPhone';
+    if (/iPad/i.test(ua)) return 'This iPad';
+    if (/Android/i.test(ua)) return 'This Android';
+    if (/Macintosh/i.test(ua)) return 'This Mac';
+    if (/Windows/i.test(ua)) return 'This Windows PC';
+    return pk.device_label || 'Registered device';
+  };
+
+  return (
+    <Section title="Sign-in & security">
+      <div className="card p-4 space-y-3">
+        <div className="flex items-center gap-3">
+          <div className="icon-tile w-9 h-9"><Fingerprint className="w-5 h-5" /></div>
+          <div className="flex-1">
+            <h4 className="text-sm font-bold text-ink">Biometric sign-in</h4>
+            <p className="text-[11px] text-ink-secondary">Unlock this app instantly with FaceID / TouchID.</p>
+          </div>
+        </div>
+
+        <div className="space-y-2.5">
+          {passkeys.map((pk) => (
+            <div key={pk.id} className="flex items-center justify-between gap-3 p-3 rounded-xl border border-border bg-bg">
+              <div className="min-w-0">
+                <div className="text-xs font-bold text-ink">{findDeviceLabel(pk)}</div>
+                <div className="text-[10px] text-ink-tertiary">
+                  {pk.last_used_at ? `Last used ${new Date(pk.last_used_at).toLocaleDateString()}` : 'Not used yet'}
+                </div>
+              </div>
+              <button onClick={() => removePasskey(pk.id)} className="btn-icon p-1.5 text-danger hover:bg-danger-soft" aria-label="Remove device">
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          ))}
+
+          {passkeys.length === 0 && !loading && (
+            <div className="p-3 rounded-xl bg-bg text-xs text-ink-tertiary text-center">
+              No devices registered yet.
+            </div>
+          )}
+        </div>
+
+        <button
+          onClick={addAnother}
+          disabled={loading}
+          className="w-full py-2.5 rounded-xl border border-dashed border-border text-xs font-bold text-ink-secondary hover:text-accent hover:border-accent/40 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+        >
+          <PlusCircle className="w-4 h-4" />
+          <span>Add another device</span>
+        </button>
+      </div>
+    </Section>
+  );
+}
+

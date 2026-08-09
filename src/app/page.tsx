@@ -14,6 +14,7 @@ import { NotificationsSheet } from '@/components/views/NotificationsSheet';
 import { useDemoMode } from '@/lib/hooks/useDemoMode';
 import { useApp } from '@/lib/context/AppContext';
 import { LoginView } from '@/components/views/LoginView';
+import { PasskeyEnrollmentPrompt } from '@/components/pwa/PasskeyEnrollmentPrompt';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 function AuthedShell() {
@@ -59,6 +60,7 @@ function AuthedShell() {
 
       <PushPermissionGuide isOpen={showPushGuide} onClose={() => setShowPushGuide(false)} />
       <NotificationsSheet isOpen={showNotifications} onClose={() => setShowNotifications(false)} />
+      <PasskeyEnrollmentPrompt />
 
       <MobileTabBar activeTab={activeTab} setActiveTab={handleNavigate} />
 

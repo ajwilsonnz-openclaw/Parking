@@ -4,6 +4,7 @@ import './globals.css';
 import { AppProvider } from '@/lib/context/AppContext';
 import { ThemeProvider, themeInitScript } from '@/lib/theme/ThemeProvider';
 import { ServiceWorkerRegister } from '@/components/pwa/ServiceWorkerRegister';
+import { ConditionalClerkProvider } from '@/components/providers/ConditionalClerkProvider';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -71,11 +72,13 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
-      <body className="antialiased min-h-screen bg-bg text-text pb-24 md:pb-8">
-        <ThemeProvider>
-          <ServiceWorkerRegister />
-          <AppProvider>{children}</AppProvider>
-        </ThemeProvider>
+      <body className="antialiased min-h-screen bg-bg text-ink pb-24 md:pb-8">
+        <ConditionalClerkProvider>
+          <ThemeProvider>
+            <ServiceWorkerRegister />
+            <AppProvider>{children}</AppProvider>
+          </ThemeProvider>
+        </ConditionalClerkProvider>
       </body>
     </html>
   );

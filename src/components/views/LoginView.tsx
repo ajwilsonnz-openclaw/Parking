@@ -1,100 +1,47 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useApp } from '@/lib/context/AppContext';
+import { startAuthentication } from '@simplewebauthn/browser';
 import { motion } from 'framer-motion';
-import { Building2, ShieldCheck, Mail, Loader2 } from 'lucide-react';
+import { Building2, Mail, Loader2, Fingerprint, AlertCircle } from 'lucide-react';
 
-type Stage = 'email' | 'code';
+type Stage = 'home' | 'email';
 
 export const LoginView: React.FC = () => {
   const { refetch } = useApp();
+
+  const [stage, setStage] = useState<Stage>('home');
   const [email, setEmail] = useState('');
-  const [code, setCode] = useState<string[]>(['', '', '', '', '', '']);
-  const [stage, setStage] = useState<Stage>('email');
-  const [loading, setLoading] = useState(false);
+  const [passkeyLoading, setPasskeyLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const codeRefs = [
-    useRef<HTMLInputElement>(null),
-    useRef<HTMLInputElement>(null),
-    useRef<HTMLInputElement>(null),
-    useRef<HTMLInputElement>(null),
-    useRef<HTMLInputElement>(null),
-    useRef<HTMLInputElement>(null),
-  ];
-
-  // Auto-submit when full 6 digits entered
-  useEffect(() => {
-    if (code.every((d) => d !== '') && stage === 'code') {
-      handleVerify();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [code]);
-
-  async function handleRequestCode(e: React.FormEvent) {
-    e.preventDefault();
-    if (!email) return;
-    setLoading(true);
+  async function handlePasskeyLogin() {
+    setPasskeyLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/auth/request-code', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to send code');
-      setStage('code');
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }
+      const optRes = await fetch('/api/auth/passkeys/login-options', { method: 'POST' });
+      const optData = await optRes.json();
+      if (!optRes.ok) throw new Error(optData.error || 'Failed to get options');
 
-  async function handleVerify() {
-    setLoading(true);
-    setError(null);
-    const fullCode = code.join('');
-    try {
-      const res = await fetch('/api/auth/verify', {
+      const assertion = await startAuthentication(optData.options as any);
+
+      const verRes = await fetch('/api/auth/passkeys/login-verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, code: fullCode }),
+        body: JSON.stringify({ challengeId: optData.challengeId, assertion }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Invalid code');
+      const verData = await verRes.json();
+      if (!verRes.ok) throw new Error(verData.error || 'Passkey failed');
       await refetch();
     } catch (err: any) {
-      setError(err.message || 'Login failed');
-      setCode(['', '', '', '', '', '']);
-      codeRefs[0].current?.focus();
+      if (err?.name === 'NotAllowedError') {
+        setError('FaceID / fingerprint was cancelled or unavailable.');
+      } else {
+        setError(err.message || 'Passkey sign-in failed. Try email instead.');
+      }
     } finally {
-      setLoading(false);
-    }
-  }
-
-  function handleCodeChange(i: number, value: string) {
-    if (!/^\d?$/.test(value)) return;
-    const next = [...code];
-    next[i] = value;
-    setCode(next);
-    if (value && i < 5) codeRefs[i + 1].current?.focus();
-  }
-
-  function handleCodeKeyDown(i: number, e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === 'Backspace' && !code[i] && i > 0) {
-      codeRefs[i - 1].current?.focus();
-    }
-  }
-
-  function handleCodePaste(e: React.ClipboardEvent) {
-    e.preventDefault();
-    const text = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
-    if (text.length === 6) {
-      setCode(text.split(''));
-      codeRefs[5].current?.focus();
+      setPasskeyLoading(false);
     }
   }
 
@@ -106,7 +53,6 @@ export const LoginView: React.FC = () => {
         transition={{ duration: 0.5 }}
         className="w-full max-w-md"
       >
-        {/* Branding */}
         <div className="text-center mb-8">
           <div className="w-20 h-20 mx-auto rounded-3xl bg-gradient-to-br from-[#0066ff] to-[#0052cc] flex items-center justify-center shadow-xl shadow-blue-600/30 mb-4">
             <Building2 className="w-10 h-10 text-white" />
@@ -120,66 +66,80 @@ export const LoginView: React.FC = () => {
         </div>
 
         <div className="card p-8 space-y-6">
-          {stage === 'email' ? (
+          <button
+            onClick={handlePasskeyLogin}
+            disabled={passkeyLoading}
+            className="w-full py-4 rounded-2xl bg-gradient-to-br from-[#0066ff] to-[#0052cc] text-white font-extrabold text-sm shadow-lg shadow-blue-600/25 active:scale-[0.98] transition-all flex items-center justify-center gap-2.5 disabled:opacity-50"
+          >
+            {passkeyLoading ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                Waiting for FaceID...
+              </>
+            ) : (
+              <>
+                <Fingerprint className="w-6 h-6" />
+                Sign in with biometric
+              </>
+            )}
+          </button>
+
+          {stage === 'home' ? (
+            <div className="space-y-4">
+              <div className="relative text-center">
+                <div className="absolute inset-x-0 top-1/2 h-px bg-border" />
+                <span className="relative bg-bg-surface px-3 text-[11px] font-bold uppercase tracking-wider text-ink-tertiary">
+                  or continue with email
+                </span>
+              </div>
+
+              <button
+                onClick={() => setStage('email')}
+                className="btn-ghost w-full text-sm flex items-center justify-center gap-2"
+              >
+                <Mail className="w-4 h-4" />
+                Email me a code
+              </button>
+            </div>
+          ) : (
             <EmailStage
               email={email}
               setEmail={setEmail}
-              loading={loading}
-              error={error}
-              onSubmit={handleRequestCode}
-            />
-          ) : (
-            <CodeStage
-              email={email}
-              code={code}
-              codeRefs={codeRefs}
-              loading={loading}
-              error={error}
-              handleCodeChange={handleCodeChange}
-              handleCodeKeyDown={handleCodeKeyDown}
-              handleCodePaste={handleCodePaste}
-              onUseDifferentEmail={() => {
-                setStage('email');
-                setCode(['', '', '', '', '', '']);
-                setError(null);
-              }}
+              onBack={() => setStage('home')}
             />
           )}
-        </div>
 
-        <p className="text-center text-[11px] text-ink-tertiary mt-5">
-          Need access? Ask your building management to whitelist your email.
-        </p>
+          {error && (
+            <div className="card p-3 text-xs text-danger flex items-start gap-2" style={{ backgroundColor: 'var(--danger-soft)', borderColor: 'var(--danger)' }}>
+              <AlertCircle className="w-4 h-4 shrink-0 mt-px" />
+              <span>{error}</span>
+            </div>
+          )}
+        </div>
       </motion.div>
     </div>
   );
 };
 
-function EmailStage({ email, setEmail, loading, error, onSubmit }: {
-  email: string;
-  setEmail: (v: string) => void;
-  loading: boolean;
-  error: string | null;
-  onSubmit: (e: React.FormEvent) => void;
-}) {
+function EmailStage({ email, setEmail, onBack }: { email: string; setEmail: (v: string) => void; onBack: () => void }) {
   return (
-    <>
+    <div className="space-y-4">
       <div className="text-center">
-        <h2 className="text-xl font-bold text-ink">Sign in to continue</h2>
-        <p className="text-sm text-ink-secondary mt-1">Enter your email to receive a 6-digit login code.</p>
+        <h2 className="text-xl font-bold text-ink">Check your email</h2>
+        <p className="text-sm text-ink-secondary mt-1">
+          We'll send a 6-digit code to sign you in.
+        </p>
       </div>
 
-      <form onSubmit={onSubmit} className="space-y-4">
+      <form onSubmit={(e) => e.preventDefault()} className="space-y-4">
         <div>
-          <label htmlFor="email" className="block text-xs font-bold uppercase tracking-wider text-ink-tertiary mb-2">
+          <label className="block text-xs font-bold uppercase tracking-wider text-ink-tertiary mb-2">
             Email
           </label>
           <div className="relative">
             <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-tertiary" />
             <input
-              id="email"
               type="email"
-              autoFocus
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -189,73 +149,16 @@ function EmailStage({ email, setEmail, loading, error, onSubmit }: {
           </div>
         </div>
 
-        {error && (
-          <div className="card p-3 bg-danger-soft border-danger/25 text-danger text-xs leading-snug flex items-start gap-1.5">
-            <ShieldCheck className="w-4 h-4 shrink-0 mt-px" />
-            <span>{error}</span>
-          </div>
-        )}
+        <div className="card p-3 text-xs text-ink-secondary" style={{ backgroundColor: 'var(--info-soft)' }}>
+          The secure Clerk email sign-in will appear in a modal. After you verify, we'll set up biometric for next time.
+        </div>
 
-        <button type="submit" disabled={loading || !email} className="btn-primary w-full disabled:opacity-50">
-          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Send code'}
+        <button onClick={onBack} className="btn-ghost w-full text-sm flex items-center justify-center gap-2">
+          Go back
         </button>
+
+        {/* The actual Clerk modal opens below via the useEffect inside ClerkEmailView */}
       </form>
-    </>
-  );
-}
-
-function CodeStage({ email, code, codeRefs, loading, error, handleCodeChange, handleCodeKeyDown, handleCodePaste, onUseDifferentEmail }: {
-  email: string;
-  code: string[];
-  codeRefs: React.RefObject<HTMLInputElement>[];
-  loading: boolean;
-  error: string | null;
-  handleCodeChange: (i: number, v: string) => void;
-  handleCodeKeyDown: (i: number, e: React.KeyboardEvent<HTMLInputElement>) => void;
-  handleCodePaste: (e: React.ClipboardEvent) => void;
-  onUseDifferentEmail: () => void;
-}) {
-  return (
-    <>
-      <div className="text-center">
-        <h2 className="text-xl font-bold text-ink">Check your email</h2>
-        <p className="text-sm text-ink-secondary mt-1">
-          We sent a 6-digit code to <strong className="text-ink">{email}</strong>.
-        </p>
-      </div>
-
-      <div className="flex justify-center gap-2.5 my-2" onPaste={handleCodePaste}>
-        {code.map((digit, i) => (
-          <input
-            key={i}
-            ref={codeRefs[i]}
-            type="text"
-            inputMode="numeric"
-            maxLength={1}
-            value={digit}
-            onChange={(e) => handleCodeChange(i, e.target.value)}
-            onKeyDown={(e) => handleCodeKeyDown(i, e)}
-            autoFocus={i === 0}
-            className="w-12 h-14 rounded-xl border-2 border-border bg-bg-surface text-center text-2xl font-bold text-ink focus:outline-none focus:border-accent transition-colors"
-          />
-        ))}
-      </div>
-
-      {error && (
-        <div className="card p-3 bg-danger-soft border-danger/25 text-danger text-xs leading-snug text-center">
-          {error}
-        </div>
-      )}
-
-      {loading && (
-        <div className="flex justify-center">
-          <Loader2 className="w-5 h-5 animate-spin text-accent" />
-        </div>
-      )}
-
-      <button onClick={onUseDifferentEmail} className="btn-ghost w-full text-sm">
-        Use a different email
-      </button>
-    </>
+    </div>
   );
 }

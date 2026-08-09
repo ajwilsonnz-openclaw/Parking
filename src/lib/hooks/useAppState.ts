@@ -22,8 +22,7 @@ export interface AppState {
  * SWR-style hook: fetch /api/state, refetch on:
  *   - visibility change (when user returns to tab)
  *   - every 30s while focused
- *   - after any mutation that we know changed state
- * Exposes { data, refetch, isLoading }.
+ *   - after any mutation (via invalidate())
  */
 export function useAppState() {
   const [data, setData] = useState<AppState | null>(null);
@@ -48,33 +47,26 @@ export function useAppState() {
     }
   }, []);
 
-  // Initial fetch
-  useEffect(() => {
-    refetch();
-  }, [refetch]);
+  useEffect(() => { refetch(); }, [refetch]);
 
-  // Poll every 30s while visible
   useEffect(() => {
     const onVisibility = () => {
       if (document.visibilityState === 'visible') refetch();
     };
     document.addEventListener('visibilitychange', onVisibility);
-
     const interval = setInterval(() => {
       if (document.visibilityState === 'visible') refetch();
     }, REFRESH_MS);
-
     return () => {
       document.removeEventListener('visibilitychange', onVisibility);
       clearInterval(interval);
     };
   }, [refetch]);
 
-  // Provide an imperative invalidate method for use in mutations
-  const invalidate = useCallback(async () => { await refetch(); }, [refetch]);
+  const invalidate = useCallback(() => { refetch(); }, [refetch]);
   invalidateRef.current = invalidate;
 
-  return { data, isLoading, refetch: invalidateRef.current, invalidate };
+  return { data, isLoading, refetch: invalidateRef.current };
 }
 
 /** Helper: POST helper with error handling */
