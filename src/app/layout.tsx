@@ -1,7 +1,21 @@
 import type { Metadata, Viewport } from 'next';
+import { Inter, Sora } from 'next/font/google';
 import './globals.css';
 import { AppProvider } from '@/lib/context/AppContext';
+import { ThemeProvider, themeInitScript } from '@/lib/theme/ThemeProvider';
 import { ServiceWorkerRegister } from '@/components/pwa/ServiceWorkerRegister';
+
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-inter',
+  display: 'swap',
+});
+
+const sora = Sora({
+  subsets: ['latin'],
+  variable: '--font-sora',
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
   title: 'Millennium Village Parking',
@@ -33,8 +47,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#f8fafc' },
-    { media: '(prefers-color-scheme: dark)', color: '#090d16' },
+    { media: '(prefers-color-scheme: light)', color: '#f1f5f9' },
+    { media: '(prefers-color-scheme: dark)', color: '#070b12' },
   ],
   width: 'device-width',
   initialScale: 1,
@@ -49,10 +63,19 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark" suppressHydrationWarning>
-      <body className="antialiased min-h-screen bg-[#090d16] text-slate-100 pb-20 md:pb-6">
-        <ServiceWorkerRegister />
-        <AppProvider>{children}</AppProvider>
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className={`${inter.variable} ${sora.variable}`}
+    >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
+      <body className="antialiased min-h-screen bg-bg text-text pb-24 md:pb-8">
+        <ThemeProvider>
+          <ServiceWorkerRegister />
+          <AppProvider>{children}</AppProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
