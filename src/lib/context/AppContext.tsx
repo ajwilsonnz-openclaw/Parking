@@ -12,6 +12,7 @@ import {
   WhitelistEntry,
   Role,
   SessionType,
+  SavedGuest,
 } from '@/types';
 import {
   INITIAL_CONFIG,
@@ -59,6 +60,9 @@ interface AppContextType {
     demeritPoints: number
   ) => void;
   addWhitelistedUser: (email: string, name: string, unitNumber: string, phone: string, role: Role) => void;
+  savedGuests: SavedGuest[];
+  addSavedGuest: (guest: Omit<SavedGuest, 'id' | 'user_id' | 'created_at'>) => void;
+  removeSavedGuest: (guestId: string) => void;
   // Computed Occupancy metrics
   parksInUse: number;
   parksInUseByResident: number;
@@ -81,9 +85,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [demerits, setDemerits] = useState<DemeritRecord[]>(INITIAL_DEMERITS);
   const [rentals, setRentals] = useState<SpotRental[]>(INITIAL_SPOT_RENTALS);
   const [whitelist, setWhitelist] = useState<WhitelistEntry[]>(INITIAL_WHITELIST);
+  const [savedGuests, setSavedGuests] = useState<SavedGuest[]>([
+    {
+      id: 'sg-1',
+      user_id: 'usr-1',
+      name: 'Mark Taylor',
+      phone: '+64 21 555 9911',
+      plate: 'MTT123',
+      make_model_color: 'White Toyota Camry',
+      created_at: new Date().toISOString(),
+    },
+  ]);
   const [favourites, setFavourites] = useState<string[]>(['V-01', 'V-04']);
   const [notificationLog, setNotificationLog] = useState<{ id: string; title: string; message: string; timestamp: string }[]>([
-    { id: 'notif-1', title: 'Welcome to MV Parking', message: 'Your PWA is active and configured for Millennium Village.', timestamp: new Date().toLocaleTimeString() }
+    { id: 'notif-1', title: 'Welcome to MV Parking', message: 'Your PWA is active and configured for Millennium Village.', timestamp: new Date().toISOString() }
   ]);
 
   useEffect(() => {
@@ -147,7 +162,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const addNotificationLog = (title: string, message: string) => {
     setNotificationLog((prev) => [
-      { id: Date.now().toString(), title, message, timestamp: new Date().toLocaleTimeString() },
+      { id: Date.now().toString(), title, message, timestamp: new Date().toISOString() },
       ...prev.slice(0, 19),
     ]);
 
@@ -328,6 +343,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     addNotificationLog('User Whitelisted', `${email} (${unitNumber}) added with ${role.toUpperCase()} role.`);
   };
 
+  const addSavedGuest = (guest: Omit<SavedGuest, 'id' | 'user_id' | 'created_at'>) => {
+    const newGuest: SavedGuest = {
+      id: `sg-${Date.now()}`,
+      user_id: currentUser?.id || 'usr-1',
+      ...guest,
+      created_at: new Date().toISOString(),
+    };
+    setSavedGuests((prev) => [newGuest, ...prev]);
+    addNotificationLog('Regular visitor saved', `${guest.name} added to your regular visitors.`);
+  };
+
+  const removeSavedGuest = (guestId: string) => {
+    setSavedGuests((prev) => prev.filter((g) => g.id !== guestId));
+  };
+
   const sendDirectAlert = (unitNumber: string, message: string, alertType: 'in_app' | 'sms' | 'call') => {
     addNotificationLog(`Direct Alert to ${unitNumber}`, `[${alertType.toUpperCase()}] ${message}`);
   };
@@ -346,6 +376,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         demerits,
         rentals,
         whitelist,
+        savedGuests,
+        addSavedGuest,
+        removeSavedGuest,
         favourites,
         toggleFavourite,
         bookSpot,

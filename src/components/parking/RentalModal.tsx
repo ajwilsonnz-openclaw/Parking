@@ -2,192 +2,233 @@
 
 import React, { useState } from 'react';
 import { useApp } from '@/lib/context/AppContext';
-import { X, Key, DollarSign, Calendar } from 'lucide-react';
+import { Modal } from '@/components/ui/Modal';
+import { Carpark } from '@/types';
+import { Key, DollarSign, Users, Calendar } from 'lucide-react';
+import { PlateCard } from '@/components/ui/PlateCard';
 
 interface RentalModalProps {
+  spot: Carpark;
   isOpen: boolean;
   onClose: () => void;
 }
 
-export const RentalModal: React.FC<RentalModalProps> = ({ isOpen, onClose }) => {
+/**
+ * "Lend my spot" — friendly neighbor spot sharing.
+ * Rebranded from RentalModal to remove commercial "rental" language.
+ */
+export const RentalModal: React.FC<RentalModalProps> = ({ spot, isOpen, onClose }) => {
   const { currentUser, config, rentOutSpot, rentals, bookRentedSpot, vehicles } = useApp();
 
-  const [activeTab, setActiveTab] = useState<'rent_mine' | 'browse_rentals'>('rent_mine');
-  const [assignedSpot, setAssignedSpot] = useState<string>('P-102 (Unit 402)');
-  const [availableWeeks, setAvailableWeeks] = useState<number>(1);
-  const [pricePerWeek, setPricePerWeek] = useState<number>(35);
+  const [activeTab, setActiveTab] = useState<'share_mine' | 'browse'>('share_mine');
+  const [duration, setDuration] = useState<'weekend' | '1week' | '1month' | 'custom'>('1week');
+  const [customWeeks, setCustomWeeks] = useState<number>(2);
+  const [cost, setCost] = useState<'free' | 'koha' | 'set'>('free');
+  const [amount, setAmount] = useState<number>(0);
   const [selectedRenterPlate, setSelectedRenterPlate] = useState<string>(vehicles[0]?.plate_number || 'GHJ125');
 
-  if (!isOpen) return null;
-
-  const handleListSpot = (e: React.FormEvent) => {
+  const handleShare = (e: React.FormEvent) => {
     e.preventDefault();
-    rentOutSpot(assignedSpot, availableWeeks, pricePerWeek);
+    const weeks = duration === 'custom' ? customWeeks : duration === 'weekend' ? 0.3 : duration === '1week' ? 1 : 4;
+    const price = cost === 'free' ? 0 : amount;
+    rentOutSpot(spot.spot_number, weeks, price);
     onClose();
   };
 
+  const listedRentals = rentals.filter((r) => r.status === 'listed' && r.spot_number !== spot.spot_number);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
-      <div className="glass-panel w-full max-w-lg p-6 rounded-2xl border border-slate-700 shadow-2xl relative">
+    <Modal isOpen={isOpen} onClose={onClose} maxWidth="md">
+      <div className="flex items-start gap-3 mb-5">
+        <div className="icon-tile w-11 h-11">
+          <Key className="w-5 h-5" />
+        </div>
+        <div>
+          <h3 className="section-title text-base">Lend my spot to a neighbour</h3>
+          <p className="text-xs text-ink-secondary mt-0.5">Share while you're away. All in the spirit of good neighbours.</p>
+        </div>
+      </div>
+
+      {/* Tab switcher */}
+      <div className="card p-1 grid grid-cols-2 gap-1 mb-5">
         <button
-          onClick={onClose}
-          className="absolute top-4 right-4 p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
+          onClick={() => setActiveTab('share_mine')}
+          className={`py-2 rounded-xl text-xs font-bold transition-all ${
+            activeTab === 'share_mine' ? 'text-accent bg-accent-soft shadow' : 'text-ink-tertiary hover:text-ink'
+          }`}
         >
-          <X className="w-5 h-5" />
+          Lend my spot
         </button>
+        <button
+          onClick={() => setActiveTab('browse')}
+          className={`py-2 rounded-xl text-xs font-bold transition-all ${
+            activeTab === 'browse' ? 'text-accent bg-accent-soft shadow' : 'text-ink-tertiary hover:text-ink'
+          }`}
+        >
+          Available ({listedRentals.length})
+        </button>
+      </div>
 
-        <div className="flex items-center gap-3 mb-5">
-          <div className="w-10 h-10 rounded-xl bg-purple-500/20 border border-purple-500/40 flex items-center justify-center text-purple-400 font-bold text-xl">
-            <Key className="w-5 h-5" />
-          </div>
-          <div>
-            <h3 className="text-lg font-extrabold text-white">Resident Spot Rental</h3>
-            <p className="text-xs text-slate-400">Rent out your assigned spot or reserve a neighbor&apos;s spot</p>
-          </div>
-        </div>
-
-        {/* Tab Switcher */}
-        <div className="flex bg-slate-900/80 p-1 rounded-xl border border-slate-800 mb-5 text-xs">
-          <button
-            onClick={() => setActiveTab('rent_mine')}
-            className={`flex-1 py-2 rounded-lg font-semibold transition-all ${
-              activeTab === 'rent_mine' ? 'bg-purple-600 text-white shadow' : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            Rent My Assigned Spot
-          </button>
-          <button
-            onClick={() => setActiveTab('browse_rentals')}
-            className={`flex-1 py-2 rounded-lg font-semibold transition-all ${
-              activeTab === 'browse_rentals' ? 'bg-purple-600 text-white shadow' : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            Available Listings ({rentals.filter(r => r.status === 'listed').length})
-          </button>
-        </div>
-
-        {activeTab === 'rent_mine' ? (
-          <form onSubmit={handleListSpot} className="space-y-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
-                Your Assigned Spot Number
-              </label>
-              <input
-                type="text"
-                value={assignedSpot}
-                onChange={(e) => setAssignedSpot(e.target.value)}
-                className="w-full px-4 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white font-mono text-xs"
-              />
+      {activeTab === 'share_mine' ? (
+        <form onSubmit={handleShare} className="space-y-4">
+          {/* Spot summary */}
+          <div className="card p-3 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-accent-soft text-accent font-mono font-black flex items-center justify-center text-xs">
+              {spot.spot_number}
             </div>
-
             <div>
-              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
-                Rental Duration (Weeks)
-              </label>
-              <div className="flex items-center gap-3">
+              <div className="text-xs font-bold text-ink">{spot.spot_number}</div>
+              <div className="text-[11px] text-ink-tertiary">{spot.section}</div>
+            </div>
+          </div>
+
+          {/* Duration */}
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-ink-tertiary mb-2">How long?</label>
+            <div className="grid grid-cols-2 gap-2">
+              {(['weekend', '1week', '1month', 'custom'] as const).map((d) => (
+                <button
+                  type="button"
+                  key={d}
+                  onClick={() => setDuration(d)}
+                  className={`py-2.5 rounded-xl border text-xs font-bold transition-all ${
+                    duration === d ? 'border-accent bg-accent-soft text-accent' : 'border-border text-ink-secondary hover:text-ink'
+                  }`}
+                >
+                  {d === 'weekend' ? 'A weekend' : d === '1week' ? 'About a week' : d === '1month' ? 'A month' : 'Custom'}
+                </button>
+              ))}
+            </div>
+            {duration === 'custom' && (
+              <div className="mt-3 flex items-center gap-3">
                 <input
                   type="range"
                   min="1"
                   max="12"
-                  step="1"
-                  value={availableWeeks}
-                  onChange={(e) => setAvailableWeeks(parseInt(e.target.value))}
-                  className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                  value={customWeeks}
+                  onChange={(e) => setCustomWeeks(parseInt(e.target.value))}
+                  className="flex-1 h-2 bg-border rounded-lg appearance-none cursor-pointer accent-accent"
                 />
-                <span className="text-xs font-mono font-bold text-purple-400 bg-slate-900 px-3 py-1 rounded-lg border border-slate-800 shrink-0">
-                  {availableWeeks} {availableWeeks === 1 ? 'Week' : 'Weeks'}
-                </span>
+                <span className="text-xs font-mono font-bold text-accent shrink-0">{customWeeks} weeks</span>
               </div>
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                  Weekly Rental Price ($ NZD)
-                </label>
-                <span className="text-[11px] text-purple-400">
-                  Max Limit: ${config.max_weekly_rental_price.toFixed(2)}/wk
-                </span>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="relative flex-1">
-                  <DollarSign className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
-                  <input
-                    type="number"
-                    min="0"
-                    max={config.max_weekly_rental_price}
-                    step="5"
-                    value={pricePerWeek}
-                    onChange={(e) => setPricePerWeek(parseFloat(e.target.value) || 0)}
-                    className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white font-mono text-xs"
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setPricePerWeek(0)}
-                  className={`px-3 py-2 rounded-xl border text-xs font-bold transition-all ${
-                    pricePerWeek === 0 ? 'bg-emerald-600 text-white border-emerald-500' : 'bg-slate-900 border-slate-800 text-slate-400'
-                  }`}
-                >
-                  List For FREE
-                </button>
-              </div>
-            </div>
-
-            <div className="pt-2">
-              <button
-                type="submit"
-                className="w-full py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-lg shadow-purple-600/30 transition-all"
-              >
-                List Spot for Rent
-              </button>
-            </div>
-          </form>
-        ) : (
-          <div className="space-y-3 max-h-[280px] overflow-y-auto pr-1">
-            {rentals.filter((r) => r.status === 'listed').length === 0 ? (
-              <div className="py-8 text-center text-slate-400 text-xs">
-                No resident spots currently listed for rent.
-              </div>
-            ) : (
-              rentals
-                .filter((r) => r.status === 'listed')
-                .map((rental) => (
-                  <div
-                    key={rental.id}
-                    className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center justify-between gap-3"
-                  >
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono font-bold text-white text-xs">{rental.spot_number}</span>
-                        <span className="text-[10px] text-slate-400">({rental.owner_unit_number})</span>
-                      </div>
-                      <div className="text-[11px] text-slate-400 mt-1">
-                        Available for rent
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      <span className="text-xs font-mono font-extrabold text-emerald-400">
-                        {rental.is_free ? 'FREE' : `$${rental.price_per_week.toFixed(2)}/wk`}
-                      </span>
-
-                      <button
-                        onClick={() => {
-                          bookRentedSpot(rental.id, selectedRenterPlate);
-                          onClose();
-                        }}
-                        className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow transition-all"
-                      >
-                        Reserve
-                      </button>
-                    </div>
-                  </div>
-                ))
             )}
           </div>
-        )}
-      </div>
-    </div>
+
+          {/* Cost */}
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-ink-tertiary mb-2">Cost</label>
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => setCost('free')}
+                className={`w-full card p-3.5 flex items-center gap-3 text-left transition-all ${
+                  cost === 'free' ? 'border-success ring-1 ring-success/25' : ''
+                }`}
+              >
+                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                  cost === 'free' ? 'border-success bg-success/10' : 'border-border'
+                }`}>
+                  {cost === 'free' && <div className="w-3 h-3 rounded-full bg-success" />}
+                </div>
+                <div className="flex-1">
+                  <div className="text-sm font-bold text-ink">Free — happy to help</div>
+                  <div className="text-[11px] text-ink-secondary">As a favour to the neighbour</div>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setCost('koha')}
+                className={`w-full card p-3.5 flex items-center gap-3 text-left transition-all ${
+                  cost === 'koha' ? 'border-warning ring-1 ring-warning/25' : ''
+                }`}
+              >
+                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                  cost === 'koha' ? 'border-warning bg-warning/10' : 'border-border'
+                }`}>
+                  {cost === 'koha' && <div className="w-3 h-3 rounded-full bg-warning" />}
+                </div>
+                <div className="flex-1">
+                  <div className="text-sm font-bold text-ink">Koha / donation</div>
+                  <div className="text-[11px] text-ink-secondary">Whatever they feel is right</div>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setCost('set')}
+                className={`w-full card p-3.5 flex items-center gap-3 text-left transition-all ${
+                  cost === 'set' ? 'border-accent ring-1 ring-accent/25' : ''
+                }`}
+              >
+                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                  cost === 'set' ? 'border-accent bg-accent/10' : 'border-border'
+                }`}>
+                  {cost === 'set' && <div className="w-3 h-3 rounded-full bg-accent" />}
+                </div>
+                <div className="flex-1">
+                  <div className="text-sm font-bold text-ink">A set amount</div>
+                  <div className="text-[11px] text-ink-secondary">A friendly contribution per week</div>
+                </div>
+                {cost === 'set' && (
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="text-sm text-ink-secondary">$</span>
+                    <input
+                      type="number"
+                      min="0"
+                      max={config.max_weekly_rental_price}
+                      value={amount}
+                      onChange={(e) => setAmount(Math.min(parseFloat(e.target.value) || 0, config.max_weekly_rental_price))}
+                      onClick={(e) => e.stopPropagation()}
+                      className="input w-20 px-2 py-1 text-sm font-mono"
+                    />
+                  </div>
+                )}
+              </button>
+            </div>
+            <p className="text-[10px] text-ink-tertiary mt-2 italic">
+              Friendly neighbour note, not a commercial transaction. Keep it simple.
+            </p>
+          </div>
+
+          <button type="submit" className="btn-primary w-full">
+            Make my spot available
+          </button>
+        </form>
+      ) : (
+        <div className="space-y-2.5 max-h-[300px] overflow-y-auto -mx-1 px-1">
+          {listedRentals.length === 0 ? (
+            <div className="card p-6 text-center">
+              <Users className="w-8 h-8 text-ink-tertiary mx-auto mb-2 opacity-60" />
+              <span className="text-sm font-bold text-ink block">No spots listed right now</span>
+              <p className="text-xs text-ink-tertiary mt-1">Check back later — neighbours share spots when they're away.</p>
+            </div>
+          ) : (
+            listedRentals.map((r) => (
+              <div key={r.id} className="card p-3.5 flex items-center justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono font-bold text-ink text-sm">{r.spot_number}</span>
+                    <span className="text-[11px] text-ink-tertiary">({r.owner_unit_number})</span>
+                  </div>
+                  <div className="text-[11px] text-ink-secondary mt-1">Available to share</div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-sm font-mono font-extrabold text-success">
+                    {r.is_free ? 'Free' : `$${r.price_per_week}`}
+                  </span>
+                  <button
+                    onClick={() => { bookRentedSpot(r.id, selectedRenterPlate); onClose(); }}
+                    className="btn-primary text-xs px-3 py-1.5"
+                  >
+                    Reserve it
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </Modal>
   );
 };

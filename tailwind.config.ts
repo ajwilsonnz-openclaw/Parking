@@ -12,6 +12,7 @@ const config: Config = {
       colors: {
         bg: {
           DEFAULT: "var(--bg-app)",
+          app: "var(--bg-app)",
           surface: "var(--bg-surface)",
           glass: "var(--bg-glass)",
           elevated: "var(--bg-elevated)",
@@ -20,7 +21,7 @@ const config: Config = {
           DEFAULT: "var(--border-1)",
           subtle: "var(--border-2)",
         },
-        text: {
+        ink: {
           DEFAULT: "var(--text-1)",
           secondary: "var(--text-2)",
           tertiary: "var(--text-3)",

@@ -106,3 +106,21 @@ export interface WhitelistEntry {
   role: Role;
   added_at: string;
 }
+
+export interface SavedGuest {
+  id: string;
+  user_id: string;
+  name: string;
+  phone?: string;
+  plate: string;
+  make_model_color?: string;
+  created_at: string;
+}
+
+export interface NotificationLogEntry {
+  id: string;
+  title: string;
+  message: string;
+  timestamp: string;
+  read?: boolean;
+}

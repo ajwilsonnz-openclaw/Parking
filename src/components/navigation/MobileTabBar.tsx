@@ -1,63 +1,73 @@
 'use client';
 
 import React from 'react';
-import { Home, Calendar, Eye, MoreHorizontal } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Home, Calendar, Car, UserRound } from 'lucide-react';
+
+export type TabId = 'home' | 'bookings' | 'status' | 'account';
 
 interface MobileTabBarProps {
-  activeTab: string;
-  setActiveTab: (tab: string) => void;
+  activeTab: TabId;
+  setActiveTab: (tab: TabId) => void;
 }
 
-export const MobileTabBar: React.FC<MobileTabBarProps> = ({
-  activeTab,
-  setActiveTab,
-}) => {
+const TABS: { id: TabId; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { id: 'home', label: 'Home', icon: Home },
+  { id: 'bookings', label: 'Bookings', icon: Calendar },
+  { id: 'status', label: 'Status', icon: Car },
+  { id: 'account', label: 'Account', icon: UserRound },
+];
+
+export const MobileTabBar: React.FC<MobileTabBarProps> = ({ activeTab, setActiveTab }) => {
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-100 px-6 py-2.5 max-w-lg mx-auto shadow-lg">
-      <div className="flex items-center justify-between">
-        {/* 1. Home */}
-        <button
-          onClick={() => setActiveTab('home')}
-          className={`flex flex-col items-center gap-1 transition-all ${
-            activeTab === 'home' ? 'text-blue-600 font-bold scale-105' : 'text-slate-400 hover:text-slate-600'
-          }`}
-        >
-          <Home className="w-5 h-5" />
-          <span className="text-[10px] font-semibold">Home</span>
-        </button>
-
-        {/* 2. Bookings */}
-        <button
-          onClick={() => setActiveTab('bookings')}
-          className={`flex flex-col items-center gap-1 transition-all ${
-            activeTab === 'bookings' ? 'text-blue-600 font-bold scale-105' : 'text-slate-400 hover:text-slate-600'
-          }`}
-        >
-          <Calendar className="w-5 h-5" />
-          <span className="text-[10px] font-semibold">Bookings</span>
-        </button>
-
-        {/* 3. Verify */}
-        <button
-          onClick={() => setActiveTab('verify')}
-          className={`flex flex-col items-center gap-1 transition-all ${
-            activeTab === 'verify' ? 'text-blue-600 font-bold scale-105' : 'text-slate-400 hover:text-slate-600'
-          }`}
-        >
-          <Eye className="w-5 h-5" />
-          <span className="text-[10px] font-semibold">Verify</span>
-        </button>
-
-        {/* 4. More */}
-        <button
-          onClick={() => setActiveTab('more')}
-          className={`flex flex-col items-center gap-1 transition-all ${
-            activeTab === 'more' ? 'text-blue-600 font-bold scale-105' : 'text-slate-400 hover:text-slate-600'
-          }`}
-        >
-          <MoreHorizontal className="w-5 h-5" />
-          <span className="text-[10px] font-semibold">More</span>
-        </button>
+    <nav
+      aria-label="Primary"
+      className="fixed bottom-0 left-0 right-0 z-40 px-3 pb-3 pt-2 pointer-events-none"
+    >
+      <div
+        className="card relative mx-auto max-w-lg overflow-hidden pointer-events-auto"
+        style={{
+          borderRadius: '24px',
+          padding: '6px 8px calc(6px + env(safe-area-inset-bottom))',
+        }}
+      >
+        <div className="grid grid-cols-4 gap-1">
+          {TABS.map(({ id, label, icon: Icon }) => {
+            const isActive = activeTab === id;
+            return (
+              <button
+                key={id}
+                onClick={() => setActiveTab(id)}
+                aria-current={isActive ? 'page' : undefined}
+                className="relative flex flex-col items-center justify-center gap-1 py-1.5 rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--accent)] dark:focus-visible:ring-offset-slate-950 transition-colors"
+              >
+                {isActive && (
+                  <motion.span
+                    layoutId="tab-pill"
+                    className="absolute inset-0 rounded-2xl"
+                    style={{
+                      backgroundColor: 'var(--accent-soft)',
+                      border: '1px solid var(--accent-border)',
+                    }}
+                    transition={{ type: 'spring', damping: 30, stiffness: 400 }}
+                  />
+                )}
+                <Icon
+                  className={`relative z-10 w-5 h-5 transition-colors ${
+                    isActive ? 'text-accent' : 'text-ink-tertiary'
+                  }`}
+                />
+                <span
+                  className={`relative z-10 text-[10px] font-bold transition-colors ${
+                    isActive ? 'text-accent' : 'text-ink-tertiary'
+                  }`}
+                >
+                  {label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
     </nav>
   );

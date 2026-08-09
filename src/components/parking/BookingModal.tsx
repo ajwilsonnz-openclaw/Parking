@@ -3,223 +3,247 @@
 import React, { useState } from 'react';
 import { Carpark, SessionType } from '@/types';
 import { useApp } from '@/lib/context/AppContext';
-import { X, Car, Clock, ShieldCheck, UserCheck, AlertCircle } from 'lucide-react';
+import { Modal } from '@/components/ui/Modal';
+import { X, Car, Clock, ShieldCheck, UserCheck, AlertCircle, Users } from 'lucide-react';
 
 interface BookingModalProps {
   spot: Carpark | null;
+  isOpen: boolean;
   onClose: () => void;
+  initialPlate?: string;
+  initialVisitorName?: string;
+  initialVisitorPhone?: string;
 }
 
-export const BookingModal: React.FC<BookingModalProps> = ({ spot, onClose }) => {
-  const { bookSpot, currentUser, vehicles, config } = useApp();
+export const BookingModal: React.FC<BookingModalProps> = ({
+  spot,
+  isOpen,
+  onClose,
+  initialPlate,
+  initialVisitorName,
+  initialVisitorPhone,
+}) => {
+  const { bookSpot, currentUser, vehicles, config, addSavedGuest } = useApp();
 
   const [sessionType, setSessionType] = useState<SessionType>('visitor');
-  const [selectedPlate, setSelectedPlate] = useState<string>(
-    vehicles[0]?.plate_number || 'GHJ125'
-  );
+  const [selectedPlate, setSelectedPlate] = useState<string>(initialPlate || vehicles[0]?.plate_number || 'GHJ125');
   const [customPlate, setCustomPlate] = useState<string>('');
-  const [useCustomPlate, setUseCustomPlate] = useState<boolean>(false);
+  const [useCustomPlate, setUseCustomPlate] = useState<boolean>(!!initialPlate);
   const [durationHours, setDurationHours] = useState<number>(4);
-  const [visitorName, setVisitorName] = useState<string>('');
-  const [visitorPhone, setVisitorPhone] = useState<string>('');
+  const [visitorName, setVisitorName] = useState<string>(initialVisitorName || '');
+  const [visitorPhone, setVisitorPhone] = useState<string>(initialVisitorPhone || '');
+  const [saveAsRegular, setSaveAsRegular] = useState<boolean>(false);
 
   if (!spot) return null;
 
   const maxHours = sessionType === 'visitor' ? config.max_visitor_hours : config.max_resident_excess_hours;
+  const effectivePlate = useCustomPlate ? customPlate.trim().toUpperCase() : selectedPlate;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const finalPlate = useCustomPlate ? customPlate.trim().toUpperCase() : selectedPlate;
-
-    if (!finalPlate) {
+    if (!effectivePlate) {
       alert('Please enter or select a valid vehicle registration plate.');
       return;
     }
 
-    bookSpot(spot.id, spot.spot_number, finalPlate, durationHours, sessionType, visitorName, visitorPhone);
+    bookSpot(spot.id, spot.spot_number, effectivePlate, durationHours, sessionType, visitorName, visitorPhone);
+
+    // Persist as regular guest if ticked
+    if (sessionType === 'visitor' && saveAsRegular && visitorName.trim()) {
+      addSavedGuest({
+        name: visitorName.trim(),
+        plate: effectivePlate,
+        phone: visitorPhone || undefined,
+        make_model_color: undefined,
+      });
+    }
+
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in">
-      <div className="glass-panel w-full max-w-lg p-6 rounded-2xl border border-slate-700 shadow-2xl relative">
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
-        >
-          <X className="w-5 h-5" />
-        </button>
+    <Modal isOpen={isOpen} onClose={onClose} maxWidth="lg">
+      {/* Header */}
+      <div className="flex items-start gap-3 mb-6">
+        <div className="w-12 h-12 rounded-2xl bg-accent-soft text-accent flex items-center justify-center text-base font-black shrink-0">
+          {spot.spot_number}
+        </div>
+        <div className="min-w-0 flex-1">
+          <h3 className="text-xl font-extrabold text-ink tracking-tight">Reserve car park</h3>
+          <p className="text-xs text-ink-secondary">{spot.section} • Millennium Village</p>
+        </div>
+      </div>
 
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-12 h-12 rounded-xl bg-sky-500/20 border border-sky-500/40 flex items-center justify-center text-sky-400 font-mono font-extrabold text-xl">
-            {spot.spot_number}
-          </div>
-          <div>
-            <h3 className="text-xl font-extrabold text-white">Reserve Parking Spot</h3>
-            <p className="text-xs text-slate-400">{spot.section} • Millennium Village Complex</p>
+      <form onSubmit={handleSubmit} className="space-y-5">
+        {/* Session type */}
+        <div>
+          <label className="block text-xs font-bold uppercase tracking-wider text-ink-tertiary mb-2">
+            Parking type
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => { setSessionType('visitor'); setDurationHours(Math.min(durationHours, config.max_visitor_hours)); }}
+              className={`p-3.5 rounded-2xl border text-left transition-all flex items-start gap-2.5 ${
+                sessionType === 'visitor'
+                  ? 'bg-accent-soft border-accent text-ink shadow-glow-accent'
+                  : 'border-border text-ink-secondary hover:border-accent/40'
+              }`}
+            >
+              <Car className="w-5 h-5 text-accent mt-0.5 shrink-0" />
+              <div>
+                <div className="text-sm font-bold">Visitor session</div>
+                <div className="text-[11px] text-ink-secondary mt-0.5">Max {config.max_visitor_hours}h for guests & contractors</div>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => { setSessionType('resident_excess'); setDurationHours(Math.min(durationHours, config.max_resident_excess_hours)); }}
+              className={`p-3.5 rounded-2xl border text-left transition-all flex items-start gap-2.5 ${
+                sessionType === 'resident_excess'
+                  ? 'bg-warning-soft border-warning text-ink'
+                  : 'border-border text-ink-secondary hover:border-warning/40'
+              }`}
+            >
+              <UserCheck className="w-5 h-5 text-warning mt-0.5 shrink-0" />
+              <div>
+                <div className="text-sm font-bold">Resident excess</div>
+                <div className="text-[11px] text-ink-secondary mt-0.5">Subject to priority-vacate rule</div>
+              </div>
+            </button>
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Session Type Switcher */}
-          <div>
-            <label className="block text-xs font-semibold uppercase text-slate-400 tracking-wider mb-2">
-              Parking Type
+        {/* Plate */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-xs font-bold uppercase tracking-wider text-ink-tertiary">
+              Vehicle registration
             </label>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setSessionType('visitor');
-                  setDurationHours(Math.min(durationHours, config.max_visitor_hours));
-                }}
-                className={`p-3 rounded-xl border text-left transition-all flex items-start gap-2.5 ${
-                  sessionType === 'visitor'
-                    ? 'bg-sky-600/20 border-sky-500 text-white shadow-glow-cyan'
-                    : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:border-slate-700'
-                }`}
-              >
-                <Car className="w-5 h-5 text-sky-400 mt-0.5 shrink-0" />
-                <div>
-                  <div className="text-sm font-bold">Visitor Session</div>
-                  <div className="text-[11px] opacity-80 mt-0.5">For guest/contractor cars (Max {config.max_visitor_hours}h)</div>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setSessionType('resident_excess');
-                  setDurationHours(Math.min(durationHours, config.max_resident_excess_hours));
-                }}
-                className={`p-3 rounded-xl border text-left transition-all flex items-start gap-2.5 ${
-                  sessionType === 'resident_excess'
-                    ? 'bg-amber-600/20 border-amber-500 text-white shadow-glow-amber'
-                    : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:border-slate-700'
-                }`}
-              >
-                <UserCheck className="w-5 h-5 text-amber-400 mt-0.5 shrink-0" />
-                <div>
-                  <div className="text-sm font-bold">Resident Excess</div>
-                  <div className="text-[11px] opacity-80 mt-0.5">Subject to Priority Vacate Rule #8</div>
-                </div>
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => setUseCustomPlate(!useCustomPlate)}
+              className="text-xs text-accent hover:underline font-semibold"
+            >
+              {useCustomPlate ? 'Choose from registered vehicles' : '+ Enter custom plate'}
+            </button>
           </div>
 
-          {/* Vehicle License Plate Selector */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-xs font-semibold uppercase text-slate-400 tracking-wider">
-                Vehicle Registration Plate
-              </label>
-              <button
-                type="button"
-                onClick={() => setUseCustomPlate(!useCustomPlate)}
-                className="text-xs text-sky-400 hover:underline"
-              >
-                {useCustomPlate ? 'Choose Registered Vehicle' : '+ Enter Custom Rego Plate'}
-              </button>
-            </div>
+          {useCustomPlate ? (
+            <input
+              type="text"
+              value={customPlate}
+              onChange={(e) => setCustomPlate(e.target.value.toUpperCase())}
+              placeholder="e.g. GHJ125"
+              className="input font-mono uppercase tracking-wider"
+            />
+          ) : (
+            <select
+              value={selectedPlate}
+              onChange={(e) => setSelectedPlate(e.target.value)}
+              className="input font-mono uppercase tracking-wider"
+            >
+              {vehicles.map((v) => (
+                <option key={v.id} value={v.plate_number}>
+                  {v.plate_number} — {v.make_model_color}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
 
-            {useCustomPlate ? (
-              <input
-                type="text"
-                value={customPlate}
-                onChange={(e) => setCustomPlate(e.target.value)}
-                placeholder="e.g. GHJ125 or KXM890"
-                className="w-full px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white placeholder-slate-500 font-mono text-sm uppercase tracking-wider focus:outline-none focus:border-sky-500"
-              />
-            ) : (
-              <select
-                value={selectedPlate}
-                onChange={(e) => setSelectedPlate(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white font-mono text-sm uppercase tracking-wider focus:outline-none focus:border-sky-500"
-              >
-                {vehicles.map((v) => (
-                  <option key={v.id} value={v.plate_number}>
-                    {v.plate_number} — {v.make_model_color} ({v.unit_number})
-                  </option>
-                ))}
-              </select>
-            )}
-          </div>
-
-          {/* Optional Visitor Details */}
-          {sessionType === 'visitor' && (
+        {/* Visitor details */}
+        {sessionType === 'visitor' && (
+          <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-[11px] font-semibold text-slate-400 uppercase mb-1">
-                  Visitor Name (Optional)
+                <label className="block text-[11px] font-bold uppercase text-ink-tertiary mb-1.5">
+                  Visitor name
                 </label>
                 <input
                   type="text"
                   value={visitorName}
                   onChange={(e) => setVisitorName(e.target.value)}
                   placeholder="e.g. Mark Taylor"
-                  className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-800 text-white text-xs"
+                  className="input text-sm"
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-slate-400 uppercase mb-1">
-                  Visitor Phone (Optional)
+                <label className="block text-[11px] font-bold uppercase text-ink-tertiary mb-1.5">
+                  Visitor phone
                 </label>
                 <input
                   type="text"
                   value={visitorPhone}
                   onChange={(e) => setVisitorPhone(e.target.value)}
                   placeholder="+64 21 000 0000"
-                  className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-800 text-white text-xs"
+                  className="input text-sm"
                 />
               </div>
             </div>
-          )}
 
-          {/* Duration Selector Slider */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-xs font-semibold uppercase text-slate-400 tracking-wider">
-                Booking Duration
-              </label>
-              <span className="text-sm font-mono font-bold text-sky-400 bg-slate-900 px-3 py-1 rounded-lg border border-slate-800">
-                {durationHours} Hours (Max {maxHours}h)
-              </span>
-            </div>
-            <input
-              type="range"
-              min="1"
-              max={maxHours}
-              value={durationHours}
-              onChange={(e) => setDurationHours(parseInt(e.target.value))}
-              className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-sky-500"
-            />
-            <div className="flex justify-between text-[10px] text-slate-500 mt-1 font-mono">
-              <span>1 Hour</span>
-              <span>12 Hours</span>
-              <span>{maxHours} Hours</span>
-            </div>
+            {/* Save as regular visitor */}
+            {visitorName.trim() && (
+              <button
+                type="button"
+                onClick={() => setSaveAsRegular(!saveAsRegular)}
+                className={`w-full card p-3.5 flex items-center gap-3 text-left transition-all ${
+                  saveAsRegular ? 'border-accent ring-1 ring-accent/25' : ''
+                }`}
+              >
+                <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${
+                  saveAsRegular ? 'border-accent bg-accent' : 'border-border'
+                }`}>
+                  {saveAsRegular && <span className="text-white text-[10px] font-black">✓</span>}
+                </div>
+                <div className="flex-1">
+                  <div className="text-sm font-bold text-ink">Save as regular visitor</div>
+                  <div className="text-[11px] text-ink-secondary">Quick-book {visitorName.split(' ')[0]} next time with one tap</div>
+                </div>
+              </button>
+            )}
           </div>
+        )}
 
-          {sessionType === 'resident_excess' && (
-            <div className="p-3 rounded-xl bg-amber-950/40 border border-amber-500/30 text-amber-300 text-xs flex items-start gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-400" />
-              <span>
-                <strong>Note on Rule #8:</strong> If visitor carparks reach 0 available, resident excess vehicles are flagged to vacate for incoming guests.
-              </span>
-            </div>
-          )}
-
-          {/* Submit Action Button */}
-          <div className="pt-2">
-            <button
-              type="submit"
-              className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-sky-600 to-sky-500 hover:from-sky-500 hover:to-sky-400 text-white font-bold text-sm shadow-lg shadow-sky-600/30 transition-all active:scale-[0.98]"
-            >
-              Confirm Carpark Booking
-            </button>
+        {/* Duration */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-xs font-bold uppercase tracking-wider text-ink-tertiary">
+              Booking duration
+            </label>
+            <span className="text-sm font-mono font-bold text-accent bg-accent-soft px-3 py-1 rounded-lg border border-accent-border">
+              {durationHours} hrs (max {maxHours}h)
+            </span>
           </div>
-        </form>
-      </div>
-    </div>
+          <input
+            type="range"
+            min="1"
+            max={maxHours}
+            value={durationHours}
+            onChange={(e) => setDurationHours(parseInt(e.target.value))}
+            className="w-full h-2 bg-border rounded-lg appearance-none cursor-pointer accent-accent"
+          />
+          <div className="flex justify-between text-[10px] text-ink-tertiary mt-1">
+            <span>1 hour</span>
+            <span>{Math.floor(maxHours / 2)} hours</span>
+            <span>{maxHours} hours</span>
+          </div>
+        </div>
+
+        {sessionType === 'resident_excess' && (
+          <div className="card p-3.5 border-l-4 border-l-warning bg-warning-soft text-xs text-ink-secondary flex items-start gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-warning" />
+            <span>
+              <strong className="text-warning">Rule reminder:</strong> If visitor parks reach 0 available, resident excess vehicles are asked to vacate.
+            </span>
+          </div>
+        )}
+
+        <button type="submit" className="btn-primary w-full">
+          Confirm booking
+        </button>
+      </form>
+    </Modal>
   );
 };
