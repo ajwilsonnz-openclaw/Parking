@@ -169,7 +169,7 @@ export const AccountView: React.FC<AccountViewProps> = ({ onOpenManagement, onOp
             </div>
             <div className="flex-1 min-w-0">
               <h4 className="text-xs font-bold text-ink">
-                {canInstall ? 'Install MV Parking' : isIos ? 'Install MV Parking' : 'Install MV Parking'}
+                {canInstall ? 'Install Millennium Village Parking' : isIos ? 'Install Millennium Village Parking' : 'Install Millennium Village Parking'}
               </h4>
               <p className="text-[11px] text-ink-secondary font-medium truncate">
                 {canInstall ? 'Tap to add this app to your home screen' : isIos ? 'Add to Home Screen via Share menu' : 'Add to your home screen for quick access'}

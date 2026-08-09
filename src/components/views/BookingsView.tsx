@@ -80,14 +80,14 @@ export const BookingsView: React.FC = () => {
 
       {/* Booking ahead banner */}
       {activeTab === 'upcoming' && (
-        <div className="card p-4 flex items-center gap-3 border-l-4 border-l-accent">
+        <div className="card p-4 flex items-center gap-3">
           <div className="icon-tile w-10 h-10 shrink-0">
             <CalendarIcon className="w-5 h-5" />
           </div>
           <div className="flex-1 min-w-0">
             <h4 className="text-xs font-bold text-ink">Booking ahead?</h4>
             <p className="text-[11px] text-ink-secondary font-medium">
-              You can reserve visitor parking from 15 minutes to 7 days in advance.
+              You can reserve visitor parking up to 24 hours in advance.
             </p>
           </div>
           <ChevronRight className="w-4 h-4 text-ink-tertiary shrink-0" />

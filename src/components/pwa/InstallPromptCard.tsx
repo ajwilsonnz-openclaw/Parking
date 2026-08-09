@@ -44,7 +44,7 @@ export const InstallPromptCard: React.FC = () => {
             <Smartphone className="w-5 h-5" />
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="text-sm font-extrabold tracking-tight">Install MV Parking</h3>
+            <h3 className="text-sm font-extrabold tracking-tight">Install Millennium Village Parking</h3>
             <p className="text-xs text-blue-100 mt-0.5 leading-snug">
               Add to your home screen for faster bookings and push notifications.
             </p>

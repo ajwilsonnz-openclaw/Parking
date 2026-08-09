@@ -51,7 +51,7 @@ export const NotificationsSheet: React.FC<NotificationsSheetProps> = ({ isOpen, 
           {notificationLog.map((n) => (
             <div
               key={n.id}
-              className="card p-3.5 border-l-4 border-l-accent"
+              className="card p-3.5"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">

@@ -93,7 +93,7 @@ export interface SystemConfig {
   tow_agency_name: string;
   tow_agency_phone: string;
   total_visitor_parks: number; // default 20
-  spot_prefix: string; // default 'V-'
+  spot_prefix: string; // default 'V'
   area_divisions: string[]; // e.g. ['Ground Floor', 'Basement Level 1'] or ['Front Lot', 'Back Lot']
 }
 

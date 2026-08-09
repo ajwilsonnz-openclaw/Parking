@@ -4,8 +4,7 @@ import React, { useState } from 'react';
 import { useApp } from '@/lib/context/AppContext';
 import { Modal } from '@/components/ui/Modal';
 import { Carpark } from '@/types';
-import { Key, DollarSign, Users, Calendar } from 'lucide-react';
-import { PlateCard } from '@/components/ui/PlateCard';
+import { Key, Users, Calendar, DollarSign } from 'lucide-react';
 
 interface RentalModalProps {
   spot: Carpark;
@@ -14,23 +13,32 @@ interface RentalModalProps {
 }
 
 /**
- * "Lend my spot" — friendly neighbor spot sharing.
- * Rebranded from RentalModal to remove commercial "rental" language.
+ * "Lend my spot to a neighbour" — generous spirit, donation-oriented.
  */
 export const RentalModal: React.FC<RentalModalProps> = ({ spot, isOpen, onClose }) => {
   const { currentUser, config, rentOutSpot, rentals, bookRentedSpot, vehicles } = useApp();
 
   const [activeTab, setActiveTab] = useState<'share_mine' | 'browse'>('share_mine');
-  const [duration, setDuration] = useState<'weekend' | '1week' | '1month' | 'custom'>('1week');
-  const [customWeeks, setCustomWeeks] = useState<number>(2);
-  const [cost, setCost] = useState<'free' | 'koha' | 'set'>('free');
-  const [amount, setAmount] = useState<number>(0);
-  const [selectedRenterPlate, setSelectedRenterPlate] = useState<string>(vehicles[0]?.plate_number || 'GHJ125');
+
+  // Date range (indefinite option)
+  const [indefinite, setIndefinite] = useState<boolean>(true);
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const twoWeeksFromNow = new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10);
+  const [fromDate, setFromDate] = useState<string>(todayIso);
+  const [untilDate, setUntilDate] = useState<string>(twoWeeksFromNow);
+
+  // Cost
+  const [costType, setCostType] = useState<'free' | 'donation' | 'set'>('free');
+  const [setAmount, setSetAmount] = useState<number>(20);
+
+  const [selectedPlate, setSelectedPlate] = useState<string>(vehicles[0]?.plate_number || '');
 
   const handleShare = (e: React.FormEvent) => {
     e.preventDefault();
-    const weeks = duration === 'custom' ? customWeeks : duration === 'weekend' ? 0.3 : duration === '1week' ? 1 : 4;
-    const price = cost === 'free' ? 0 : amount;
+    const weeks = indefinite
+      ? 52 // "indefinite" = approx 1 year
+      : Math.max(0.1, (new Date(untilDate).getTime() - new Date(fromDate).getTime()) / (7 * 86400000));
+    const price = costType === 'free' ? 0 : costType === 'donation' ? 0 : setAmount;
     rentOutSpot(spot.spot_number, weeks, price);
     onClose();
   };
@@ -45,7 +53,7 @@ export const RentalModal: React.FC<RentalModalProps> = ({ spot, isOpen, onClose 
         </div>
         <div>
           <h3 className="section-title text-base">Lend my spot to a neighbour</h3>
-          <p className="text-xs text-ink-secondary mt-0.5">Share while you're away. All in the spirit of good neighbours.</p>
+          <p className="text-xs text-ink-secondary mt-0.5">Share it while you're away — all in the spirit of good neighbours.</p>
         </div>
       </div>
 
@@ -70,124 +78,114 @@ export const RentalModal: React.FC<RentalModalProps> = ({ spot, isOpen, onClose 
       </div>
 
       {activeTab === 'share_mine' ? (
-        <form onSubmit={handleShare} className="space-y-4">
+        <form onSubmit={handleShare} className="space-y-5">
           {/* Spot summary */}
-          <div className="card p-3 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-accent-soft text-accent font-mono font-black flex items-center justify-center text-xs">
+          <div className="card p-3.5 flex items-center gap-3">
+            <div className="w-11 h-11 rounded-xl bg-accent-soft text-accent font-mono font-black flex items-center justify-center text-sm border border-accent-border">
               {spot.spot_number}
             </div>
             <div>
-              <div className="text-xs font-bold text-ink">{spot.spot_number}</div>
-              <div className="text-[11px] text-ink-tertiary">{spot.section}</div>
+              <div className="text-sm font-bold text-ink">{spot.spot_number}</div>
+              <div className="text-[11px] text-ink-tertiary">Your assigned park</div>
             </div>
           </div>
 
-          {/* Duration */}
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-ink-tertiary mb-2">How long?</label>
-            <div className="grid grid-cols-2 gap-2">
-              {(['weekend', '1week', '1month', 'custom'] as const).map((d) => (
-                <button
-                  type="button"
-                  key={d}
-                  onClick={() => setDuration(d)}
-                  className={`py-2.5 rounded-xl border text-xs font-bold transition-all ${
-                    duration === d ? 'border-accent bg-accent-soft text-accent' : 'border-border text-ink-secondary hover:text-ink'
-                  }`}
-                >
-                  {d === 'weekend' ? 'A weekend' : d === '1week' ? 'About a week' : d === '1month' ? 'A month' : 'Custom'}
-                </button>
-              ))}
-            </div>
-            {duration === 'custom' && (
-              <div className="mt-3 flex items-center gap-3">
-                <input
-                  type="range"
-                  min="1"
-                  max="12"
-                  value={customWeeks}
-                  onChange={(e) => setCustomWeeks(parseInt(e.target.value))}
-                  className="flex-1 h-2 bg-border rounded-lg appearance-none cursor-pointer accent-accent"
-                />
-                <span className="text-xs font-mono font-bold text-accent shrink-0">{customWeeks} weeks</span>
+          {/* Dates */}
+          <div className="space-y-3">
+            <label className="block text-xs font-bold uppercase tracking-wider text-ink-tertiary">
+              When is it available?
+            </label>
+
+            {/* Indefinite toggle */}
+            <button
+              type="button"
+              onClick={() => setIndefinite(!indefinite)}
+              className={`w-full card p-3.5 flex items-center gap-3 text-left transition-all ${
+                indefinite ? 'border-accent ring-1 ring-accent/25' : ''
+              }`}
+            >
+              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                indefinite ? 'border-accent bg-accent/10' : 'border-border'
+              }`}>
+                {indefinite && <div className="w-3 h-3 rounded-full bg-accent" />}
+              </div>
+              <div className="flex-1">
+                <div className="text-sm font-bold text-ink">Indefinitely</div>
+                <div className="text-[11px] text-ink-secondary">Until I turn it off</div>
+              </div>
+            </button>
+
+            {/* Specific date range */}
+            {!indefinite && (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold uppercase text-ink-tertiary mb-1.5">From</label>
+                  <input
+                    type="date"
+                    value={fromDate}
+                    min={todayIso}
+                    onChange={(e) => setFromDate(e.target.value)}
+                    className="input text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold uppercase text-ink-tertiary mb-1.5">Until</label>
+                  <input
+                    type="date"
+                    value={untilDate}
+                    min={fromDate}
+                    onChange={(e) => setUntilDate(e.target.value)}
+                    className="input text-sm"
+                  />
+                </div>
               </div>
             )}
           </div>
 
           {/* Cost */}
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-ink-tertiary mb-2">Cost</label>
-            <div className="space-y-2">
-              <button
-                type="button"
-                onClick={() => setCost('free')}
-                className={`w-full card p-3.5 flex items-center gap-3 text-left transition-all ${
-                  cost === 'free' ? 'border-success ring-1 ring-success/25' : ''
-                }`}
-              >
-                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                  cost === 'free' ? 'border-success bg-success/10' : 'border-border'
-                }`}>
-                  {cost === 'free' && <div className="w-3 h-3 rounded-full bg-success" />}
-                </div>
-                <div className="flex-1">
-                  <div className="text-sm font-bold text-ink">Free — happy to help</div>
-                  <div className="text-[11px] text-ink-secondary">As a favour to the neighbour</div>
-                </div>
-              </button>
+          <div className="space-y-2">
+            <label className="block text-xs font-bold uppercase tracking-wider text-ink-tertiary">
+              Cost for the neighbour
+            </label>
 
-              <button
-                type="button"
-                onClick={() => setCost('koha')}
-                className={`w-full card p-3.5 flex items-center gap-3 text-left transition-all ${
-                  cost === 'koha' ? 'border-warning ring-1 ring-warning/25' : ''
-                }`}
-              >
-                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                  cost === 'koha' ? 'border-warning bg-warning/10' : 'border-border'
-                }`}>
-                  {cost === 'koha' && <div className="w-3 h-3 rounded-full bg-warning" />}
-                </div>
-                <div className="flex-1">
-                  <div className="text-sm font-bold text-ink">Koha / donation</div>
-                  <div className="text-[11px] text-ink-secondary">Whatever they feel is right</div>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setCost('set')}
-                className={`w-full card p-3.5 flex items-center gap-3 text-left transition-all ${
-                  cost === 'set' ? 'border-accent ring-1 ring-accent/25' : ''
-                }`}
-              >
-                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                  cost === 'set' ? 'border-accent bg-accent/10' : 'border-border'
-                }`}>
-                  {cost === 'set' && <div className="w-3 h-3 rounded-full bg-accent" />}
-                </div>
-                <div className="flex-1">
-                  <div className="text-sm font-bold text-ink">A set amount</div>
-                  <div className="text-[11px] text-ink-secondary">A friendly contribution per week</div>
-                </div>
-                {cost === 'set' && (
+            <CostOption
+              selected={costType === 'free'}
+              onClick={() => setCostType('free')}
+              title="Free — happy to help"
+              subtitle="As a favour to the neighbour"
+            />
+            <CostOption
+              selected={costType === 'donation'}
+              onClick={() => setCostType('donation')}
+              title="Donation"
+              subtitle="Whatever they feel is right — give what they can"
+            />
+            <CostOption
+              selected={costType === 'set'}
+              onClick={() => setCostType('set')}
+              title="A set amount"
+              subtitle="A friendly weekly contribution"
+              trailing={
+                costType === 'set' ? (
                   <div className="flex items-center gap-1.5 shrink-0">
                     <span className="text-sm text-ink-secondary">$</span>
                     <input
                       type="number"
                       min="0"
                       max={config.max_weekly_rental_price}
-                      value={amount}
-                      onChange={(e) => setAmount(Math.min(parseFloat(e.target.value) || 0, config.max_weekly_rental_price))}
+                      value={setAmount}
+                      onChange={(e) => setSetAmount(Math.min(parseFloat(e.target.value) || 0, config.max_weekly_rental_price))}
                       onClick={(e) => e.stopPropagation()}
                       className="input w-20 px-2 py-1 text-sm font-mono"
                     />
+                    <span className="text-[11px] text-ink-tertiary">/wk</span>
                   </div>
-                )}
-              </button>
-            </div>
-            <p className="text-[10px] text-ink-tertiary mt-2 italic">
-              Friendly neighbour note, not a commercial transaction. Keep it simple.
+                ) : undefined
+              }
+            />
+
+            <p className="text-[10px] text-ink-tertiary italic pt-1">
+              A friendly neighbour note, not a commercial transaction.
             </p>
           </div>
 
@@ -218,8 +216,9 @@ export const RentalModal: React.FC<RentalModalProps> = ({ spot, isOpen, onClose 
                     {r.is_free ? 'Free' : `$${r.price_per_week}`}
                   </span>
                   <button
-                    onClick={() => { bookRentedSpot(r.id, selectedRenterPlate); onClose(); }}
-                    className="btn-primary text-xs px-3 py-1.5"
+                    onClick={() => { bookRentedSpot(r.id, selectedPlate); onClose(); }}
+                    disabled={!selectedPlate}
+                    className="btn-primary text-xs px-3 py-1.5 disabled:opacity-50"
                   >
                     Reserve it
                   </button>
@@ -232,3 +231,38 @@ export const RentalModal: React.FC<RentalModalProps> = ({ spot, isOpen, onClose 
     </Modal>
   );
 };
+
+function CostOption({
+  selected,
+  onClick,
+  title,
+  subtitle,
+  trailing,
+}: {
+  selected: boolean;
+  onClick: () => void;
+  title: string;
+  subtitle: string;
+  trailing?: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`w-full card p-3.5 flex items-center gap-3 text-left transition-all ${
+        selected ? 'border-accent ring-1 ring-accent/25' : ''
+      }`}
+    >
+      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+        selected ? 'border-accent bg-accent/10' : 'border-border'
+      }`}>
+        {selected && <div className="w-3 h-3 rounded-full bg-accent" />}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="text-sm font-bold text-ink">{title}</div>
+        <div className="text-[11px] text-ink-secondary">{subtitle}</div>
+      </div>
+      {trailing}
+    </button>
+  );
+}

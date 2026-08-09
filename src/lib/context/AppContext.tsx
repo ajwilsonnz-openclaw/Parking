@@ -96,9 +96,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       created_at: new Date().toISOString(),
     },
   ]);
-  const [favourites, setFavourites] = useState<string[]>(['V-01', 'V-04']);
+  const [favourites, setFavourites] = useState<string[]>(['V01', 'V04']);
   const [notificationLog, setNotificationLog] = useState<{ id: string; title: string; message: string; timestamp: string }[]>([
-    { id: 'notif-1', title: 'Welcome to MV Parking', message: 'Your PWA is active and configured for Millennium Village.', timestamp: new Date().toISOString() }
+    { id: 'notif-1', title: 'Welcome to Millennium Village Parking', message: 'Your PWA is active and configured for Millennium Village.', timestamp: new Date().toISOString() }
   ]);
 
   useEffect(() => {
@@ -121,7 +121,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       id: `usr-${role}`,
       email: `${role}@millennium.com`,
       name: `${role.toUpperCase()} User`,
-      unit_number: role === 'user' ? 'Unit 402' : 'Management Office',
+      unit_number: role === 'user' ? 'Unit 12' : 'Body Corp Office',
       phone: '+64 21 555 0100',
       role,
       status: 'active',
@@ -135,19 +135,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setConfig((prev) => {
       const updated = { ...prev, ...newConfig };
       // Regenerate visitor carparks if total_visitor_parks or spot_prefix changed
-      if (newConfig.total_visitor_parks !== undefined || newConfig.spot_prefix !== undefined || newConfig.area_divisions !== undefined) {
+      if (newConfig.total_visitor_parks !== undefined || newConfig.spot_prefix !== undefined) {
         const total = updated.total_visitor_parks;
-        const prefix = updated.spot_prefix || 'V-';
-        const areas = updated.area_divisions.length > 0 ? updated.area_divisions : ['Ground Floor', 'Basement Level 1'];
+        const prefix = updated.spot_prefix || 'V';
 
         const newParks: Carpark[] = Array.from({ length: total }, (_, i) => {
           const num = (i + 1).toString().padStart(2, '0');
-          const areaIndex = Math.floor((i / total) * areas.length);
-          const section = areas[areaIndex] || areas[0];
           return {
             id: `spot-${num}`,
             spot_number: `${prefix}${num}`,
-            section,
+            section: '',
             status: (i === 2 || i === 4 || i === 7 ? 'occupied' : 'available') as Carpark['status'],
             is_rentable_private: false,
             is_favourite: i === 0 || i === 3,
@@ -206,7 +203,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       id: `sess-${Date.now()}`,
       spot_id: spotId,
       spot_number: spotNumber,
-      unit_number: currentUser?.unit_number || 'Unit 402',
+      unit_number: currentUser?.unit_number || 'Unit 12',
       vehicle_plate: vehiclePlate,
       session_type: sessionType,
       start_time: startTime.toISOString(),
@@ -255,7 +252,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const newRental: SpotRental = {
       id: `rent-${Date.now()}`,
-      owner_unit_number: currentUser?.unit_number || 'Unit 402',
+      owner_unit_number: currentUser?.unit_number || 'Unit 12',
       spot_number: spotNumber,
       available_from: now.toISOString(),
       available_until: until.toISOString(),
@@ -278,7 +275,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           ? {
               ...r,
               status: 'booked',
-              renter_unit_number: currentUser?.unit_number || 'Unit 402',
+              renter_unit_number: currentUser?.unit_number || 'Unit 12',
               renter_plate: renterPlate,
             }
           : r

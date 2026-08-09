@@ -44,7 +44,7 @@ export const HomeView: React.FC<HomeViewProps> = ({ onNavigateTab }) => {
 
   const activeSessions = sessions.filter((s) => s.is_active);
   const nextBooking = activeSessions[0]; // For now, first active booking
-  const availableVisitorCount = carparks.filter((c) => c.status === 'available' && c.spot_number.startsWith('V-')).length;
+  const availableVisitorCount = carparks.filter((c) => c.status === 'available' && c.spot_number.startsWith(config.spot_prefix || 'V')).length;
 
   return (
     <div className="space-y-4 max-w-lg mx-auto pb-4 animate-fade-in">
@@ -62,7 +62,7 @@ export const HomeView: React.FC<HomeViewProps> = ({ onNavigateTab }) => {
               {config.complex_name || 'Millennium Village'}
             </h2>
             <p className="text-[11px] text-ink-tertiary font-medium truncate">
-              123 Johnson Lane, Auckland
+              548 Albany Highway, Albany
             </p>
           </div>
           <button

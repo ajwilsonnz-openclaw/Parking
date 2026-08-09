@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, Suspense } from 'react';
+import React, { useState, useCallback, Suspense, useEffect } from 'react';
 import { Header } from '@/components/navigation/Header';
 import { MobileTabBar, TabId } from '@/components/navigation/MobileTabBar';
 import { HomeView } from '@/components/views/HomeView';
@@ -20,15 +20,22 @@ function Shell() {
   const [activeTab, setActiveTab] = useState<TabId>('home');
   const [showPushGuide, setShowPushGuide] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
-  // Sub-view inside Account: null | 'profile' | 'management' | 'admin'
   const [accountSubView, setAccountSubView] = useState<null | 'profile' | 'management' | 'admin'>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
 
   const handleNavigate = useCallback((tab: TabId) => {
     setActiveTab(tab);
-    setAccountSubView(null); // reset sub-view when switching tabs
+    setAccountSubView(null);
   }, []);
 
   const isManagementOrAdmin = currentUser?.role === 'management' || currentUser?.role === 'admin';
+
+  if (!mounted) {
+    // Render nothing until client mounts — avoids hydration mismatch with mock time values
+    return <div className="min-h-screen" style={{ backgroundColor: 'var(--bg-app)' }} />;
+  }
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -63,7 +70,6 @@ function Shell() {
 
       <MobileTabBar activeTab={activeTab} setActiveTab={handleNavigate} />
 
-      {/* Demo mode indicator */}
       {isDemo && (
         <div className="fixed top-2 right-2 z-50 px-2 py-1 rounded-full bg-warning-soft text-warning text-[10px] font-black uppercase tracking-wider border border-warning/25 shadow">
           Demo Mode
@@ -75,7 +81,7 @@ function Shell() {
 
 export default function Home() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-bg" />}>
+    <Suspense fallback={<div className="min-h-screen" style={{ backgroundColor: 'var(--bg-app)' }} />}>
       <Shell />
     </Suspense>
   );

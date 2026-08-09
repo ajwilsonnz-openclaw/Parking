@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Carpark, SessionType } from '@/types';
 import { useApp } from '@/lib/context/AppContext';
 import { Modal } from '@/components/ui/Modal';
-import { X, Car, Clock, ShieldCheck, UserCheck, AlertCircle, Users } from 'lucide-react';
+import { Car, UserCheck, AlertCircle, Plus, Users, ChevronDown } from 'lucide-react';
 
 interface BookingModalProps {
   spot: Carpark | null;
@@ -23,41 +23,63 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   initialVisitorName,
   initialVisitorPhone,
 }) => {
-  const { bookSpot, currentUser, vehicles, config, addSavedGuest } = useApp();
+  const { bookSpot, currentUser, vehicles, config, addSavedGuest, savedGuests } = useApp();
 
   const [sessionType, setSessionType] = useState<SessionType>('visitor');
-  const [selectedPlate, setSelectedPlate] = useState<string>(initialPlate || vehicles[0]?.plate_number || 'GHJ125');
-  const [customPlate, setCustomPlate] = useState<string>('');
-  const [useCustomPlate, setUseCustomPlate] = useState<boolean>(!!initialPlate);
   const [durationHours, setDurationHours] = useState<number>(4);
+
+  // Visitor session: custom plate entry
+  const [guestPlate, setGuestPlate] = useState<string>(initialPlate || '');
   const [visitorName, setVisitorName] = useState<string>(initialVisitorName || '');
   const [visitorPhone, setVisitorPhone] = useState<string>(initialVisitorPhone || '');
   const [saveAsRegular, setSaveAsRegular] = useState<boolean>(false);
+  const [showGuestPicker, setShowGuestPicker] = useState(false);
+
+  // Resident excess: choose from own registered vehicles only
+  const unitVehicles = useMemo(
+    () => vehicles.filter((v) => v.unit_number === currentUser?.unit_number),
+    [vehicles, currentUser]
+  );
+  const [selectedResidentPlate, setSelectedResidentPlate] = useState<string>(
+    unitVehicles[0]?.plate_number || ''
+  );
 
   if (!spot) return null;
 
   const maxHours = sessionType === 'visitor' ? config.max_visitor_hours : config.max_resident_excess_hours;
-  const effectivePlate = useCustomPlate ? customPlate.trim().toUpperCase() : selectedPlate;
+  const finalPlate = (sessionType === 'visitor' ? guestPlate : selectedResidentPlate || '').trim().toUpperCase();
+
+  const fillFromSavedGuest = (guestId: string) => {
+    const g = savedGuests.find((x) => x.id === guestId);
+    if (!g) return;
+    setGuestPlate(g.plate);
+    setVisitorName(g.name);
+    setVisitorPhone(g.phone || '');
+    setShowGuestPicker(false);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!effectivePlate) {
-      alert('Please enter or select a valid vehicle registration plate.');
-      return;
-    }
+    if (!finalPlate) return;
 
-    bookSpot(spot.id, spot.spot_number, effectivePlate, durationHours, sessionType, visitorName, visitorPhone);
+    bookSpot(
+      spot.id,
+      spot.spot_number,
+      finalPlate,
+      durationHours,
+      sessionType,
+      sessionType === 'visitor' ? visitorName : undefined,
+      sessionType === 'visitor' ? visitorPhone : undefined
+    );
 
-    // Persist as regular guest if ticked
-    if (sessionType === 'visitor' && saveAsRegular && visitorName.trim()) {
+    if (sessionType === 'visitor' && saveAsRegular && visitorName.trim() && guestPlate.trim()) {
       addSavedGuest({
         name: visitorName.trim(),
-        plate: effectivePlate,
+        plate: finalPlate,
         phone: visitorPhone || undefined,
         make_model_color: undefined,
       });
     }
-
     onClose();
   };
 
@@ -66,11 +88,11 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       {/* Header */}
       <div className="flex items-start gap-3 mb-6">
         <div className="w-12 h-12 rounded-2xl bg-accent-soft text-accent flex items-center justify-center text-base font-black shrink-0">
-          {spot.spot_number}
+          {spot.spot_number.replace('V-', 'V')}
         </div>
         <div className="min-w-0 flex-1">
           <h3 className="text-xl font-extrabold text-ink tracking-tight">Reserve car park</h3>
-          <p className="text-xs text-ink-secondary">{spot.section} • Millennium Village</p>
+          <p className="text-xs text-ink-secondary">{config.complex_name}</p>
         </div>
       </div>
 
@@ -99,7 +121,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
             <button
               type="button"
-              onClick={() => { setSessionType('resident_excess'); setDurationHours(Math.min(durationHours, config.max_resident_excess_hours)); }}
+              onClick={() => { setSessionType('resident_excess'); setDurationHours(Math.min(durationHours, config.max_resident_excess_hours)); if (!selectedResidentPlate && unitVehicles[0]) setSelectedResidentPlate(unitVehicles[0].plate_number); }}
               className={`p-3.5 rounded-2xl border text-left transition-all flex items-start gap-2.5 ${
                 sessionType === 'resident_excess'
                   ? 'bg-warning-soft border-warning text-ink'
@@ -109,58 +131,80 @@ export const BookingModal: React.FC<BookingModalProps> = ({
               <UserCheck className="w-5 h-5 text-warning mt-0.5 shrink-0" />
               <div>
                 <div className="text-sm font-bold">Resident excess</div>
-                <div className="text-[11px] text-ink-secondary mt-0.5">Subject to priority-vacate rule</div>
+                <div className="text-[11px] text-ink-secondary mt-0.5">Your second vehicle</div>
               </div>
             </button>
           </div>
         </div>
 
-        {/* Plate */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <label className="text-xs font-bold uppercase tracking-wider text-ink-tertiary">
-              Vehicle registration
-            </label>
-            <button
-              type="button"
-              onClick={() => setUseCustomPlate(!useCustomPlate)}
-              className="text-xs text-accent hover:underline font-semibold"
-            >
-              {useCustomPlate ? 'Choose from registered vehicles' : '+ Enter custom plate'}
-            </button>
-          </div>
-
-          {useCustomPlate ? (
-            <input
-              type="text"
-              value={customPlate}
-              onChange={(e) => setCustomPlate(e.target.value.toUpperCase())}
-              placeholder="e.g. GHJ125"
-              className="input font-mono uppercase tracking-wider"
-            />
-          ) : (
-            <select
-              value={selectedPlate}
-              onChange={(e) => setSelectedPlate(e.target.value)}
-              className="input font-mono uppercase tracking-wider"
-            >
-              {vehicles.map((v) => (
-                <option key={v.id} value={v.plate_number}>
-                  {v.plate_number} — {v.make_model_color}
-                </option>
-              ))}
-            </select>
-          )}
-        </div>
-
-        {/* Visitor details */}
-        {sessionType === 'visitor' && (
+        {/* Plate picker — different per session type */}
+        {sessionType === 'visitor' ? (
           <div className="space-y-3">
+            {/* Saved guests — mobile-friendly, big touch targets */}
+            {savedGuests.length > 0 && (
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setShowGuestPicker(!showGuestPicker)}
+                  className="w-full flex items-center justify-between p-3.5 rounded-2xl border border-border bg-bg-surface text-left text-sm font-bold text-ink hover:border-accent/40 transition-all"
+                >
+                  <span className="flex items-center gap-2.5">
+                    <Users className="w-4 h-4 text-accent" />
+                    {guestPlate && savedGuests.find((g) => g.plate.toUpperCase() === guestPlate.toUpperCase())
+                      ? `Saved: ${savedGuests.find((g) => g.plate.toUpperCase() === guestPlate.toUpperCase())!.name}`
+                      : 'Choose from saved guests'}
+                  </span>
+                  <ChevronDown className={`w-4 h-4 text-ink-tertiary transition-transform ${showGuestPicker ? 'rotate-180' : ''}`} />
+                </button>
+
+                {showGuestPicker && (
+                  <div className="mt-2 card overflow-hidden">
+                    {savedGuests.map((g) => (
+                      <button
+                        key={g.id}
+                        type="button"
+                        onClick={() => fillFromSavedGuest(g.id)}
+                        className="w-full p-4 flex items-center gap-3 text-left hover:bg-bg border-b border-border last:border-b-0 transition-colors"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-bold text-ink">{g.name}</div>
+                          {g.make_model_color && (
+                            <div className="text-[11px] text-ink-tertiary">{g.make_model_color}</div>
+                          )}
+                        </div>
+                        <span className="font-mono text-xs font-black text-ink bg-bg-surface px-2.5 py-1 rounded-lg border border-border">
+                          {g.plate}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Custom plate */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-bold uppercase tracking-wider text-ink-tertiary">
+                  {showGuestPicker && savedGuests.length ? 'Or enter plate manually' : 'Vehicle registration'}
+                </label>
+              </div>
+              <input
+                type="text"
+                value={guestPlate}
+                onChange={(e) => setGuestPlate(e.target.value.toUpperCase())}
+                placeholder="e.g. GHJ125"
+                className="input font-mono uppercase tracking-wider text-center text-base font-black"
+                maxLength={6}
+                autoComplete="off"
+                style={{ letterSpacing: '0.1em' }}
+              />
+            </div>
+
+            {/* Visitor details */}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-[11px] font-bold uppercase text-ink-tertiary mb-1.5">
-                  Visitor name
-                </label>
+                <label className="block text-[11px] font-bold uppercase text-ink-tertiary mb-1.5">Visitor name</label>
                 <input
                   type="text"
                   value={visitorName}
@@ -170,11 +214,9 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-bold uppercase text-ink-tertiary mb-1.5">
-                  Visitor phone
-                </label>
+                <label className="block text-[11px] font-bold uppercase text-ink-tertiary mb-1.5">Phone (optional)</label>
                 <input
-                  type="text"
+                  type="tel"
                   value={visitorPhone}
                   onChange={(e) => setVisitorPhone(e.target.value)}
                   placeholder="+64 21 000 0000"
@@ -184,7 +226,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
             </div>
 
             {/* Save as regular visitor */}
-            {visitorName.trim() && (
+            {visitorName.trim() && guestPlate.trim() && (
               <button
                 type="button"
                 onClick={() => setSaveAsRegular(!saveAsRegular)}
@@ -203,6 +245,47 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                 </div>
               </button>
             )}
+          </div>
+        ) : (
+          // Resident excess — choose from own registered vehicles only
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-ink-tertiary mb-2">
+              Your vehicle
+            </label>
+            {unitVehicles.length === 0 ? (
+              <div className="card p-4 text-xs text-ink-tertiary text-center">
+                No vehicles registered to {currentUser?.unit_number}. Add one in the Account tab first.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {unitVehicles.map((v) => (
+                  <button
+                    type="button"
+                    key={v.id}
+                    onClick={() => setSelectedResidentPlate(v.plate_number)}
+                    className={`w-full card p-3.5 flex items-center justify-between gap-3 text-left transition-all ${
+                      selectedResidentPlate === v.plate_number ? 'border-accent ring-1 ring-accent/30' : ''
+                    }`}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-bold text-ink">{v.make_model_color}</div>
+                      <div className="text-[11px] text-ink-tertiary">{v.plate_number}</div>
+                    </div>
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                      selectedResidentPlate === v.plate_number ? 'border-accent bg-accent/10' : 'border-border'
+                    }`}>
+                      {selectedResidentPlate === v.plate_number && <div className="w-3 h-3 rounded-full bg-accent" />}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="card p-3.5 bg-warning-soft text-xs text-ink-secondary flex items-start gap-2 mt-3">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-warning" />
+              <span>
+                <strong className="text-warning">Rule reminder:</strong> If visitor parks reach 0 available, resident excess vehicles are asked to vacate.
+              </span>
+            </div>
           </div>
         )}
 
@@ -231,16 +314,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
           </div>
         </div>
 
-        {sessionType === 'resident_excess' && (
-          <div className="card p-3.5 border-l-4 border-l-warning bg-warning-soft text-xs text-ink-secondary flex items-start gap-2">
-            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-warning" />
-            <span>
-              <strong className="text-warning">Rule reminder:</strong> If visitor parks reach 0 available, resident excess vehicles are asked to vacate.
-            </span>
-          </div>
-        )}
-
-        <button type="submit" className="btn-primary w-full">
+        <button type="submit" className="btn-primary w-full" disabled={!finalPlate}>
           Confirm booking
         </button>
       </form>

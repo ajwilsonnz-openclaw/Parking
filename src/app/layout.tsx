@@ -20,13 +20,13 @@ const sora = Sora({
 export const metadata: Metadata = {
   title: 'Millennium Village Parking',
   description: 'Smart car park booking & enforcement for Millennium Village residents and visitors.',
-  applicationName: 'MV Parking',
+  applicationName: 'Millennium Village Parking',
   manifest: '/manifest.webmanifest',
   metadataBase: new URL('https://parking-pwa.pages.dev'),
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'MV Parking',
+    title: 'Millennium Village Parking',
   },
   icons: {
     icon: [
