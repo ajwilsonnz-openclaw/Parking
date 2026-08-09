@@ -1,6 +1,11 @@
-// Cloudflare D1 helper - safe in both Edge & local Node runtimes.
-// Uses getRequestContext() when available (Cloudflare Pages), falls back to
-// better-sqlite3 at dev time (via eval-require to dodge bundler analysis).
+// Cloudflare D1 helper - works on both Pages Functions (Edge) and local dev (Node).
+//
+// Two runtime branches:
+//   - Cloudflare Pages: `process.env.DB` is a D1Database binding provided by the Pages
+//     integration. All methods are awaited promises.
+//   - Local dev: falls back to `parking.sqlite` in the project root via better-sqlite3
+//     loaded through eval-require (broken-out-of-bundle so Next Edge doesn't try to
+//     analyse 'fs'/'path'/'better-sqlite3' as edge modules).
 
 let localDbInstance: any = null;
 
@@ -8,7 +13,6 @@ function getLocalDb() {
   if (typeof window !== 'undefined') return null;
   if (!localDbInstance) {
     try {
-      // Use eval-require so Webpack's Edge build doesn't try to bundle native bindings
       const req = eval('require');
       const Database = req('better-sqlite3');
       const path = req('path');
@@ -18,7 +22,7 @@ function getLocalDb() {
       localDbInstance = new Database(dbPath);
       localDbInstance.pragma('journal_mode = WAL');
 
-      // Auto-apply migrations if any table missing
+      // Auto-apply migrations if any table is missing
       const hasUsers = localDbInstance
         .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
         .get();
@@ -35,78 +39,80 @@ function getLocalDb() {
         }
       }
     } catch (err) {
-      // Not on Node, or migrations already applied. Safe to ignore.
+      // Safe to ignore: we're on Edge or migrations already applied
     }
   }
   return localDbInstance;
 }
 
-/**
- * Run a query. Returns array of rows for SELECT, otherwise affected.
- */
-export async function queryDb<T = any>(sql: string, params: any[] = []): Promise<T[]> {
-  // Cloudflare Pages: use bound D1 from request context
-  // @ts-ignore
-  if (typeof process !== 'undefined' && process.env && process.env.DB) {
-    try {
-      // @ts-ignore
-      const stmt = process.env.DB.prepare(sql).bind(...params);
-      const res = await stmt.all();
-      return (res.results || []) as T[];
-    } catch (e) {
-      console.error('D1 query error:', e);
-      return [];
-    }
-  }
+function getD1(): any {
+  // Primary: Pages Functions request context binding
+  try {
+    // @ts-ignore — Cloudflare Pages injects this via @cloudflare/next-on-pages
+    const ctx = (globalThis as any).getRequestContext?.();
+    if (ctx?.env?.DB) return ctx.env.DB;
+  } catch {}
+  // Fallback: global scope (some Wrangler setups)
+  try {
+    // @ts-ignore
+    if ((globalThis as any).DB) return (globalThis as any).DB;
+  } catch {}
+  return null;
+}
 
-  // Local dev: use sqlite
+async function runD1<T>(sql: string, params: any[]): Promise<T[]> {
+  const db = getD1();
+  if (!db) return [];
+  try {
+    const res = await db.prepare(sql).bind(...params).all();
+    return (res.results || []) as T[];
+  } catch (e) {
+    console.error('D1 query error:', e);
+    return [];
+  }
+}
+
+async function execD1(sql: string, params: any[]): Promise<{ lastID?: number; changes?: number }> {
+  const db = getD1();
+  if (!db) return {};
+  try {
+    const res = await db.prepare(sql).bind(...params).run();
+    return { lastID: res.meta?.last_row_id, changes: res.meta?.changes };
+  } catch (e) {
+    console.error('D1 exec error:', e);
+    return {};
+  }
+}
+
+// ─── Public API ───────────────────────────────────────────
+
+export async function queryDb<T = any>(sql: string, params: any[] = []): Promise<T[]> {
+  if (getD1()) return runD1<T>(sql, params);
   try {
     const db = getLocalDb();
     if (!db) return [];
     const stmt = db.prepare(sql);
-    if (sql.trim().toUpperCase().startsWith('SELECT')) {
-      return (stmt.all(...params) || []) as T[];
-    } else {
-      stmt.run(...params);
-      return [] as T[];
-    }
+    return (stmt.all(...params) || []) as T[];
   } catch (err) {
     console.error('Local SQLite error:', err);
-    return [] as T[];
+    return [];
   }
 }
 
-/**
- * Run a write query. Returns { lastID, changes }.
- */
 export async function execDb(sql: string, params: any[] = []): Promise<{ lastID?: number; changes?: number }> {
-  // Cloudflare Pages
-  // @ts-ignore
-  if (typeof process !== 'undefined' && process.env && process.env.DB) {
-    try {
-      // @ts-ignore
-      const res = await process.env.DB.prepare(sql).bind(...params).run();
-      return { lastID: res.meta?.last_row_id, changes: res.meta?.changes };
-    } catch (e) {
-      console.error('D1 exec error:', e);
-      return {};
-    }
-  }
-
-  // Local dev
+  if (getD1()) return execD1(sql, params);
   try {
     const db = getLocalDb();
     if (!db) return {};
     const stmt = db.prepare(sql);
     const result = stmt.run(...params);
-    return { lastID: result.lastInsertRowid, changes: result.changes };
+    return { lastID: result.lastInsertRowid as number, changes: result.changes };
   } catch (err) {
     console.error('Local SQLite exec error:', err);
     return {};
   }
 }
 
-/** Get a single row */
 export async function queryDbOne<T = any>(sql: string, params: any[] = []): Promise<T | null> {
   const rows = await queryDb<T>(sql, params);
   return rows.length ? rows[0] : null;
