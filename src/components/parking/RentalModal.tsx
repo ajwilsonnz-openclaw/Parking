@@ -91,10 +91,10 @@ export const RentalModal: React.FC<RentalModalProps> = ({ spot, isOpen, onClose 
           {/* Spot summary */}
           <div className="card p-3.5 flex items-center gap-3">
             <div className="w-11 h-11 rounded-xl bg-accent-soft text-accent font-mono font-black flex items-center justify-center text-sm border border-accent-border">
-              {spot.spot_number}
+              {activeSpot.spot_number}
             </div>
             <div className="min-w-0">
-              <div className="text-sm font-bold text-ink">{spot.spot_number}</div>
+              <div className="text-sm font-bold text-ink">{activeSpot.spot_number}</div>
               <div className="text-[11px] text-ink-tertiary">Unit {currentUser?.unit_number?.replace(/^Unit\s+/i, '') || ''}</div>
             </div>
           </div>
