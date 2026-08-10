@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useApp } from '@/lib/context/AppContext';
-import { Bell } from 'lucide-react';
+import { Bell, Building2, Car, ShieldCheck, Zap, Compass } from 'lucide-react';
 
 interface HeaderProps {
   onOpenPushGuide?: () => void;
@@ -10,25 +10,52 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ onOpenPushGuide, onOpenNotifications }) => {
-  const { currentUser, notifications } = useApp();
+  const { config, notifications } = useApp();
 
-  const firstName = currentUser?.name?.split(' ')[0] || 'Resident';
   const unreadCount = notifications.filter((n) => !n.read_at).length;
+  const iconType = config.header_icon || 'building';
+
+  const renderIcon = () => {
+    switch (iconType) {
+      case 'car':
+        return <Car className="w-6 h-6 text-white" />;
+      case 'shield':
+        return <ShieldCheck className="w-6 h-6 text-white" />;
+      case 'zap':
+        return <Zap className="w-6 h-6 text-white" />;
+      case 'compass':
+        return <Compass className="w-6 h-6 text-white" />;
+      case 'building':
+      default:
+        return <Building2 className="w-6 h-6 text-white" />;
+    }
+  };
+
+  const titleName = config.complex_name
+    ? config.complex_name.toLowerCase().includes('parking')
+      ? config.complex_name
+      : `${config.complex_name} Parking`
+    : 'Millennium Village Parking';
 
   return (
-    <header className="w-full px-4 pt-6 pb-2 max-w-lg mx-auto flex items-center justify-between">
-      <div>
-        <h1 className="text-2xl font-black text-ink tracking-tight flex items-center gap-1.5 font-display">
-          Kia ora, {firstName} <span className="text-xl">👋</span>
-        </h1>
-        <p className="text-xs text-ink-secondary font-medium mt-0.5">
-          Manage visitor parking with ease.
-        </p>
+    <header className="w-full px-4 pt-5 pb-3 max-w-lg mx-auto flex items-center justify-between">
+      <div className="flex items-center gap-3 min-w-0">
+        <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#0066ff] to-[#0052cc] flex items-center justify-center shadow-md shadow-blue-600/20 shrink-0">
+          {renderIcon()}
+        </div>
+        <div className="min-w-0 flex-1">
+          <h1 className="text-xl font-black text-ink tracking-tight font-display truncate leading-snug">
+            {titleName}
+          </h1>
+          <p className="text-xs text-ink-secondary font-medium truncate mt-0.5">
+            {config.complex_address || '548 Albany Highway, Albany'}
+          </p>
+        </div>
       </div>
 
       <button
         onClick={onOpenNotifications || onOpenPushGuide}
-        className="btn-icon relative"
+        className="btn-icon relative shrink-0 ml-2"
         title="Notifications"
         aria-label="Open notifications"
       >
@@ -43,4 +70,3 @@ export const Header: React.FC<HeaderProps> = ({ onOpenPushGuide, onOpenNotificat
     </header>
   );
 };
-

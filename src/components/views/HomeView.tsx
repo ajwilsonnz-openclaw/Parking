@@ -3,37 +3,27 @@
 import React, { useState } from 'react';
 import { useApp } from '@/lib/context/AppContext';
 import {
-  Building2,
-  Settings,
   MapPin,
   ArrowRight,
   Calendar,
   Clock,
-  Eye,
   HelpCircle,
   ShieldCheck,
   ChevronRight,
   CheckCircle2,
   Car,
   Users,
-  AlertCircle,
 } from 'lucide-react';
 import { BookingModal } from '@/components/parking/BookingModal';
 import { BookRegularVisitorModal } from '@/components/parking/BookRegularVisitorModal';
 import { RulesModal } from '@/components/modals/RulesModal';
 import { BookingTimesModal } from '@/components/modals/BookingTimesModal';
 import { InstallPromptCard } from '@/components/pwa/InstallPromptCard';
-import { motion } from 'framer-motion';
 import { fmtDate, fmtTimeRange, dateBlockParts } from '@/lib/format';
 
 interface HomeViewProps {
   onNavigateTab: (tab: 'home' | 'bookings' | 'status' | 'account') => void;
 }
-
-const fadeUp = {
-  hidden: { opacity: 0, y: 12 },
-  visible: (i: number) => ({ opacity: 1, y: 0, transition: { delay: 0.05 * i, duration: 0.35 } }),
-};
 
 export const HomeView: React.FC<HomeViewProps> = ({ onNavigateTab }) => {
   const { config, sessions, carparks } = useApp();
@@ -43,7 +33,7 @@ export const HomeView: React.FC<HomeViewProps> = ({ onNavigateTab }) => {
   const [showTimesModal, setShowTimesModal] = useState(false);
 
   const activeSessions = sessions.filter((s) => s.is_active);
-  const nextBooking = activeSessions[0]; // For now, first active booking
+  const nextBooking = activeSessions[0];
   const availableVisitorCount = carparks.filter((c) => c.status === 'available' && c.spot_number.startsWith(config.spot_prefix || 'V')).length;
 
   return (
@@ -51,67 +41,41 @@ export const HomeView: React.FC<HomeViewProps> = ({ onNavigateTab }) => {
       {/* PWA install prompt */}
       <InstallPromptCard />
 
-      {/* Building selector */}
-      <motion.div variants={fadeUp} custom={0} initial="hidden" animate="visible">
-        <div className="card-interactive p-3.5 flex items-center gap-3">
-          <div className="icon-tile w-10 h-10">
-            <Building2 className="w-5 h-5" />
+      {/* Hero: Book a Visitor Carpark (Stable layout container to prevent jitter) */}
+      <div className="w-full">
+        <button
+          onClick={() => setShowBookingModal(true)}
+          className="relative overflow-hidden w-full min-h-[110px] rounded-3xl p-5 text-left text-white bg-gradient-to-br from-[#0066ff] to-[#0052cc] shadow-glow-accent active:scale-[0.98] transition-all hover:shadow-xl hover:shadow-blue-600/30"
+        >
+          <div className="absolute right-2 bottom-1 opacity-10 pointer-events-none">
+            <Car className="w-32 h-32" />
           </div>
-          <div className="flex-1 min-w-0">
-            <h2 className="text-sm font-extrabold text-ink leading-tight truncate">
-              {config.complex_name || 'Millennium Village'}
-            </h2>
-            <p className="text-[11px] text-ink-tertiary font-medium truncate">
-              548 Albany Highway, Albany
-            </p>
-          </div>
-          <button
-            onClick={() => onNavigateTab('account')}
-            className="btn-icon p-2"
-            title="Settings"
-          >
-            <Settings className="w-4 h-4" />
-          </button>
-        </div>
-      </motion.div>
-
-      {/* Hero: Book a Visitor Carpark */}
-      <motion.button
-        variants={fadeUp}
-        custom={1}
-        initial="hidden"
-        animate="visible"
-        onClick={() => setShowBookingModal(true)}
-        className="relative overflow-hidden w-full rounded-3xl p-5 text-left text-white bg-gradient-to-br from-[#0066ff] to-[#0052cc] shadow-glow-accent active:scale-[0.98] transition-transform"
-      >
-        <div className="absolute right-2 bottom-1 opacity-10 pointer-events-none">
-          <Car className="w-32 h-32" />
-        </div>
-        <div className="flex items-center justify-between relative z-10">
-          <div className="flex items-start gap-3.5">
-            <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white shrink-0">
-              <MapPin className="w-6 h-6" />
+          <div className="flex items-center justify-between relative z-10">
+            <div className="flex items-start gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white shrink-0">
+                <MapPin className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-lg font-extrabold text-white tracking-tight">
+                  Book a Visitor Carpark
+                </h3>
+                <p className="text-xs text-blue-100 mt-1 max-w-[210px] leading-snug">
+                  Reserve a parking space for your visitors in a few taps.
+                  <span className="block mt-1 font-bold text-white/90">
+                    {availableVisitorCount} available now
+                  </span>
+                </p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-lg font-extrabold text-white tracking-tight">
-                Book a Visitor Carpark
-              </h3>
-              <p className="text-xs text-blue-100 mt-1 max-w-[210px] leading-snug">
-                Reserve a parking space for your visitors in a few taps.
-                <span className="block mt-1 font-bold text-white/90">
-                  {availableVisitorCount} available now
-                </span>
-              </p>
+            <div className="w-10 h-10 rounded-full bg-white text-blue-600 flex items-center justify-center shadow-md shrink-0">
+              <ArrowRight className="w-5 h-5" />
             </div>
           </div>
-          <div className="w-10 h-10 rounded-full bg-white text-blue-600 flex items-center justify-center shadow-md shrink-0">
-            <ArrowRight className="w-5 h-5" />
-          </div>
-        </div>
-      </motion.button>
+        </button>
+      </div>
 
       {/* Your upcoming bookings */}
-      <motion.div variants={fadeUp} custom={2} initial="hidden" animate="visible" className="space-y-2">
+      <div className="space-y-2">
         <div className="flex items-center justify-between px-1">
           <h3 className="section-title">Your upcoming bookings</h3>
           <button
@@ -123,10 +87,9 @@ export const HomeView: React.FC<HomeViewProps> = ({ onNavigateTab }) => {
         </div>
 
         {nextBooking ? (
-          <motion.div
-            whileHover={{ y: -1 }}
+          <div
             onClick={() => onNavigateTab('bookings')}
-            className="card-interactive p-4 flex items-center justify-between"
+            className="card-interactive p-4 flex items-center justify-between cursor-pointer"
           >
             <div className="flex items-center gap-3.5 flex-1 min-w-0">
               {/* Date block */}
@@ -147,7 +110,7 @@ export const HomeView: React.FC<HomeViewProps> = ({ onNavigateTab }) => {
             <span className="chip chip-success shrink-0">
               <CheckCircle2 className="w-3 h-3" /> Confirmed
             </span>
-          </motion.div>
+          </div>
         ) : (
           <div className="card p-6 text-center">
             <Calendar className="w-10 h-10 text-ink-tertiary mx-auto mb-2 opacity-50" />
@@ -155,10 +118,10 @@ export const HomeView: React.FC<HomeViewProps> = ({ onNavigateTab }) => {
             <p className="text-xs text-ink-tertiary mt-0.5">Tap above to reserve a visitor park</p>
           </div>
         )}
-      </motion.div>
+      </div>
 
       {/* Quick actions */}
-      <motion.div variants={fadeUp} custom={3} initial="hidden" animate="visible" className="space-y-2">
+      <div className="space-y-2">
         <h3 className="section-title px-1">Quick actions</h3>
         <div className="grid grid-cols-3 gap-2.5">
           <QuickAction
@@ -177,10 +140,10 @@ export const HomeView: React.FC<HomeViewProps> = ({ onNavigateTab }) => {
             onClick={() => setShowRulesModal(true)}
           />
         </div>
-      </motion.div>
+      </div>
 
       {/* Need to know */}
-      <motion.div variants={fadeUp} custom={4} initial="hidden" animate="visible" className="space-y-2">
+      <div className="space-y-2">
         <h3 className="section-title px-1">Need to know</h3>
         <div className="card overflow-hidden">
           <NeedToKnowRow
@@ -197,11 +160,11 @@ export const HomeView: React.FC<HomeViewProps> = ({ onNavigateTab }) => {
             onClick={() => setShowTimesModal(true)}
           />
         </div>
-      </motion.div>
+      </div>
 
       {/* Modals */}
       <BookingModal
-        spot={carparks.find((s) => s.status === 'available') || carparks[0]}
+        spot={carparks.find((s) => s.status === 'available') || carparks[0] || null}
         isOpen={showBookingModal}
         onClose={() => setShowBookingModal(false)}
       />

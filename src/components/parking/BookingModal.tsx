@@ -4,7 +4,7 @@ import React, { useState, useMemo } from 'react';
 import { Carpark, SessionType } from '@/types';
 import { useApp } from '@/lib/context/AppContext';
 import { Modal } from '@/components/ui/Modal';
-import { Car, UserCheck, AlertCircle, Plus, Users, ChevronDown } from 'lucide-react';
+import { Car, AlertCircle, Clock } from 'lucide-react';
 
 interface BookingModalProps {
   spot: Carpark | null;
@@ -15,6 +15,20 @@ interface BookingModalProps {
   initialVisitorPhone?: string;
 }
 
+const formatDurationLabel = (hrs: number): string => {
+  if (hrs === 0.25) return '15 mins';
+  if (hrs === 0.5) return '30 mins';
+  if (hrs === 0.75) return '45 mins';
+  if (hrs === 1) return '1 hour';
+  if (hrs === 1.5) return '1h 30m';
+  if (hrs % 1 === 0) return `${hrs} hrs`;
+  const h = Math.floor(hrs);
+  const m = Math.round((hrs - h) * 60);
+  return `${h}h ${m}m`;
+};
+
+const DURATION_PRESETS = [0.25, 0.5, 0.75, 1, 2, 4, 8, 12, 24];
+
 export const BookingModal: React.FC<BookingModalProps> = ({
   spot,
   isOpen,
@@ -23,8 +37,19 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   initialVisitorName,
   initialVisitorPhone,
 }) => {
-  const { bookSpot, currentUser, vehicles, config, addSavedGuest, savedGuests } = useApp();
+  const { bookSpot, currentUser, vehicles, config, addSavedGuest, savedGuests, carparks } = useApp();
 
+  const defaultSpot: Carpark = useMemo(() => ({
+    id: 'v01',
+    spot_number: 'V01',
+    section: 'Ground Floor',
+    status: 'available',
+    is_visitor: true,
+  }), []);
+
+  const activeSpot = spot || carparks.find((c) => c.status === 'available') || carparks[0] || defaultSpot;
+
+  const [selectedSpotId, setSelectedSpotId] = useState<string>(activeSpot.id);
   const [sessionType, setSessionType] = useState<SessionType>('visitor');
   const [durationHours, setDurationHours] = useState<number>(4);
 
@@ -44,9 +69,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     unitVehicles[0]?.plate_number || ''
   );
 
-  if (!spot) return null;
-
-  const maxHours = sessionType === 'visitor' ? config.max_visitor_hours : config.max_resident_excess_hours;
+  const currentSpotObj = carparks.find((c) => c.id === selectedSpotId) || activeSpot;
+  const maxHours = Math.min(24, sessionType === 'visitor' ? (config.max_visitor_hours || 24) : (config.max_resident_excess_hours || 12));
   const finalPlate = (sessionType === 'visitor' ? guestPlate : selectedResidentPlate || '').trim().toUpperCase();
 
   const fillFromSavedGuest = (guestId: string) => {
@@ -63,8 +87,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     if (!finalPlate) return;
 
     bookSpot(
-      spot.id,
-      spot.spot_number,
+      currentSpotObj.id,
+      currentSpotObj.spot_number,
       finalPlate,
       durationHours,
       sessionType,
@@ -87,17 +111,17 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     <Modal isOpen={isOpen} onClose={onClose} maxWidth="lg">
       {/* Header */}
       <div className="flex items-start gap-3 mb-6">
-        <div className="w-12 h-12 rounded-2xl bg-accent-soft text-accent flex items-center justify-center text-base font-black shrink-0">
-          {spot.spot_number.replace('V-', 'V')}
+        <div className="w-12 h-12 rounded-2xl bg-accent-soft text-accent flex items-center justify-center text-base font-black shrink-0 border border-accent-border">
+          {currentSpotObj.spot_number.replace('V-', 'V')}
         </div>
         <div className="min-w-0 flex-1">
           <h3 className="text-xl font-extrabold text-ink tracking-tight">Reserve car park</h3>
-          <p className="text-xs text-ink-secondary">{config.complex_name}</p>
+          <p className="text-xs text-ink-secondary">{config.complex_name || 'Millennium Village'}</p>
         </div>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-5">
-        {/* Session type */}
+        {/* Parking type */}
         <div>
           <label className="block text-xs font-bold uppercase tracking-wider text-ink-tertiary mb-2">
             Parking type
@@ -105,7 +129,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
-              onClick={() => { setSessionType('visitor'); setDurationHours(Math.min(durationHours, config.max_visitor_hours)); }}
+              onClick={() => { setSessionType('visitor'); setDurationHours(Math.min(durationHours, 24)); }}
               className={`p-3.5 rounded-2xl border text-left transition-all flex items-start gap-2.5 ${
                 sessionType === 'visitor'
                   ? 'bg-accent-soft border-accent text-ink shadow-glow-accent'
@@ -115,66 +139,52 @@ export const BookingModal: React.FC<BookingModalProps> = ({
               <Car className="w-5 h-5 text-accent mt-0.5 shrink-0" />
               <div>
                 <div className="text-sm font-bold">Visitor session</div>
-                <div className="text-[11px] text-ink-secondary mt-0.5">Max {config.max_visitor_hours}h for guests & contractors</div>
+                <div className="text-[11px] text-ink-secondary mt-0.5">Max 24h for guests &amp; contractors</div>
               </div>
             </button>
 
             <button
               type="button"
-              onClick={() => { setSessionType('resident_excess'); setDurationHours(Math.min(durationHours, config.max_resident_excess_hours)); if (!selectedResidentPlate && unitVehicles[0]) setSelectedResidentPlate(unitVehicles[0].plate_number); }}
+              onClick={() => { setSessionType('resident_excess'); setDurationHours(Math.min(durationHours, config.max_resident_excess_hours || 12)); }}
               className={`p-3.5 rounded-2xl border text-left transition-all flex items-start gap-2.5 ${
                 sessionType === 'resident_excess'
-                  ? 'bg-warning-soft border-warning text-ink'
-                  : 'border-border text-ink-secondary hover:border-warning/40'
+                  ? 'bg-accent-soft border-accent text-ink shadow-glow-accent'
+                  : 'border-border text-ink-secondary hover:border-accent/40'
               }`}
             >
-              <UserCheck className="w-5 h-5 text-warning mt-0.5 shrink-0" />
+              <Clock className="w-5 h-5 text-accent mt-0.5 shrink-0" />
               <div>
                 <div className="text-sm font-bold">Resident excess</div>
-                <div className="text-[11px] text-ink-secondary mt-0.5">Your second vehicle</div>
+                <div className="text-[11px] text-ink-secondary mt-0.5">Max {config.max_resident_excess_hours || 12}h for extra car</div>
               </div>
             </button>
           </div>
         </div>
 
-        {/* Plate picker - different per session type */}
         {sessionType === 'visitor' ? (
-          <div className="space-y-3">
-            {/* Saved guests - mobile-friendly, big touch targets */}
+          <div className="space-y-4">
+            {/* Quick pick saved guest */}
             {savedGuests.length > 0 && (
               <div>
                 <button
                   type="button"
                   onClick={() => setShowGuestPicker(!showGuestPicker)}
-                  className="w-full flex items-center justify-between p-3.5 rounded-2xl border border-border bg-bg-surface text-left text-sm font-bold text-ink hover:border-accent/40 transition-all"
+                  className="text-xs font-bold text-accent hover:underline flex items-center gap-1 mb-2"
                 >
-                  <span className="flex items-center gap-2.5">
-                    <Users className="w-4 h-4 text-accent" />
-                    {guestPlate && savedGuests.find((g) => g.plate.toUpperCase() === guestPlate.toUpperCase())
-                      ? `Saved: ${savedGuests.find((g) => g.plate.toUpperCase() === guestPlate.toUpperCase())!.name}`
-                      : 'Choose from saved guests'}
-                  </span>
-                  <ChevronDown className={`w-4 h-4 text-ink-tertiary transition-transform ${showGuestPicker ? 'rotate-180' : ''}`} />
+                  {showGuestPicker ? 'Hide saved visitors' : '⚡ Quick pick regular visitor'}
                 </button>
 
                 {showGuestPicker && (
-                  <div className="mt-2 card overflow-hidden">
+                  <div className="grid grid-cols-2 gap-2 mb-3">
                     {savedGuests.map((g) => (
                       <button
-                        key={g.id}
                         type="button"
+                        key={g.id}
                         onClick={() => fillFromSavedGuest(g.id)}
-                        className="w-full p-4 flex items-center gap-3 text-left hover:bg-bg border-b border-border last:border-b-0 transition-colors"
+                        className="p-2.5 rounded-xl border border-border bg-bg-surface hover:border-accent/40 text-left transition-all"
                       >
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-bold text-ink">{g.name}</div>
-                          {g.make_model_color && (
-                            <div className="text-[11px] text-ink-tertiary">{g.make_model_color}</div>
-                          )}
-                        </div>
-                        <span className="font-mono text-xs font-black text-ink bg-bg-surface px-2.5 py-1 rounded-lg border border-border">
-                          {g.plate}
-                        </span>
+                        <div className="text-xs font-bold text-ink truncate">{g.name}</div>
+                        <div className="text-[10px] font-mono font-bold text-accent">{g.plate}</div>
                       </button>
                     ))}
                   </div>
@@ -184,11 +194,9 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
             {/* Custom plate */}
             <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="text-xs font-bold uppercase tracking-wider text-ink-tertiary">
-                  {showGuestPicker && savedGuests.length ? 'Or enter plate manually' : 'Vehicle registration'}
-                </label>
-              </div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-ink-tertiary mb-1.5">
+                Vehicle registration
+              </label>
               <input
                 type="text"
                 value={guestPlate}
@@ -230,7 +238,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
               <button
                 type="button"
                 onClick={() => setSaveAsRegular(!saveAsRegular)}
-                className={`w-full card p-3.5 flex items-center gap-3 text-left transition-all ${
+                className={`w-full card p-3 flex items-center gap-3 text-left transition-all ${
                   saveAsRegular ? 'border-accent ring-1 ring-accent/25' : ''
                 }`}
               >
@@ -240,14 +248,13 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                   {saveAsRegular && <span className="text-white text-[10px] font-black">✓</span>}
                 </div>
                 <div className="flex-1">
-                  <div className="text-sm font-bold text-ink">Save as regular visitor</div>
-                  <div className="text-[11px] text-ink-secondary">Quick-book {visitorName.split(' ')[0]} next time with one tap</div>
+                  <div className="text-xs font-bold text-ink">Save as regular visitor</div>
+                  <div className="text-[10px] text-ink-secondary">Quick-book {visitorName.split(' ')[0]} next time with one tap</div>
                 </div>
               </button>
             )}
           </div>
         ) : (
-          // Resident excess - choose from own registered vehicles only
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-ink-tertiary mb-2">
               Your vehicle
@@ -280,10 +287,10 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                 ))}
               </div>
             )}
-            <div className="card p-3.5 bg-warning-soft text-xs text-ink-secondary flex items-start gap-2 mt-3">
+            <div className="card p-3 bg-warning-soft text-xs text-ink-secondary flex items-start gap-2 mt-3">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-warning" />
               <span>
-                <strong className="text-warning">Rule reminder:</strong> If visitor parks reach 0 available, resident excess vehicles are asked to vacate.
+                <strong className="text-warning">Rule reminder:</strong> Resident excess parks max {config.max_resident_excess_hours || 12}h.
               </span>
             </div>
           </div>
@@ -296,26 +303,46 @@ export const BookingModal: React.FC<BookingModalProps> = ({
               Booking duration
             </label>
             <span className="text-sm font-mono font-bold text-accent bg-accent-soft px-3 py-1 rounded-lg border border-accent-border">
-              {durationHours} hrs (max {maxHours}h)
+              {formatDurationLabel(durationHours)} (max {maxHours}h)
             </span>
           </div>
+
+          {/* Quick presets */}
+          <div className="grid grid-cols-5 gap-1.5 mb-3">
+            {DURATION_PRESETS.filter((h) => h <= maxHours).map((hrs) => (
+              <button
+                key={hrs}
+                type="button"
+                onClick={() => setDurationHours(hrs)}
+                className={`py-2 rounded-xl text-xs font-bold transition-all border ${
+                  durationHours === hrs
+                    ? 'bg-blue-600/20 border-blue-500 text-blue-400 shadow-sm'
+                    : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:text-white'
+                }`}
+              >
+                {formatDurationLabel(hrs)}
+              </button>
+            ))}
+          </div>
+
           <input
             type="range"
-            min="1"
+            min="0.25"
             max={maxHours}
+            step="0.25"
             value={durationHours}
-            onChange={(e) => setDurationHours(parseInt(e.target.value))}
+            onChange={(e) => setDurationHours(parseFloat(e.target.value))}
             className="w-full h-2 bg-border rounded-lg appearance-none cursor-pointer accent-accent"
           />
           <div className="flex justify-between text-[10px] text-ink-tertiary mt-1">
-            <span>1 hour</span>
+            <span>15 mins</span>
             <span>{Math.floor(maxHours / 2)} hours</span>
             <span>{maxHours} hours</span>
           </div>
         </div>
 
         <button type="submit" className="btn-primary w-full" disabled={!finalPlate}>
-          Confirm booking
+          Confirm booking ({formatDurationLabel(durationHours)})
         </button>
       </form>
     </Modal>

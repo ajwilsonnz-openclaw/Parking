@@ -13,6 +13,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
 
   const [complexName, setComplexName] = useState(config.complex_name);
   const [complexAddress, setComplexAddress] = useState(config.complex_address || '');
+  const [headerIcon, setHeaderIcon] = useState(config.header_icon || 'building');
   const [maxStay, setMaxStay] = useState(config.max_visitor_hours);
   const [residentMaxStay, setResidentMaxStay] = useState(config.max_resident_excess_hours);
   const [demeritThreshold, setDemeritThreshold] = useState(config.demerit_fine_threshold);
@@ -36,6 +37,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
       await updateConfig({
         complex_name: complexName,
         complex_address: complexAddress,
+        header_icon: headerIcon,
         max_visitor_hours: maxStay,
         max_resident_excess_hours: residentMaxStay,
         demerit_fine_threshold: demeritThreshold,
@@ -43,7 +45,6 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
         total_visitor_parks: totalParks,
         spot_prefix: spotPrefix,
         max_weekly_rental_price: weeklyRentCap,
-        // total_units goes into a new key; we'll store it as a string in config JSON
       });
 
       setSavedSuccess(true);
@@ -72,7 +73,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
             <div>
               <h2 className="text-xl font-extrabold text-ink tracking-tight font-display">Admin Controls</h2>
               <p className="text-xs text-ink-secondary mt-0.5">
-                Building policies, stay limits, fines, rents & site layout.
+                Building policies, stay limits, fines, rents &amp; site layout.
               </p>
             </div>
           </div>
@@ -91,6 +92,34 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
         <Section icon={<Building2 className="w-4 h-4" />} title="Building identity">
           <Field label="Complex name" value={complexName} onChange={(e) => setComplexName(e.target.value)} required />
           <Field label="Street address" value={complexAddress} onChange={(e) => setComplexAddress(e.target.value)} required />
+          <div className="space-y-1.5 pt-1">
+            <label className="block text-xs font-bold text-ink-tertiary uppercase tracking-wider">
+              Header Icon
+            </label>
+            <div className="grid grid-cols-5 gap-2">
+              {[
+                { id: 'building', icon: <Building2 className="w-5 h-5" />, label: 'Building' },
+                { id: 'car', icon: <Car className="w-5 h-5" />, label: 'Car' },
+                { id: 'shield', icon: <Building2 className="w-5 h-5" />, label: 'Shield' },
+                { id: 'zap', icon: <Sliders className="w-5 h-5" />, label: 'Power' },
+                { id: 'compass', icon: <Building2 className="w-5 h-5" />, label: 'Compass' },
+              ].map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setHeaderIcon(item.id)}
+                  className={`p-2.5 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all ${
+                    headerIcon === item.id
+                      ? 'bg-blue-600/20 border-blue-500 text-blue-400 font-bold shadow-sm'
+                      : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:text-white'
+                  }`}
+                >
+                  {item.icon}
+                  <span className="text-[10px] font-medium">{item.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
         </Section>
 
         {/* Stay Limits */}

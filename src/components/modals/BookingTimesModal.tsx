@@ -24,8 +24,8 @@ export const BookingTimesModal: React.FC<BookingTimesModalProps> = ({ isOpen, on
 
       <div className="space-y-4 text-sm text-ink-secondary leading-relaxed">
         <p>
-          Bookings can range from <strong className="text-ink">15 minutes</strong> to
-          <strong className="text-ink"> 7 days</strong> in advance. You can extend or cancel your booking
+          Bookings can range from <strong className="text-ink">15 minutes</strong> up to a
+          maximum of <strong className="text-ink">24 hours</strong>. You can extend or cancel your booking
           at any time from the Bookings tab.
         </p>
         <div className="card p-4 space-y-2.5">
@@ -34,16 +34,16 @@ export const BookingTimesModal: React.FC<BookingTimesModalProps> = ({ isOpen, on
             <strong className="text-ink font-mono">15 min</strong>
           </div>
           <div className="flex items-center justify-between text-xs">
-            <span className="text-ink-secondary">Maximum booking</span>
-            <strong className="text-ink font-mono">7 days</strong>
+            <span className="text-ink-secondary">Time increments</span>
+            <strong className="text-ink font-mono">15 min steps</strong>
           </div>
           <div className="flex items-center justify-between text-xs">
-            <span className="text-ink-secondary">Extend up to</span>
-            <strong className="text-ink font-mono">24h total</strong>
+            <span className="text-ink-secondary">Maximum duration</span>
+            <strong className="text-ink font-mono">24 hours</strong>
           </div>
         </div>
         <p className="text-xs text-ink-tertiary">
-          Tip: booking durations update automatically - you don't need to re-book if your visitor stays longer than expected.
+          Tip: You can select durations in 15-minute steps (e.g. 15m, 30m, 45m, 1h, 1h 30m up to 24h).
         </p>
       </div>
 
