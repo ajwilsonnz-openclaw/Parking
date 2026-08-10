@@ -45,7 +45,7 @@ interface AppContextType {
   addVehicle: (plateNumber: string, makeModelColor: string) => Promise<void>;
   removeVehicle: (vehicleId: string) => Promise<void>;
 
-  addWhitelistedUser: (email: string, name: string, unitNumber: string, phone: string, role: Role) => Promise<void>;
+  addWhitelistedUser: (email: string, name: string, unitNumber: string, phone: string, role: Role, assignedParks?: number) => Promise<void>;
   removeWhitelistedUser: (whitelistId: string) => Promise<void>;
 
   issueDemerit: (
