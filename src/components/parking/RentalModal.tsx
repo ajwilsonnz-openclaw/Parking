@@ -49,11 +49,11 @@ export const RentalModal: React.FC<RentalModalProps> = ({ spot, isOpen, onClose 
       ? 52 // ~1 year for "indefinite"
       : Math.max(0.14, (new Date(untilDate).getTime() - new Date(todayIso).getTime()) / (7 * 86400000));
     const price = isFree ? 0 : setAmount;
-    rentOutSpot(spot.spot_number, weeks, price);
+    rentOutSpot(activeSpot.spot_number, weeks, price);
     onClose();
   };
 
-  const listedRentals = rentals.filter((r) => r.status === 'listed' && r.spot_number !== spot.spot_number);
+  const listedRentals = rentals.filter((r) => r.status === 'listed' && r.spot_number !== activeSpot.spot_number);
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} maxWidth="md">
