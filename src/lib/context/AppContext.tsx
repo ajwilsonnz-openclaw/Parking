@@ -207,9 +207,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch (e: any) { console.error(e); }
   }, [invalidate]);
 
-  const addWhitelistedUser = useCallback(async (email: string, name: string, unitNumber: string, phone: string, role: Role) => {
+  const addWhitelistedUser = useCallback(async (email: string, name: string, unitNumber: string, phone: string, role: Role, assignedParks: number = 1) => {
     try {
-      await apiPost('/api/admin/whitelist', { email, name, unit_number: unitNumber, phone, role });
+      await apiPost('/api/admin/whitelist', { email, name, unit_number: unitNumber, phone, role, assigned_parks: assignedParks });
       invalidate();
     } catch (e: any) {
       console.error(e);

@@ -23,6 +23,7 @@ export const ManagementView: React.FC<ManagementViewProps> = ({ onBack }) => {
   const [wlName, setWlName] = useState('');
   const [wlUnit, setWlUnit] = useState('');
   const [wlPhone, setWlPhone] = useState('');
+  const [wlParks, setWlParks] = useState(1);
 
   const activeSessions = sessions.filter((s) => s.is_active);
   const residentExcessSessions = activeSessions.filter((s) => s.session_type === 'resident_excess');
@@ -41,12 +42,13 @@ export const ManagementView: React.FC<ManagementViewProps> = ({ onBack }) => {
   const handleAddWhitelist = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!wlEmail || !wlUnit) return;
-    await addWhitelistedUser(wlEmail, wlName || 'Resident', wlUnit, wlPhone || '+64 21 000 0000', 'user');
+    await addWhitelistedUser(wlEmail, wlName || 'Resident', wlUnit, wlPhone || '+64 21 000 0000', 'user', wlParks);
     setWlEmail('');
     setWlName('');
     setWlUnit('');
     setWlPhone('');
-    alert(`Invited ${wlEmail}. They'll be emailed a login link when they first sign in.`);
+    setWlParks(1);
+    alert(`Authorized ${wlEmail} (${wlUnit}) with ${wlParks} assigned park(s).`);
   };
 
   const handleRemoveWhitelist = async (id: string) => {
@@ -173,7 +175,22 @@ export const ManagementView: React.FC<ManagementViewProps> = ({ onBack }) => {
                 <Field label="Full name" value={wlName} onChange={setWlName} placeholder="e.g. Sarah Jenkins" />
                 <Field label="Unit number" value={wlUnit} onChange={setWlUnit} placeholder="e.g. Unit 12" required />
               </div>
-              <Field label="Phone (optional)" value={wlPhone} onChange={setWlPhone} placeholder="+64 21 555 0000" />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-ink-tertiary uppercase tracking-wider mb-1">
+                    Assigned Parks
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={10}
+                    value={wlParks}
+                    onChange={(e) => setWlParks(parseInt(e.target.value) || 1)}
+                    className="input text-sm font-bold text-center"
+                  />
+                </div>
+                <Field label="Phone (optional)" value={wlPhone} onChange={setWlPhone} placeholder="+64 21 555 0000" />
+              </div>
 
               <button type="submit" className="btn-primary w-full py-3">
                 Register resident

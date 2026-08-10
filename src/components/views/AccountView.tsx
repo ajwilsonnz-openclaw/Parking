@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useApp } from '@/lib/context/AppContext';
 import { useTheme } from '@/lib/theme/ThemeProvider';
 import {
-  User, Award, ChevronRight, Smartphone, Moon, Sun, Monitor, LogOut, Shield, Sliders, Trash2, Users, Key,
+  User, Award, ChevronRight, Smartphone, Moon, Sun, Monitor, LogOut, Shield, Sliders, Trash2, Users, Key, Plus, Car, Check, X,
 } from 'lucide-react';
 import { PlateCard } from '@/components/ui/PlateCard';
 import { useInstallPrompt } from '@/lib/hooks/useInstallPrompt';
@@ -18,17 +18,24 @@ interface AccountViewProps {
 }
 
 export const AccountView: React.FC<AccountViewProps> = ({ onOpenManagement, onOpenAdmin, onOpenPushGuide }) => {
-  const { currentUser, vehicles, demerits, carparks, logout, savedGuests, removeSavedGuest, savedGuests: allSavedGuests } = useApp();
+  const { currentUser, vehicles, demerits, carparks, logout, savedGuests, removeSavedGuest, addVehicle, removeVehicle } = useApp();
   const { theme, setTheme } = useTheme();
   const { canInstall, isInstalled, isIos, install } = useInstallPrompt();
   const { signOut } = useAuth();
   const [showRentalModal, setShowRentalModal] = useState(false);
 
+  // New vehicle form state
+  const [showAddVehicleModal, setShowAddVehicleModal] = useState(false);
+  const [newPlate, setNewPlate] = useState('');
+  const [newMakeModel, setNewMakeModel] = useState('');
+  const [isAddingVehicle, setIsAddingVehicle] = useState(false);
+
   const unitNumber = currentUser?.unit_number || 'Unit 402';
-  const unitVehicles = vehicles.filter((v) => v.unit_number === unitNumber);
+  const unitVehicles = vehicles.filter((v) => v.unit_number === unitNumber || v.user_id === currentUser?.id);
   const unitDemerits = demerits.filter((d) => d.unit_number === unitNumber);
   const totalDemeritPoints = unitDemerits.reduce((s, d) => s + d.demerit_points, 0);
   const mySpot = carparks.find((c) => c.owner_unit_number === unitNumber);
+  const assignedParksCount = currentUser?.assigned_parks || 1;
 
   const isManagementOrAdmin = currentUser?.role === 'management' || currentUser?.role === 'admin';
   const isAdmin = currentUser?.role === 'admin';
@@ -37,6 +44,27 @@ export const AccountView: React.FC<AccountViewProps> = ({ onOpenManagement, onOp
     if (!confirm('Sign out of Millennium Village Parking on this device?')) return;
     try { await signOut(); } catch {}
     try { await logout(); } catch {}
+  };
+
+  const handleAddVehicleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPlate.trim()) return;
+    setIsAddingVehicle(true);
+    try {
+      await addVehicle(newPlate.trim().toUpperCase(), newMakeModel.trim());
+      setNewPlate('');
+      setNewMakeModel('');
+      setShowAddVehicleModal(false);
+    } catch (err: any) {
+      alert(err.message || 'Failed to add vehicle');
+    } finally {
+      setIsAddingVehicle(false);
+    }
+  };
+
+  const handleRemoveVehicle = async (id: string, plate: string) => {
+    if (!confirm(`Remove vehicle ${plate} from your profile?`)) return;
+    await removeVehicle(id);
   };
 
   return (
@@ -53,14 +81,18 @@ export const AccountView: React.FC<AccountViewProps> = ({ onOpenManagement, onOp
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="card p-4 text-center">
-          <span className="text-[10px] font-extrabold uppercase tracking-wider text-ink-tertiary block mb-1">Unit</span>
-          <span className="text-3xl font-black text-ink">{currentUser?.unit_number?.replace(/^Unit\s+/i, '') || '-'}</span>
+      <div className="grid grid-cols-3 gap-2.5">
+        <div className="card p-3 text-center">
+          <span className="text-[9px] font-extrabold uppercase tracking-wider text-ink-tertiary block mb-1">Unit</span>
+          <span className="text-xl font-black text-ink">{currentUser?.unit_number?.replace(/^Unit\s+/i, '') || '-'}</span>
         </div>
-        <div className="card p-4 text-center">
-          <span className="text-[10px] font-extrabold uppercase tracking-wider text-ink-tertiary block mb-1">Demerit Points</span>
-          <span className={`text-3xl font-black ${totalDemeritPoints > 0 ? 'text-warning' : 'text-success'}`}>{totalDemeritPoints}</span>
+        <div className="card p-3 text-center">
+          <span className="text-[9px] font-extrabold uppercase tracking-wider text-ink-tertiary block mb-1">Assigned Parks</span>
+          <span className="text-xl font-black text-accent">{assignedParksCount}</span>
+        </div>
+        <div className="card p-3 text-center">
+          <span className="text-[9px] font-extrabold uppercase tracking-wider text-ink-tertiary block mb-1">Demerits</span>
+          <span className={`text-xl font-black ${totalDemeritPoints > 0 ? 'text-warning' : 'text-success'}`}>{totalDemeritPoints}</span>
         </div>
       </div>
 
@@ -69,8 +101,8 @@ export const AccountView: React.FC<AccountViewProps> = ({ onOpenManagement, onOp
         <div className="flex items-center gap-3">
           <div className="icon-tile w-10 h-10"><User className="w-5 h-5" /></div>
           <div className="flex-1 min-w-0">
-            <span className="text-[10px] font-extrabold uppercase tracking-wider text-ink-tertiary block">Home Unit</span>
-            <span className="text-sm font-bold text-ink truncate block">{unitNumber} · {currentUser?.phone}</span>
+            <span className="text-[10px] font-extrabold uppercase tracking-wider text-ink-tertiary block">Resident Account</span>
+            <span className="text-sm font-bold text-ink truncate block">{unitNumber} · {currentUser?.phone || 'No phone set'}</span>
             <span className="text-[11px] text-ink-secondary truncate block">{currentUser?.email}</span>
           </div>
         </div>
@@ -85,27 +117,111 @@ export const AccountView: React.FC<AccountViewProps> = ({ onOpenManagement, onOp
         )}
       </div>
 
+      {/* Admin / Portal access */}
+      {isManagementOrAdmin && (
+        <div className="card p-3.5 space-y-2 bg-gradient-to-r from-blue-900/20 to-indigo-900/20 border-blue-500/30">
+          <span className="text-[10px] font-extrabold uppercase tracking-wider text-blue-400 block">Privileged Controls</span>
+          <div className="grid grid-cols-2 gap-2">
+            {onOpenManagement && (
+              <button onClick={onOpenManagement} className="btn-secondary text-xs py-2.5 flex items-center justify-center gap-1.5">
+                <Shield className="w-4 h-4 text-info" /> Management
+              </button>
+            )}
+            {isAdmin && onOpenAdmin && (
+              <button onClick={onOpenAdmin} className="btn-secondary text-xs py-2.5 flex items-center justify-center gap-1.5">
+                <Sliders className="w-4 h-4 text-danger" /> Admin Controls
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Registered Vehicles */}
-      <Section title="Registered Vehicles">
+      <div className="space-y-2">
+        <div className="flex items-center justify-between px-1">
+          <h3 className="section-title">My Registered Vehicles</h3>
+          <button
+            onClick={() => setShowAddVehicleModal(true)}
+            className="btn-primary text-xs px-3 py-1.5 flex items-center gap-1"
+          >
+            <Plus className="w-3.5 h-3.5" /> Add Vehicle
+          </button>
+        </div>
+
+        {showAddVehicleModal && (
+          <form onSubmit={handleAddVehicleSubmit} className="card p-4 space-y-3 border-accent/40 bg-accent-soft/30 animate-fade-in">
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-extrabold text-ink uppercase tracking-wider flex items-center gap-1.5">
+                <Car className="w-4 h-4 text-accent" /> Register new vehicle plate
+              </h4>
+              <button type="button" onClick={() => setShowAddVehicleModal(false)} className="btn-icon p-1 text-ink-tertiary">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-ink-tertiary mb-1">Plate Number</label>
+                <input
+                  type="text"
+                  value={newPlate}
+                  onChange={(e) => setNewPlate(e.target.value.toUpperCase())}
+                  placeholder="e.g. GHJ125"
+                  className="input font-mono text-center text-sm font-bold uppercase"
+                  maxLength={6}
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-ink-tertiary mb-1">Make / Model / Color</label>
+                <input
+                  type="text"
+                  value={newMakeModel}
+                  onChange={(e) => setNewMakeModel(e.target.value)}
+                  placeholder="e.g. Toyota Aqua Blue"
+                  className="input text-xs"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-1">
+              <button type="button" onClick={() => setShowAddVehicleModal(false)} className="btn-ghost text-xs py-1.5 px-3">
+                Cancel
+              </button>
+              <button type="submit" disabled={isAddingVehicle || !newPlate.trim()} className="btn-primary text-xs py-1.5 px-4">
+                {isAddingVehicle ? 'Saving...' : 'Save Vehicle'}
+              </button>
+            </div>
+          </form>
+        )}
+
         {unitVehicles.length === 0 ? (
-          <div className="card p-4 text-center text-xs text-ink-tertiary">No vehicles registered yet.</div>
+          <div className="card p-5 text-center text-xs text-ink-tertiary">
+            No registered vehicles. Tap '+ Add Vehicle' above to register your rego plate.
+          </div>
         ) : (
           unitVehicles.map((v) => (
             <div key={v.id} className="card p-3.5 flex items-center justify-between gap-3">
               <div className="min-w-0 flex-1">
                 <PlateCard plate={v.plate_number} size="sm" />
-                <span className="text-xs text-ink-secondary block mt-1.5 font-medium truncate">{v.make_model_color}</span>
+                <span className="text-xs text-ink-secondary block mt-1.5 font-medium truncate">{v.make_model_color || 'Resident Vehicle'}</span>
               </div>
-              <span className={`chip ${v.status === 'pending' ? 'chip-warning' : 'chip-success'}`}>
-                {v.status === 'pending' ? 'Pending' : 'Approved'}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="chip chip-success text-[10px]">Registered</span>
+                <button
+                  onClick={() => handleRemoveVehicle(v.id, v.plate_number)}
+                  className="btn-icon p-1.5 text-danger hover:bg-danger-soft"
+                  title="Remove vehicle"
+                  aria-label="Remove vehicle"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           ))
         )}
-      </Section>
+      </div>
 
       {/* Saved regular guests */}
-      <Section title="Saved regular visitors">
+      <Section title="Saved Regular Visitors">
         {savedGuests.length === 0 ? (
           <div className="card p-4 text-xs text-ink-tertiary text-center">
             When you book a visitor, tick 'Save as regular visitor' to add them here.
@@ -132,7 +248,7 @@ export const AccountView: React.FC<AccountViewProps> = ({ onOpenManagement, onOp
       </Section>
 
       {/* Demerit history */}
-      <Section title="Demerit history">
+      <Section title="Demerit History">
         {unitDemerits.length === 0 ? (
           <div className="card p-4 text-center">
             <Award className="w-6 h-6 text-success mx-auto mb-1" />
@@ -152,103 +268,27 @@ export const AccountView: React.FC<AccountViewProps> = ({ onOpenManagement, onOp
         )}
       </Section>
 
-      {/* Preferences: Theme + PWA install */}
-      <Section title="Preferences">
-        <div className="card p-1.5 grid grid-cols-3 gap-1">
-          <ThemeTab icon={<Monitor className="w-4 h-4" />} label="System" value="system" current={theme} onSelect={setTheme} />
-          <ThemeTab icon={<Sun className="w-4 h-4" />} label="Light" value="light" current={theme} onSelect={setTheme} />
-          <ThemeTab icon={<Moon className="w-4 h-4" />} label="Dark" value="dark" current={theme} onSelect={setTheme} />
-        </div>
+      {/* Sign Out */}
+      <div className="pt-2">
+        <button
+          onClick={handleSignOut}
+          className="w-full btn-secondary py-3 text-danger border-danger/30 hover:bg-danger-soft flex items-center justify-center gap-2"
+        >
+          <LogOut className="w-4 h-4" />
+          <span>Sign Out</span>
+        </button>
+      </div>
 
-        {!isInstalled && (
-          <button
-            onClick={() => (isIos ? onOpenPushGuide?.() : install())}
-            disabled={!canInstall && !isIos}
-            className="card-interactive w-full p-3.5 flex items-center gap-3 text-left disabled:opacity-60"
-          >
-            <div className="icon-tile w-9 h-9"><Smartphone className="w-5 h-5" /></div>
-            <div className="flex-1 min-w-0">
-              <h4 className="text-xs font-bold text-ink">Install Millennium Village Parking</h4>
-              <p className="text-[11px] text-ink-secondary font-medium truncate">
-                {canInstall ? 'Add to your home screen' : isIos ? 'Add via Share menu' : 'Add to home screen'}
-              </p>
-            </div>
-            <ChevronRight className="w-4 h-4 text-ink-tertiary" />
-          </button>
-        )}
-      </Section>
-
-      {/* Admin / Management shortcuts */}
-      {isManagementOrAdmin && (
-        <Section title="Building controls">
-          {isManagementOrAdmin && (
-            <ControlRow
-              icon={<Shield className="w-5 h-5" />}
-              title="Management portal"
-              description="Demerits, whitelisting, active sessions"
-              onClick={onOpenManagement}
-            />
-          )}
-          {isAdmin && (
-            <ControlRow
-              icon={<Sliders className="w-5 h-5" />}
-              title="Admin controls"
-              description="Complex settings, stay limits, site config"
-              onClick={onOpenAdmin}
-            />
-          )}
-        </Section>
-      )}
-
-      {/* Sign out */}
-      <button
-        onClick={handleSignOut}
-        className="card-interactive w-full py-3.5 rounded-2xl text-center font-extrabold text-xs uppercase tracking-widest text-ink-secondary hover:text-ink transition-all flex items-center justify-center gap-2"
-      >
-        <LogOut className="w-4 h-4" />
-        <span>Sign out</span>
-      </button>
-
-      {mySpot && (
-        <RentalModal spot={mySpot} isOpen={showRentalModal} onClose={() => setShowRentalModal(false)} />
-      )}
+      <RentalModal isOpen={showRentalModal} onClose={() => setShowRentalModal(false)} />
     </div>
   );
 };
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="space-y-2.5">
-      <h3 className="section-title px-1 text-xs uppercase tracking-wider">{title}</h3>
+    <div className="space-y-2">
+      <h3 className="section-title px-1">{title}</h3>
       <div className="space-y-2">{children}</div>
-    </section>
-  );
-}
-
-function ThemeTab({ icon, label, value, current, onSelect }: { icon: React.ReactNode; label: string; value: 'light' | 'dark' | 'system'; current: string; onSelect: (v: 'light' | 'dark' | 'system') => void }) {
-  const active = current === value;
-  return (
-    <button
-      onClick={() => onSelect(value)}
-      className={`py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
-        active ? 'text-accent bg-accent-soft shadow-sm' : 'text-ink-tertiary hover:text-ink'
-      }`}
-    >
-      {icon}
-      <span>{label}</span>
-    </button>
-  );
-}
-
-function ControlRow({ icon, title, description, onClick }: { icon: React.ReactNode; title: string; description: string; onClick?: () => void }) {
-  return (
-    <button onClick={onClick} className="card-interactive w-full p-3.5 flex items-center gap-3 text-left">
-      <div className="icon-tile w-9 h-9">{icon}</div>
-      <div className="flex-1 min-w-0">
-        <h4 className="text-xs font-bold text-ink">{title}</h4>
-        <p className="text-[11px] text-ink-secondary font-medium truncate">{description}</p>
-      </div>
-      <ChevronRight className="w-4 h-4 text-ink-tertiary" />
-    </button>
+    </div>
   );
 }
