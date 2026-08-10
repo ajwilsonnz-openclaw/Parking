@@ -37,11 +37,20 @@ function getLocalDb() {
 
 function getD1(): any {
   try {
+    const req = eval('require');
+    const { getRequestContext } = req('@cloudflare/next-on-pages');
+    const ctx = getRequestContext();
+    if (ctx?.env?.DB) return ctx.env.DB;
+  } catch {}
+  try {
     const ctx = (globalThis as any).getRequestContext?.();
     if (ctx?.env?.DB) return ctx.env.DB;
   } catch {}
   try {
     if ((globalThis as any).DB) return (globalThis as any).DB;
+  } catch {}
+  try {
+    if ((process.env as any).DB) return (process.env as any).DB;
   } catch {}
   return null;
 }
