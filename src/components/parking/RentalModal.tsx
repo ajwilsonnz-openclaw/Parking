@@ -7,7 +7,7 @@ import { Carpark } from '@/types';
 import { Key, Users } from 'lucide-react';
 
 interface RentalModalProps {
-  spot: Carpark;
+  spot?: Carpark | null;
   isOpen: boolean;
   onClose: () => void;
 }
@@ -16,7 +16,17 @@ interface RentalModalProps {
  * "Make personal carpark available" - let a neighbour use your spot while you're away.
  */
 export const RentalModal: React.FC<RentalModalProps> = ({ spot, isOpen, onClose }) => {
-  const { currentUser, config, rentOutSpot, rentals, bookRentedSpot, vehicles } = useApp();
+  const { currentUser, config, rentOutSpot, rentals, bookRentedSpot, vehicles, carparks } = useApp();
+
+  const defaultSpot: Carpark = {
+    id: 'p-default',
+    spot_number: currentUser?.unit_number ? `Spot ${currentUser.unit_number.replace(/\D/g, '')}` : 'My Spot',
+    section: 'Ground',
+    status: 'available',
+    owner_unit_number: currentUser?.unit_number,
+  };
+
+  const activeSpot = spot || carparks.find((c) => c.owner_unit_number === currentUser?.unit_number) || defaultSpot;
 
   const [activeTab, setActiveTab] = useState<'share_mine' | 'browse'>('share_mine');
 
