@@ -9,28 +9,37 @@ export async function GET(req: NextRequest) {
   if (!user) return NextResponse.json({ user: null }, { status: 200 });
 
   try {
+    const safeQuery = async (sql: string, params: any[] = []) => {
+      try {
+        return await queryDb(sql, params);
+      } catch (e: any) {
+        console.error('[api/state safeQuery error]:', sql, e?.message);
+        return [];
+      }
+    };
+
     const [carparks, sessionsRaw, vehiclesRaw, savedGuestsRaw, demerits, rentalsRaw, notificationsRaw, configRows] =
       await Promise.all([
-        queryDb('SELECT * FROM carparks ORDER BY spot_number'),
-        queryDb('SELECT * FROM parking_sessions WHERE is_active = 1 ORDER BY expected_end_time ASC LIMIT 200'),
+        safeQuery('SELECT * FROM carparks ORDER BY spot_number'),
+        safeQuery('SELECT * FROM parking_sessions WHERE is_active = 1 ORDER BY expected_end_time ASC LIMIT 200'),
         user.role === 'admin' || user.role === 'management'
-          ? queryDb('SELECT * FROM unit_vehicles ORDER BY requested_at DESC LIMIT 200')
-          : queryDb('SELECT * FROM unit_vehicles WHERE user_id = ? ORDER BY requested_at DESC', [user.id]),
-        queryDb('SELECT * FROM saved_guests WHERE user_id = ? ORDER BY created_at DESC', [user.id]),
+          ? safeQuery('SELECT * FROM unit_vehicles ORDER BY requested_at DESC LIMIT 200')
+          : safeQuery('SELECT * FROM unit_vehicles WHERE user_id = ? ORDER BY requested_at DESC', [user.id]),
+        safeQuery('SELECT * FROM saved_guests WHERE user_id = ? ORDER BY created_at DESC', [user.id]),
         user.role === 'admin' || user.role === 'management'
-          ? queryDb('SELECT * FROM demerits ORDER BY created_at DESC LIMIT 200')
-          : queryDb('SELECT * FROM demerits WHERE user_id = ? ORDER BY created_at DESC LIMIT 100', [user.id]),
-        queryDb('SELECT * FROM spot_rentals ORDER BY created_at DESC LIMIT 100'),
-        queryDb('SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 50', [user.id]),
-        queryDb('SELECT * FROM system_config'),
+          ? safeQuery('SELECT * FROM demerits ORDER BY created_at DESC LIMIT 200')
+          : safeQuery('SELECT * FROM demerits WHERE user_id = ? ORDER BY created_at DESC LIMIT 100', [user.id]),
+        safeQuery('SELECT * FROM spot_rentals ORDER BY created_at DESC LIMIT 100'),
+        safeQuery('SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 50', [user.id]),
+        safeQuery('SELECT * FROM system_config'),
       ]);
 
     const config: Record<string, string> = {};
-    configRows.forEach((row: any) => { config[row.key] = row.value; });
+    (configRows || []).forEach((row: any) => { config[row.key] = row.value; });
 
     return NextResponse.json({
       user,
-      carparks,
+      carparks: carparks || [],
       sessions: (sessionsRaw || []).map((s: any) => ({
         id: s.id,
         spot_id: s.carpark_id,
@@ -48,11 +57,11 @@ export async function GET(req: NextRequest) {
         visitor_phone: s.visitor_phone,
         saved_guest_id: s.saved_guest_id,
       })),
-      vehicles: vehiclesRaw,
-      savedGuests: savedGuestsRaw,
-      demerits,
-      rentals: rentalsRaw,
-      notifications: notificationsRaw,
+      vehicles: vehiclesRaw || [],
+      savedGuests: savedGuestsRaw || [],
+      demerits: demerits || [],
+      rentals: rentalsRaw || [],
+      notifications: notificationsRaw || [],
       config: {
         max_visitor_hours: parseInt(config.max_visitor_hours || '24', 10),
         max_resident_excess_hours: parseInt(config.max_resident_excess_hours || '12', 10),

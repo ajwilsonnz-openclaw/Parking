@@ -1,7 +1,6 @@
 'use client';
 
 import { ClerkProvider } from '@clerk/nextjs';
-import { ClerkSyncHandler } from './ClerkSyncHandler';
 
 const pk = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
 const hasKey = typeof pk === 'string' && pk.startsWith('pk_');

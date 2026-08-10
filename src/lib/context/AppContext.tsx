@@ -287,7 +287,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const logout = useCallback(async () => {
     try {
-      await apiPost('/api/auth/logout', {});
       setDemoUser(null);
       if (typeof window !== 'undefined') sessionStorage.removeItem('mvp-demo');
       invalidate();

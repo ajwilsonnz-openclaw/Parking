@@ -35,11 +35,8 @@ export const AccountView: React.FC<AccountViewProps> = ({ onOpenManagement, onOp
 
   const handleSignOut = async () => {
     if (!confirm('Sign out of Millennium Village Parking on this device?')) return;
-    try {
-      await fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
-      await logout();
-    } catch {}
     try { await signOut(); } catch {}
+    try { await logout(); } catch {}
   };
 
   return (

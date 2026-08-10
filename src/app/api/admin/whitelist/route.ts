@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth';
 import { queryDb, execDb } from '@/lib/db';
 
@@ -20,14 +20,28 @@ export async function POST(req: NextRequest) {
   if (!email || !unit_number) return NextResponse.json({ error: 'Email and unit required' }, { status: 400 });
 
   const normalized = String(email).trim().toLowerCase();
+  const assignedRole = role || 'user';
   const existing = await queryDb('SELECT id FROM whitelist WHERE LOWER(email) = LOWER(?)', [normalized]);
   if (existing.length > 0) return NextResponse.json({ error: 'Email already whitelisted' }, { status: 409 });
 
   const id = `wl-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   await execDb(
     'INSERT INTO whitelist (id, email, name, unit_number, phone, role, added_by_user_id) VALUES (?,?,?,?,?,?,?)',
-    [id, normalized, name || normalized.split('@')[0], unit_number, phone || null, role || 'user', user.id]
+    [id, normalized, name || normalized.split('@')[0], unit_number, phone || null, assignedRole, user.id]
   );
+
+  // Sync to Clerk publicMetadata if user exists
+  try {
+    const { clerkClient } = await import('@clerk/nextjs/server');
+    const clerk = await clerkClient();
+    const users = await clerk.users.getUserList({ emailAddress: [normalized] });
+    if (users.data && users.data.length > 0) {
+      await clerk.users.updateUserMetadata(users.data[0].id, {
+        publicMetadata: { role: assignedRole },
+      });
+    }
+  } catch (err) {}
+
   return NextResponse.json({ success: true, id });
 }
 
