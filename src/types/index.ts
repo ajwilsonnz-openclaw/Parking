@@ -14,10 +14,11 @@ export interface User {
 
 export interface UnitVehicle {
   id: string;
+  user_id?: string;
   unit_number: string;
   plate_number: string;
   make_model_color: string;
-  is_primary: boolean;
+  is_primary?: boolean;
   status: 'pending' | 'approved' | 'rejected';
 }
 
