@@ -13,7 +13,7 @@ import { PushPermissionGuide } from '@/components/pwa/PushPermissionGuide';
 import { NotificationsSheet } from '@/components/views/NotificationsSheet';
 import { useDemoMode } from '@/lib/hooks/useDemoMode';
 import { useApp } from '@/lib/context/AppContext';
-import { LoginView } from '@/components/views/LoginView';
+import LoginView from '@/components/views/LoginView';
 import { PasskeyEnrollmentPrompt } from '@/components/pwa/PasskeyEnrollmentPrompt';
 import { useRouter, useSearchParams } from 'next/navigation';
 
