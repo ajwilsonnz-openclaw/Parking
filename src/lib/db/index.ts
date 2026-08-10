@@ -1,12 +1,4 @@
-// Cloudflare D1 helper - works on both Pages Functions (Edge) and local dev (Node).
-//
-// Two runtime branches:
-//   - Cloudflare Pages: `process.env.DB` is a D1Database binding provided by the Pages
-//     integration. All methods are awaited promises.
-//   - Local dev: falls back to `parking.sqlite` in the project root via better-sqlite3
-//     loaded through eval-require (broken-out-of-bundle so Next Edge doesn't try to
-//     analyse 'fs'/'path'/'better-sqlite3' as edge modules).
-
+// Database helper for Cloudflare D1 (Edge) + local better-sqlite3 (dev)
 let localDbInstance: any = null;
 
 function getLocalDb() {
@@ -22,7 +14,7 @@ function getLocalDb() {
       localDbInstance = new Database(dbPath);
       localDbInstance.pragma('journal_mode = WAL');
 
-      // Auto-apply migrations if any table is missing
+      // Auto-apply migrations if needed
       const hasUsers = localDbInstance
         .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
         .get();
@@ -38,23 +30,17 @@ function getLocalDb() {
           }
         }
       }
-    } catch (err) {
-      // Safe to ignore: we're on Edge or migrations already applied
-    }
+    } catch (err) {}
   }
   return localDbInstance;
 }
 
 function getD1(): any {
-  // Primary: Pages Functions request context binding
   try {
-    // @ts-ignore — Cloudflare Pages injects this via @cloudflare/next-on-pages
     const ctx = (globalThis as any).getRequestContext?.();
     if (ctx?.env?.DB) return ctx.env.DB;
   } catch {}
-  // Fallback: global scope (some Wrangler setups)
   try {
-    // @ts-ignore
     if ((globalThis as any).DB) return (globalThis as any).DB;
   } catch {}
   return null;
@@ -63,54 +49,32 @@ function getD1(): any {
 async function runD1<T>(sql: string, params: any[]): Promise<T[]> {
   const db = getD1();
   if (!db) return [];
-  try {
-    const res = await db.prepare(sql).bind(...params).all();
-    return (res.results || []) as T[];
-  } catch (e) {
-    console.error('D1 query error:', e);
-    return [];
-  }
+  const res = await db.prepare(sql).bind(...params).all();
+  return (res.results || []) as T[];
 }
 
 async function execD1(sql: string, params: any[]): Promise<{ lastID?: number; changes?: number }> {
   const db = getD1();
   if (!db) return {};
-  try {
-    const res = await db.prepare(sql).bind(...params).run();
-    return { lastID: res.meta?.last_row_id, changes: res.meta?.changes };
-  } catch (e) {
-    console.error('D1 exec error:', e);
-    return {};
-  }
+  const res = await db.prepare(sql).bind(...params).run();
+  return { lastID: res.meta?.last_row_id, changes: res.meta?.changes };
 }
-
-// ─── Public API ───────────────────────────────────────────
 
 export async function queryDb<T = any>(sql: string, params: any[] = []): Promise<T[]> {
   if (getD1()) return runD1<T>(sql, params);
-  try {
-    const db = getLocalDb();
-    if (!db) return [];
-    const stmt = db.prepare(sql);
-    return (stmt.all(...params) || []) as T[];
-  } catch (err) {
-    console.error('Local SQLite error:', err);
-    return [];
-  }
+  const db = getLocalDb();
+  if (!db) return [];
+  const stmt = db.prepare(sql);
+  return (stmt.all(...params) || []) as T[];
 }
 
 export async function execDb(sql: string, params: any[] = []): Promise<{ lastID?: number; changes?: number }> {
   if (getD1()) return execD1(sql, params);
-  try {
-    const db = getLocalDb();
-    if (!db) return {};
-    const stmt = db.prepare(sql);
-    const result = stmt.run(...params);
-    return { lastID: result.lastInsertRowid as number, changes: result.changes };
-  } catch (err) {
-    console.error('Local SQLite exec error:', err);
-    return {};
-  }
+  const db = getLocalDb();
+  if (!db) return {};
+  const stmt = db.prepare(sql);
+  const result = stmt.run(...params);
+  return { lastID: result.lastInsertRowid as number, changes: result.changes };
 }
 
 export async function queryDbOne<T = any>(sql: string, params: any[] = []): Promise<T | null> {

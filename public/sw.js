@@ -49,9 +49,8 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(request.url);
 
-  // 1. API: network-only (never serve stale API data)
-  if (url.pathname.startsWith('/api/')) {
-    event.respondWith(fetch(request));
+  // 1. API & Next.js internals: bypass service worker (native browser fetch)
+  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/_next/')) {
     return;
   }
 

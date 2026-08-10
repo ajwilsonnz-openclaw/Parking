@@ -32,11 +32,6 @@ export function useAppState() {
   const refetch = useCallback(async () => {
     try {
       const res = await fetch('/api/state', { cache: 'no-store' });
-      if (res.status === 401) {
-        setData(null);
-        setIsLoading(false);
-        return;
-      }
       if (!res.ok) throw new Error(`Failed: ${res.status}`);
       const json = await res.json();
       setData(json);

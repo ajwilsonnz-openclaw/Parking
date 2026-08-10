@@ -84,7 +84,7 @@ export const ManagementView: React.FC<ManagementViewProps> = ({ onBack }) => {
       {/* Tab switcher */}
       <div className="card p-1 grid grid-cols-2 sm:grid-cols-4 gap-1">
         <TabBtn active={activeTab === 'demerits'} onClick={() => setActiveTab('demerits')} label="Demerits" count={demerits.length} />
-        <TabBtn active={activeTab === 'whitelist'} onClick={() => setActiveTab('whitelist')} label="Whitelist" count={whitelist.length} />
+        <TabBtn active={activeTab === 'whitelist'} onClick={() => setActiveTab('whitelist')} label="Approved Residents" count={whitelist.length} />
         <TabBtn active={activeTab === 'active_sessions'} onClick={() => setActiveTab('active_sessions')} label="Sessions" count={activeSessions.length} />
       </div>
 
@@ -164,7 +164,7 @@ export const ManagementView: React.FC<ManagementViewProps> = ({ onBack }) => {
           <div className="card p-4 space-y-3">
             <h3 className="text-sm font-extrabold uppercase tracking-wider text-text flex items-center gap-1.5">
               <UserCheck className="w-4 h-4 text-accent" />
-              Whitelist resident
+              Register resident email
             </h3>
 
             <form onSubmit={handleAddWhitelist} className="space-y-3">
@@ -176,14 +176,14 @@ export const ManagementView: React.FC<ManagementViewProps> = ({ onBack }) => {
               <Field label="Phone (optional)" value={wlPhone} onChange={setWlPhone} placeholder="+64 21 555 0000" />
 
               <button type="submit" className="btn-primary w-full py-3">
-                Add to whitelist
+                Register resident
               </button>
             </form>
           </div>
 
-          <Section title={`Whitelisted residents (${whitelist.length})`}>
+          <Section title={`Approved residents (${whitelist.length})`}>
             {whitelist.length === 0 ? (
-              <EmptyState icon={<Users className="w-8 h-8 text-ink-tertiary" />} title="No whitelist entries" body="Add residents above to control who can sign in." />
+              <EmptyState icon={<Users className="w-8 h-8 text-ink-tertiary" />} title="No registered residents" body="Add resident emails above to authorize sign-ins." />
             ) : (
               whitelist.map((w) => (
                 <div key={w.id} className="card p-3.5 flex items-center justify-between gap-3">

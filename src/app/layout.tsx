@@ -1,29 +1,20 @@
-import type { Metadata, Viewport } from 'next';
+import type { Metadata } from 'next';
 import { Inter, Sora } from 'next/font/google';
 import './globals.css';
-import { AppProvider } from '@/lib/context/AppContext';
+
 import { ThemeProvider, themeInitScript } from '@/lib/theme/ThemeProvider';
 import { ServiceWorkerRegister } from '@/components/pwa/ServiceWorkerRegister';
 import { ConditionalClerkProvider } from '@/components/providers/ConditionalClerkProvider';
+import { AppProvider } from '@/lib/context/AppContext';
 
-const inter = Inter({
-  subsets: ['latin'],
-  variable: '--font-inter',
-  display: 'swap',
-});
-
-const sora = Sora({
-  subsets: ['latin'],
-  variable: '--font-sora',
-  display: 'swap',
-});
+const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
+const sora = Sora({ subsets: ['latin'], variable: '--font-sora' });
 
 export const metadata: Metadata = {
   title: 'Millennium Village Parking',
-  description: 'Smart car park booking & enforcement for Millennium Village residents and visitors.',
+  description: 'Smart car park booking & enforcement for Millennium Village.',
   applicationName: 'Millennium Village Parking',
   manifest: '/manifest.webmanifest',
-  metadataBase: new URL('https://parking-pwa.pages.dev'),
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
@@ -31,12 +22,11 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: '/icons/favicon-32.png', sizes: '32x32', type: 'image/png' },
-      { url: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
-      { url: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
+      { url: '/icons/favicon-32.png', sizes: '32x32' },
+      { url: '/icons/icon-192.png', sizes: '192x192' },
+      { url: '/icons/icon-512.png', sizes: '512x512' },
     ],
     apple: [{ url: '/icons/apple-touch-icon.png', sizes: '180x180' }],
-    shortcut: [{ url: '/icons/icon-192.png' }],
   },
   openGraph: {
     title: 'Millennium Village Parking',
@@ -46,29 +36,9 @@ export const metadata: Metadata = {
   },
 };
 
-export const viewport: Viewport = {
-  themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#f1f5f9' },
-    { media: '(prefers-color-scheme: dark)', color: '#070b12' },
-  ],
-  width: 'device-width',
-  initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
-  viewportFit: 'cover',
-};
-
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html
-      lang="en"
-      suppressHydrationWarning
-      className={`${inter.variable} ${sora.variable}`}
-    >
+    <html lang="en" className={`dark ${inter.variable} ${sora.variable}`} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
@@ -76,7 +46,9 @@ export default function RootLayout({
         <ConditionalClerkProvider>
           <ThemeProvider>
             <ServiceWorkerRegister />
-            <AppProvider>{children}</AppProvider>
+            <AppProvider>
+              {children}
+            </AppProvider>
           </ThemeProvider>
         </ConditionalClerkProvider>
       </body>

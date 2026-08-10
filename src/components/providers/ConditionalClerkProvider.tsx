@@ -22,7 +22,6 @@ export function ConditionalClerkProvider({ children }: { children: React.ReactNo
         },
       }}
     >
-      <ClerkSyncHandler />
       {children}
     </ClerkProvider>
   );
