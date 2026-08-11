@@ -27,6 +27,8 @@ export async function POST(req: NextRequest) {
   const { email, name, unit_number, phone, role, assigned_parks } = await req.json();
   if (!email || !unit_number) return NextResponse.json({ error: 'Email and unit address required' }, { status: 400 });
 
+  const normalized = String(email).trim().toLowerCase();
+  const cleanUnit = String(unit_number).trim();
   let assignedRole = role || 'user';
   if (assignedRole === 'admin' && user.role !== 'admin') {
     return NextResponse.json({ error: 'Only Admins can approve or assign Admin role' }, { status: 403 });
