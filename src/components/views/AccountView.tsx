@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { useApp } from '@/lib/context/AppContext';
 import { useTheme } from '@/lib/theme/ThemeProvider';
 import {
-  User, Award, ChevronRight, Smartphone, Moon, Sun, Monitor, LogOut, Shield, Sliders, Trash2, Users, Key, Plus, Car, Check, X,
+  User, Award, ChevronRight, Smartphone, Moon, Sun, Monitor, LogOut, Shield, Sliders, Trash2, Users, Key, Plus, Car, Check, X, Edit2,
 } from 'lucide-react';
 import { PlateCard } from '@/components/ui/PlateCard';
 import { useInstallPrompt } from '@/lib/hooks/useInstallPrompt';
@@ -18,11 +18,18 @@ interface AccountViewProps {
 }
 
 export const AccountView: React.FC<AccountViewProps> = ({ onOpenManagement, onOpenAdmin, onOpenPushGuide }) => {
-  const { currentUser, vehicles, demerits, carparks, logout, savedGuests, removeSavedGuest, addVehicle, removeVehicle } = useApp();
+  const { currentUser, vehicles, demerits, carparks, logout, savedGuests, removeSavedGuest, addVehicle, removeVehicle, units, refetch } = useApp();
   const { theme, setTheme } = useTheme();
   const { canInstall, isInstalled, isIos, install } = useInstallPrompt();
   const { signOut } = useAuth();
   const [showRentalModal, setShowRentalModal] = useState(false);
+
+  // Edit Profile state
+  const [showEditProfileModal, setShowEditProfileModal] = useState(false);
+  const [editName, setEditName] = useState(currentUser?.name || '');
+  const [editPhone, setEditPhone] = useState(currentUser?.phone || '');
+  const [editUnit, setEditUnit] = useState(currentUser?.unit_number || '');
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
 
   // New vehicle form state
   const [showAddVehicleModal, setShowAddVehicleModal] = useState(false);
@@ -44,6 +51,36 @@ export const AccountView: React.FC<AccountViewProps> = ({ onOpenManagement, onOp
     if (!confirm('Sign out of Millennium Village Parking on this device?')) return;
     try { await signOut(); } catch {}
     try { await logout(); } catch {}
+  };
+
+  const handleOpenEditProfile = () => {
+    setEditName(currentUser?.name || '');
+    setEditPhone(currentUser?.phone || '');
+    setEditUnit(currentUser?.unit_number || '');
+    setShowEditProfileModal(true);
+  };
+
+  const handleSaveProfileSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editName.trim()) return;
+    setIsSavingProfile(true);
+    try {
+      await fetch('/api/me/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editName.trim(),
+          phone: editPhone.trim() || null,
+          unit_number: editUnit.trim() || currentUser?.unit_number,
+        }),
+      });
+      setShowEditProfileModal(false);
+      refetch();
+    } catch (err: any) {
+      alert(err.message || 'Failed to save profile');
+    } finally {
+      setIsSavingProfile(false);
+    }
   };
 
   const handleAddVehicleSubmit = async (e: React.FormEvent) => {
@@ -96,16 +133,87 @@ export const AccountView: React.FC<AccountViewProps> = ({ onOpenManagement, onOp
         </div>
       </div>
 
-      {/* Contact */}
+      {/* Contact & Edit Profile */}
       <div className="card p-4 space-y-3">
-        <div className="flex items-center gap-3">
-          <div className="icon-tile w-10 h-10"><User className="w-5 h-5" /></div>
-          <div className="flex-1 min-w-0">
-            <span className="text-[10px] font-extrabold uppercase tracking-wider text-ink-tertiary block">Resident Account</span>
-            <span className="text-sm font-bold text-ink truncate block">{unitNumber} · {currentUser?.phone || 'No phone set'}</span>
-            <span className="text-[11px] text-ink-secondary truncate block">{currentUser?.email}</span>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="icon-tile w-10 h-10 shrink-0"><User className="w-5 h-5" /></div>
+            <div className="min-w-0 flex-1">
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-ink-tertiary block">Resident Account</span>
+              <span className="text-sm font-bold text-ink truncate block">{unitNumber} · {currentUser?.phone || 'No phone set'}</span>
+              <span className="text-[11px] text-ink-secondary truncate block">{currentUser?.email}</span>
+            </div>
           </div>
+          <button
+            onClick={handleOpenEditProfile}
+            className="btn-secondary text-xs px-3 py-1.5 flex items-center gap-1.5 shrink-0"
+          >
+            <Edit2 className="w-3.5 h-3.5" /> Edit Profile
+          </button>
         </div>
+
+        {showEditProfileModal && (
+          <form onSubmit={handleSaveProfileSubmit} className="card p-4 space-y-3 border-accent bg-accent-soft/30 animate-fade-in mt-2">
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-extrabold text-ink uppercase tracking-wider">Edit Profile Details</h4>
+              <button type="button" onClick={() => setShowEditProfileModal(false)} className="btn-icon p-1">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold uppercase text-ink-tertiary mb-1">Full Name</label>
+              <input
+                type="text"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                required
+                className="input text-sm font-bold"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-ink-tertiary mb-1">Phone Number</label>
+                <input
+                  type="tel"
+                  value={editPhone}
+                  onChange={(e) => setEditPhone(e.target.value)}
+                  placeholder="+64 21 000 0000"
+                  className="input text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-ink-tertiary mb-1">Unit Address</label>
+                {units.length > 0 ? (
+                  <select
+                    value={editUnit}
+                    onChange={(e) => setEditUnit(e.target.value)}
+                    className="input text-sm font-bold w-full"
+                  >
+                    {units.map((u) => (
+                      <option key={u.id} value={u.unit_number}>{u.unit_number}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    value={editUnit}
+                    onChange={(e) => setEditUnit(e.target.value)}
+                    className="input text-sm font-bold"
+                  />
+                )}
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-1">
+              <button type="button" onClick={() => setShowEditProfileModal(false)} className="btn-ghost text-xs py-1.5 px-3">
+                Cancel
+              </button>
+              <button type="submit" disabled={isSavingProfile || !editName.trim()} className="btn-primary text-xs py-1.5 px-4">
+                {isSavingProfile ? 'Saving...' : 'Save Profile'}
+              </button>
+            </div>
+          </form>
+        )}
+
         {mySpot && (
           <button
             onClick={() => setShowRentalModal(true)}
@@ -198,97 +306,69 @@ export const AccountView: React.FC<AccountViewProps> = ({ onOpenManagement, onOp
             No registered vehicles. Tap '+ Add Vehicle' above to register your rego plate.
           </div>
         ) : (
-          unitVehicles.map((v) => (
-            <div key={v.id} className="card p-3.5 flex items-center justify-between gap-3">
-              <div className="min-w-0 flex-1">
-                <PlateCard plate={v.plate_number} size="sm" />
-                <span className="text-xs text-ink-secondary block mt-1.5 font-medium truncate">{v.make_model_color || 'Resident Vehicle'}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="chip chip-success text-[10px]">Registered</span>
+          <div className="space-y-2">
+            {unitVehicles.map((vehicle) => (
+              <div key={vehicle.id} className="card p-3.5 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <PlateCard plate={vehicle.plate_number} size="sm" />
+                  <div className="min-w-0 flex-1">
+                    <h4 className="text-xs font-bold text-ink truncate">{vehicle.make_model_color || 'Vehicle'}</h4>
+                    <span className="text-[10px] text-ink-tertiary">{vehicle.unit_number}</span>
+                  </div>
+                </div>
                 <button
-                  onClick={() => handleRemoveVehicle(v.id, v.plate_number)}
-                  className="btn-icon p-1.5 text-danger hover:bg-danger-soft"
-                  title="Remove vehicle"
-                  aria-label="Remove vehicle"
+                  onClick={() => handleRemoveVehicle(vehicle.id, vehicle.plate_number)}
+                  className="btn-icon p-2 text-danger hover:bg-danger-soft"
+                  title="Remove Vehicle"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>
-            </div>
-          ))
+            ))}
+          </div>
         )}
       </div>
 
-      {/* Saved regular guests */}
-      <Section title="Saved Regular Visitors">
-        {savedGuests.length === 0 ? (
-          <div className="card p-4 text-xs text-ink-tertiary text-center">
-            When you book a visitor, tick 'Save as regular visitor' to add them here.
-          </div>
-        ) : (
-          savedGuests.map((g) => (
-            <div key={g.id} className="card p-3.5 flex items-center justify-between gap-3">
-              <div className="min-w-0 flex-1">
-                <PlateCard plate={g.plate} size="sm" />
-                <div className="flex items-center gap-1.5 mt-1.5">
-                  <Users className="w-3.5 h-3.5 text-ink-tertiary" />
-                  <span className="text-xs text-ink font-bold truncate">{g.name}</span>
-                  {g.make_model_color && (
-                    <span className="text-[11px] text-ink-tertiary truncate">· {g.make_model_color}</span>
-                  )}
-                </div>
-              </div>
-              <button onClick={() => removeSavedGuest(g.id)} className="btn-icon p-2 text-danger hover:bg-danger-soft" aria-label="Remove">
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
-          ))
-        )}
-      </Section>
-
-      {/* Demerit history */}
-      <Section title="Demerit History">
-        {unitDemerits.length === 0 ? (
-          <div className="card p-4 text-center">
-            <Award className="w-6 h-6 text-success mx-auto mb-1" />
-            <span className="text-xs font-bold text-ink block">Clean compliance record</span>
-            <span className="text-[11px] text-ink-tertiary">No demerits issued</span>
-          </div>
-        ) : (
-          unitDemerits.map((d) => (
-            <div key={d.id} className="card p-3.5 space-y-2">
-              <div className="flex items-start justify-between gap-3">
-                <span className="chip chip-warning text-[10px] uppercase">+{d.demerit_points} Pts · {d.spot_number}</span>
-                {d.fine_amount > 0 && <span className="chip chip-danger text-[10px]">${d.fine_amount} fine</span>}
-              </div>
-              <p className="text-xs text-ink-secondary leading-relaxed">{d.description}</p>
-            </div>
-          ))
-        )}
-      </Section>
+      {/* Theme selection */}
+      <div className="card p-4 space-y-3">
+        <h3 className="section-title">App Theme</h3>
+        <div className="grid grid-cols-3 gap-2">
+          <button
+            onClick={() => setTheme('light')}
+            className={`p-3 rounded-2xl border text-xs font-bold flex flex-col items-center gap-1.5 transition-all ${
+              theme === 'light' ? 'bg-accent-soft border-accent text-accent' : 'border-border text-ink-secondary'
+            }`}
+          >
+            <Sun className="w-4 h-4" /> Light
+          </button>
+          <button
+            onClick={() => setTheme('dark')}
+            className={`p-3 rounded-2xl border text-xs font-bold flex flex-col items-center gap-1.5 transition-all ${
+              theme === 'dark' ? 'bg-accent-soft border-accent text-accent' : 'border-border text-ink-secondary'
+            }`}
+          >
+            <Moon className="w-4 h-4" /> Dark
+          </button>
+          <button
+            onClick={() => setTheme('system')}
+            className={`p-3 rounded-2xl border text-xs font-bold flex flex-col items-center gap-1.5 transition-all ${
+              theme === 'system' ? 'bg-accent-soft border-accent text-accent' : 'border-border text-ink-secondary'
+            }`}
+          >
+            <Monitor className="w-4 h-4" /> System
+          </button>
+        </div>
+      </div>
 
       {/* Sign Out */}
-      <div className="pt-2">
-        <button
-          onClick={handleSignOut}
-          className="w-full btn-secondary py-3 text-danger border-danger/30 hover:bg-danger-soft flex items-center justify-center gap-2"
-        >
-          <LogOut className="w-4 h-4" />
-          <span>Sign Out</span>
-        </button>
-      </div>
+      <button
+        onClick={handleSignOut}
+        className="btn-danger w-full py-3.5 text-xs font-bold flex items-center justify-center gap-2"
+      >
+        <LogOut className="w-4 h-4" /> Sign Out
+      </button>
 
-      <RentalModal isOpen={showRentalModal} onClose={() => setShowRentalModal(false)} />
+      {showRentalModal && <RentalModal isOpen={showRentalModal} onClose={() => setShowRentalModal(false)} />}
     </div>
   );
 };
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="space-y-2">
-      <h3 className="section-title px-1">{title}</h3>
-      <div className="space-y-2">{children}</div>
-    </div>
-  );
-}

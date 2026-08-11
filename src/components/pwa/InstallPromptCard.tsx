@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Share, Plus, Download, Smartphone } from 'lucide-react';
 import { useInstallPrompt } from '@/lib/hooks/useInstallPrompt';
 
+const PERMANENT_DISMISS_KEY = 'mvp_install_dismissed_permanently';
 const DISMISS_KEY = 'mvp_install_dismissed_at';
 const DISMISS_DAYS = 7;
 
@@ -14,6 +15,10 @@ export const InstallPromptCard: React.FC = () => {
 
   useEffect(() => {
     try {
+      if (localStorage.getItem(PERMANENT_DISMISS_KEY) === 'true') {
+        setDismissed(true);
+        return;
+      }
       const ts = localStorage.getItem(DISMISS_KEY);
       if (!ts) { setDismissed(false); return; }
       const days = (Date.now() - Number(ts)) / (1000 * 60 * 60 * 24);
@@ -22,10 +27,14 @@ export const InstallPromptCard: React.FC = () => {
   }, []);
 
   if (isInstalled || dismissed) return null;
-  if (!canInstall && !isIos) return null;
 
-  const dismiss = () => {
+  const dismissTemporary = () => {
     try { localStorage.setItem(DISMISS_KEY, String(Date.now())); } catch {}
+    setDismissed(true);
+  };
+
+  const dismissPermanently = () => {
+    try { localStorage.setItem(PERMANENT_DISMISS_KEY, 'true'); } catch {}
     setDismissed(true);
   };
 
@@ -33,8 +42,8 @@ export const InstallPromptCard: React.FC = () => {
     <>
       <div className="relative overflow-hidden rounded-2xl border border-blue-500/20 bg-gradient-to-br from-blue-600 to-blue-700 p-4 text-white shadow-lg shadow-blue-600/20">
         <button
-          onClick={dismiss}
-          aria-label="Dismiss"
+          onClick={dismissTemporary}
+          aria-label="Close"
           className="absolute top-2.5 right-2.5 p-1.5 rounded-full text-blue-100/70 hover:text-white hover:bg-white/10 transition-colors"
         >
           <X className="w-4 h-4" />
@@ -46,15 +55,23 @@ export const InstallPromptCard: React.FC = () => {
           <div className="flex-1 min-w-0">
             <h3 className="text-sm font-extrabold tracking-tight">Install Millennium Village Parking</h3>
             <p className="text-xs text-blue-100 mt-0.5 leading-snug">
-              Add to your home screen for faster bookings and push notifications.
+              Add to your home screen for faster bookings and instant updates.
             </p>
-            <button
-              onClick={() => (isIos ? setShowIosHelp(true) : install())}
-              className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white text-blue-700 text-xs font-extrabold shadow hover:bg-blue-50 active:scale-[0.97] transition-all"
-            >
-              <Download className="w-3.5 h-3.5" />
-              {isIos ? 'How to install' : 'Install App'}
-            </button>
+            <div className="mt-3 flex items-center gap-2 flex-wrap">
+              <button
+                onClick={() => (isIos ? setShowIosHelp(true) : install())}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white text-blue-700 text-xs font-extrabold shadow hover:bg-blue-50 active:scale-[0.97] transition-all"
+              >
+                <Download className="w-3.5 h-3.5" />
+                {isIos ? 'How to install' : 'Install App'}
+              </button>
+              <button
+                onClick={dismissPermanently}
+                className="text-[11px] font-bold text-blue-200 hover:text-white hover:underline px-2 py-1"
+              >
+                Do not remind again
+              </button>
+            </div>
           </div>
         </div>
       </div>
