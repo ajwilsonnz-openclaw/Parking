@@ -39,7 +39,6 @@ export async function POST(req: NextRequest) {
       'INSERT INTO whitelist (id, email, name, unit_number, phone, role, assigned_parks, added_by_user_id) VALUES (?,?,?,?,?,?,?,?)',
       [id, normalized, name || normalized.split('@')[0], unit_number, phone || null, assignedRole, parksNum, user.id]
     ).catch(async () => {
-      // Fallback if assigned_parks column not in legacy table
       await execDb(
         'INSERT INTO whitelist (id, email, name, unit_number, phone, role, added_by_user_id) VALUES (?,?,?,?,?,?,?)',
         [id, normalized, name || normalized.split('@')[0], unit_number, phone || null, assignedRole, user.id]
@@ -62,17 +61,42 @@ export async function POST(req: NextRequest) {
     ).catch(() => {});
   }
 
-  // Sync to Clerk publicMetadata if user exists in Clerk
+  // Register on Clerk Servers (Allowlist & Invitation Email)
   try {
     const { clerkClient } = await import('@clerk/nextjs/server');
     const clerk = await clerkClient();
+
+    // 1. Add to Clerk Allowlist
+    try {
+      await clerk.allowlistIdentifiers.createAllowlistIdentifier({
+        identifier: normalized,
+        notify: false,
+      });
+    } catch (e: any) {
+      console.log('[whitelist] Clerk allowlist notice (may already exist):', e?.message || e);
+    }
+
+    // 2. Create Clerk Invitation (sends email invite & sets role metadata)
+    try {
+      await clerk.invitations.createInvitation({
+        emailAddress: normalized,
+        publicMetadata: { role: assignedRole, unit_number },
+        ignoreExisting: true,
+      });
+    } catch (e: any) {
+      console.log('[whitelist] Clerk invitation notice:', e?.message || e);
+    }
+
+    // 3. Update metadata if user already has an active Clerk account
     const users = await clerk.users.getUserList({ emailAddress: [normalized] });
     if (users.data && users.data.length > 0) {
       await clerk.users.updateUserMetadata(users.data[0].id, {
-        publicMetadata: { role: assignedRole },
+        publicMetadata: { role: assignedRole, unit_number },
       });
     }
-  } catch (err) {}
+  } catch (err) {
+    console.warn('[whitelist] Clerk API integration warning:', err);
+  }
 
   return NextResponse.json({ success: true });
 }

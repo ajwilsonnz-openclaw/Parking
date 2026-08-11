@@ -1,0 +1,7 @@
+CREATE TABLE IF NOT EXISTS units (
+  id TEXT PRIMARY KEY,
+  unit_number TEXT UNIQUE NOT NULL,
+  assigned_parks INTEGER DEFAULT 1,
+  notes TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);

@@ -1,32 +1,84 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '@/lib/context/AppContext';
-import { Shield, AlertTriangle, UserCheck, ArrowLeft, Users, Plus } from 'lucide-react';
+import { Shield, AlertTriangle, UserCheck, ArrowLeft, Users, Plus, Building2, Minus, Trash2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 interface ManagementViewProps {
   onBack?: () => void;
 }
 
+interface UnitRecord {
+  id: string;
+  unit_number: string;
+  assigned_parks: number;
+  notes?: string;
+}
+
 export const ManagementView: React.FC<ManagementViewProps> = ({ onBack }) => {
-  const { demerits, issueDemerit, whitelist, addWhitelistedUser, removeWhitelistedUser, sessions, bootRequest, currentUser } = useApp();
+  const { demerits, issueDemerit, whitelist, addWhitelistedUser, removeWhitelistedUser, sessions, bootRequest } = useApp();
 
-  const [activeTab, setActiveTab] = useState<'demerits' | 'whitelist' | 'active_sessions'>('demerits');
-  const [newUnit, setNewUnit] = useState('');
-  const [newPlate, setNewPlate] = useState('');
-  const [newSpot, setNewSpot] = useState('');
-  const [newDesc, setNewDesc] = useState('');
-  const [newPoints, setNewPoints] = useState(1);
+  const [activeTab, setActiveTab] = useState<'units' | 'whitelist' | 'demerits' | 'active_sessions'>('whitelist');
 
+  // Units state
+  const [units, setUnits] = useState<UnitRecord[]>([]);
+  const [newUnitNum, setNewUnitNum] = useState('');
+  const [newUnitParks, setNewUnitParks] = useState(1);
+  const [isSavingUnit, setIsSavingUnit] = useState(false);
+
+  // Whitelist state
   const [wlEmail, setWlEmail] = useState('');
   const [wlName, setWlName] = useState('');
   const [wlUnit, setWlUnit] = useState('');
   const [wlPhone, setWlPhone] = useState('');
   const [wlParks, setWlParks] = useState(1);
 
+  // Demerits state
+  const [newUnit, setNewUnit] = useState('');
+  const [newPlate, setNewPlate] = useState('');
+  const [newSpot, setNewSpot] = useState('');
+  const [newDesc, setNewDesc] = useState('');
+  const [newPoints, setNewPoints] = useState(1);
+
+  const fetchUnits = async () => {
+    try {
+      const res = await fetch('/api/admin/units');
+      const data = await res.json();
+      if (data.units) setUnits(data.units);
+    } catch {}
+  };
+
+  useEffect(() => {
+    fetchUnits();
+  }, []);
+
   const activeSessions = sessions.filter((s) => s.is_active);
   const residentExcessSessions = activeSessions.filter((s) => s.session_type === 'resident_excess');
+
+  const handleAddUnit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newUnitNum.trim()) return;
+    setIsSavingUnit(true);
+    try {
+      await fetch('/api/admin/units', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ unit_number: newUnitNum.trim(), assigned_parks: newUnitParks }),
+      });
+      setNewUnitNum('');
+      setNewUnitParks(1);
+      await fetchUnits();
+    } catch {} finally {
+      setIsSavingUnit(false);
+    }
+  };
+
+  const handleDeleteUnit = async (id: string, unitNum: string) => {
+    if (!confirm(`Delete unit ${unitNum}?`)) return;
+    await fetch(`/api/admin/units?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+    await fetchUnits();
+  };
 
   const handleIssueDemerit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,13 +94,13 @@ export const ManagementView: React.FC<ManagementViewProps> = ({ onBack }) => {
   const handleAddWhitelist = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!wlEmail || !wlUnit) return;
-    await addWhitelistedUser(wlEmail, wlName || 'Resident', wlUnit, wlPhone || '+64 21 000 0000', 'user', wlParks);
+    await addWhitelistedUser(wlEmail, wlName || 'Resident', wlUnit, wlPhone || '', 'user', wlParks);
     setWlEmail('');
     setWlName('');
     setWlUnit('');
     setWlPhone('');
     setWlParks(1);
-    alert(`Authorized ${wlEmail} (${wlUnit}) with ${wlParks} assigned park(s).`);
+    alert(`Authorized ${wlEmail} for ${wlUnit} with ${wlParks} assigned park(s). Clerk email invite sent!`);
   };
 
   const handleRemoveWhitelist = async (id: string) => {
@@ -77,18 +129,184 @@ export const ManagementView: React.FC<ManagementViewProps> = ({ onBack }) => {
             </div>
             <div>
               <h2 className="text-xl font-extrabold text-ink tracking-tight font-display">Management Portal</h2>
-              <p className="text-xs text-ink-secondary mt-0.5">Demerits, whitelisting, and spot enforcement.</p>
+              <p className="text-xs text-ink-secondary mt-0.5">Units registry, resident authorization, and compliance.</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Tab switcher */}
-      <div className="card p-1 grid grid-cols-2 sm:grid-cols-4 gap-1">
-        <TabBtn active={activeTab === 'demerits'} onClick={() => setActiveTab('demerits')} label="Demerits" count={demerits.length} />
+      <div className="card p-1 grid grid-cols-4 gap-1">
         <TabBtn active={activeTab === 'whitelist'} onClick={() => setActiveTab('whitelist')} label="Approved Residents" count={whitelist.length} />
+        <TabBtn active={activeTab === 'units'} onClick={() => setActiveTab('units')} label="Building Units" count={units.length} />
+        <TabBtn active={activeTab === 'demerits'} onClick={() => setActiveTab('demerits')} label="Demerits" count={demerits.length} />
         <TabBtn active={activeTab === 'active_sessions'} onClick={() => setActiveTab('active_sessions')} label="Sessions" count={activeSessions.length} />
       </div>
+
+      {/* Units registry tab */}
+      {activeTab === 'units' && (
+        <div className="space-y-4">
+          <div className="card p-4 space-y-3">
+            <h3 className="text-sm font-extrabold uppercase tracking-wider text-text flex items-center gap-1.5">
+              <Building2 className="w-4 h-4 text-accent" />
+              Register Building Unit
+            </h3>
+
+            <form onSubmit={handleAddUnit} className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Unit Address / Number" value={newUnitNum} onChange={setNewUnitNum} placeholder="e.g. Unit 101" required />
+                <div>
+                  <label className="block text-xs font-bold text-ink-tertiary uppercase tracking-wider mb-1.5">
+                    Assigned Parks
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setNewUnitParks(Math.max(1, newUnitParks - 1))}
+                      className="btn-icon p-2 bg-bg-surface hover:bg-border border border-border"
+                    >
+                      <Minus className="w-4 h-4" />
+                    </button>
+                    <span className="font-mono text-base font-black px-4 text-ink">{newUnitParks}</span>
+                    <button
+                      type="button"
+                      onClick={() => setNewUnitParks(newUnitParks + 1)}
+                      className="btn-icon p-2 bg-bg-surface hover:bg-border border border-border"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <button type="submit" disabled={isSavingUnit || !newUnitNum.trim()} className="btn-primary w-full py-3">
+                {isSavingUnit ? 'Saving Unit...' : 'Add Building Unit'}
+              </button>
+            </form>
+          </div>
+
+          <Section title={`Registered Building Units (${units.length})`}>
+            {units.length === 0 ? (
+              <EmptyState icon={<Building2 className="w-8 h-8 text-ink-tertiary" />} title="No units registered" body="Add building units above to set allocated parking quotas." />
+            ) : (
+              units.map((u) => (
+                <div key={u.id} className="card p-3.5 flex items-center justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-extrabold text-ink">{u.unit_number}</div>
+                    <div className="text-xs text-accent font-bold mt-0.5">{u.assigned_parks} Assigned Park{u.assigned_parks > 1 ? 's' : ''}</div>
+                  </div>
+                  <button onClick={() => handleDeleteUnit(u.id, u.unit_number)} className="btn-icon p-2 text-danger hover:bg-danger-soft" aria-label="Delete unit">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))
+            )}
+          </Section>
+        </div>
+      )}
+
+      {/* Whitelist tab */}
+      {activeTab === 'whitelist' && (
+        <div className="space-y-4">
+          <div className="card p-4 space-y-3">
+            <h3 className="text-sm font-extrabold uppercase tracking-wider text-text flex items-center gap-1.5">
+              <UserCheck className="w-4 h-4 text-accent" />
+              Authorize Resident Email (Clerk Invited)
+            </h3>
+
+            <form onSubmit={handleAddWhitelist} className="space-y-3">
+              <Field label="Email address" value={wlEmail} onChange={setWlEmail} placeholder="resident@example.com" type="email" required />
+              
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Full name" value={wlName} onChange={setWlName} placeholder="e.g. Sarah Jenkins" />
+                <div>
+                  <label className="block text-xs font-bold text-ink-tertiary uppercase tracking-wider mb-1.5">
+                    Assign to Unit Address
+                  </label>
+                  {units.length > 0 ? (
+                    <select
+                      value={wlUnit}
+                      onChange={(e) => setWlUnit(e.target.value)}
+                      className="input text-sm font-bold"
+                      required
+                    >
+                      <option value="">-- Select Unit --</option>
+                      {units.map((u) => (
+                        <option key={u.id} value={u.unit_number}>
+                          {u.unit_number} ({u.assigned_parks} Parks)
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      value={wlUnit}
+                      onChange={(e) => setWlUnit(e.target.value)}
+                      placeholder="e.g. Unit 101"
+                      className="input text-sm font-bold"
+                      required
+                    />
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-ink-tertiary uppercase tracking-wider mb-1.5">
+                    Assigned Parks
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setWlParks(Math.max(1, wlParks - 1))}
+                      className="btn-icon p-2 bg-bg-surface hover:bg-border border border-border"
+                    >
+                      <Minus className="w-4 h-4" />
+                    </button>
+                    <span className="font-mono text-base font-black px-4 text-ink">{wlParks}</span>
+                    <button
+                      type="button"
+                      onClick={() => setWlParks(wlParks + 1)}
+                      className="btn-icon p-2 bg-bg-surface hover:bg-border border border-border"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+                <Field label="Phone (optional)" value={wlPhone} onChange={setWlPhone} placeholder="+64 21 555 0000" />
+              </div>
+
+              <button type="submit" className="btn-primary w-full py-3">
+                Authorize &amp; Send Clerk Email Invite
+              </button>
+            </form>
+          </div>
+
+          <Section title={`Approved Residents (${whitelist.length})`}>
+            {whitelist.length === 0 ? (
+              <EmptyState icon={<Users className="w-8 h-8 text-ink-tertiary" />} title="No registered residents" body="Add resident emails above to authorize sign-ins." />
+            ) : (
+              whitelist.map((w) => (
+                <div key={w.id} className="card p-3.5 flex items-center justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-extrabold text-ink truncate">{w.name}</div>
+                    <div className="text-[11px] text-ink-secondary truncate">{w.email} • {w.unit_number} ({w.assigned_parks || 1} Parks)</div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="chip chip-accent text-[10px]">{w.role}</span>
+                    <button
+                      onClick={() => handleRemoveWhitelist(w.id)}
+                      className="btn-icon p-1.5 text-danger hover:bg-danger-soft"
+                      aria-label="Remove"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </Section>
+        </div>
+      )}
 
       {/* Demerits tab */}
       {activeTab === 'demerits' && (
@@ -160,76 +378,11 @@ export const ManagementView: React.FC<ManagementViewProps> = ({ onBack }) => {
         </div>
       )}
 
-      {/* Whitelist tab */}
-      {activeTab === 'whitelist' && (
-        <div className="space-y-4">
-          <div className="card p-4 space-y-3">
-            <h3 className="text-sm font-extrabold uppercase tracking-wider text-text flex items-center gap-1.5">
-              <UserCheck className="w-4 h-4 text-accent" />
-              Register resident email
-            </h3>
-
-            <form onSubmit={handleAddWhitelist} className="space-y-3">
-              <Field label="Email" value={wlEmail} onChange={setWlEmail} placeholder="resident@example.com" type="email" required />
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Full name" value={wlName} onChange={setWlName} placeholder="e.g. Sarah Jenkins" />
-                <Field label="Unit number" value={wlUnit} onChange={setWlUnit} placeholder="e.g. Unit 12" required />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-ink-tertiary uppercase tracking-wider mb-1">
-                    Assigned Parks
-                  </label>
-                  <input
-                    type="number"
-                    min={0}
-                    max={10}
-                    value={wlParks}
-                    onChange={(e) => setWlParks(parseInt(e.target.value) || 1)}
-                    className="input text-sm font-bold text-center"
-                  />
-                </div>
-                <Field label="Phone (optional)" value={wlPhone} onChange={setWlPhone} placeholder="+64 21 555 0000" />
-              </div>
-
-              <button type="submit" className="btn-primary w-full py-3">
-                Register resident
-              </button>
-            </form>
-          </div>
-
-          <Section title={`Approved residents (${whitelist.length})`}>
-            {whitelist.length === 0 ? (
-              <EmptyState icon={<Users className="w-8 h-8 text-ink-tertiary" />} title="No registered residents" body="Add resident emails above to authorize sign-ins." />
-            ) : (
-              whitelist.map((w) => (
-                <div key={w.id} className="card p-3.5 flex items-center justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <div className="text-sm font-extrabold text-ink truncate">{w.name}</div>
-                    <div className="text-[11px] text-ink-secondary truncate">{w.email} • {w.unit_number}</div>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="chip chip-accent text-[10px]">{w.role}</span>
-                    <button
-                      onClick={() => handleRemoveWhitelist(w.id)}
-                      className="btn-icon p-1.5 text-danger hover:bg-danger-soft"
-                      aria-label="Remove"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              ))
-            )}
-          </Section>
-        </div>
-      )}
-
       {/* Active sessions tab (boot flow) */}
       {activeTab === 'active_sessions' && (
         <Section title={`Active parking sessions (${activeSessions.length})`}>
           {residentExcessSessions.length === 0 ? (
-            <EmptyState icon={<Car className="w-8 h-8 text-success" />} title="No resident overflow activity" body="All visitor spots are genuinely occupied by visitors." />
+            <EmptyState icon={<Shield className="w-8 h-8 text-success" />} title="No resident overflow activity" body="All visitor spots are genuinely occupied by visitors." />
           ) : (
             <div className="space-y-2.5">
               {residentExcessSessions.map((s) => (
@@ -271,66 +424,63 @@ function TabBtn({ active, onClick, label, count }: { active: boolean; onClick: (
   return (
     <button
       onClick={onClick}
-      className={`py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+      className={`py-2 rounded-xl text-[11px] font-bold transition-all flex flex-col items-center justify-center gap-0.5 ${
         active ? 'text-accent bg-accent-soft shadow-sm' : 'text-ink-tertiary hover:text-ink'
       }`}
     >
       <span>{label}</span>
-      {count > 0 && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-accent text-white font-mono">{count}</span>}
+      <span className="text-[9px] font-mono opacity-80">({count})</span>
     </button>
-  );
-}
-
-function Field({ label, value, onChange, placeholder, type = 'text', required }: {
-  label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string; required?: boolean;
-}) {
-  return (
-    <div>
-      <label className="block text-xs font-bold text-ink-tertiary uppercase tracking-wider mb-1.5">
-        {label}{required && ' *'}
-      </label>
-      <input
-        type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} required={required}
-        className="input text-sm"
-      />
-    </div>
   );
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="space-y-3">
+    <div className="space-y-2">
       <h3 className="section-title px-1">{title}</h3>
       <div className="space-y-2">{children}</div>
-    </section>
+    </div>
   );
 }
 
 function EmptyState({ icon, title, body }: { icon: React.ReactNode; title: string; body: string }) {
   return (
-    <div className="card p-6 text-center">
-      <div className="mx-auto w-10 h-10 rounded-2xl bg-bg-surface flex items-center justify-center mb-2">
-        {icon}
-      </div>
-      <div className="text-sm font-bold text-ink">{title}</div>
-      <p className="text-xs text-ink-tertiary mt-0.5 max-w-[240px] mx-auto">{body}</p>
+    <div className="card p-8 text-center space-y-2">
+      <div className="mx-auto flex justify-center mb-1">{icon}</div>
+      <h4 className="text-sm font-bold text-ink">{title}</h4>
+      <p className="text-xs text-ink-tertiary max-w-xs mx-auto">{body}</p>
     </div>
   );
 }
 
-function X(props: any) {
+function Field({
+  label,
+  value,
+  onChange,
+  placeholder,
+  type = 'text',
+  required = false,
+}: {
+  label: string;
+  value: string;
+  onChange: (val: string) => void;
+  placeholder?: string;
+  type?: string;
+  required?: boolean;
+}) {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
-    </svg>
-  );
-}
-
-function Car(props: any) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H12c-.6 0-1-.4-1-1V1.9C1 1.7.4 1 0 1s0 .4 0 1v3c0 .6.4 1 1 1h.2c.1.6.3 1.1.5 1.6L2.3 17c0 .6.4 1 1 1h16c.6 0 1-.4 1-1v-1c.6 0 1-.4 1-1"/>
-      <path d="M9 17h6"/>
-    </svg>
+    <div>
+      <label className="block text-xs font-bold text-ink-tertiary uppercase tracking-wider mb-1.5">
+        {label}
+      </label>
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        required={required}
+        className="input text-sm"
+      />
+    </div>
   );
 }
