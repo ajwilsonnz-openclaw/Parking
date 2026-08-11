@@ -2,30 +2,33 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Building2, ShieldAlert, LogOut, RefreshCw } from 'lucide-react';
+import { Building2, ShieldAlert, LogOut, Loader2 } from 'lucide-react';
 import { SignIn, SignUp, useAuth, useUser } from '@clerk/nextjs';
 import { useApp } from '@/lib/context/AppContext';
 
 export default function LoginView() {
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
-  const { isLoaded, isSignedIn, userId, signOut } = useAuth();
+  const { isLoaded, isSignedIn, signOut } = useAuth();
   const { user: clerkUser } = useUser();
   const { currentUser, refetch, isLoading } = useApp();
 
-  const [hasCheckedState, setHasCheckedState] = useState(false);
+  const [stateChecked, setStateChecked] = useState(false);
 
   useEffect(() => {
+    let isMounted = true;
     if (isLoaded && isSignedIn) {
-      refetch();
-      const timer = setTimeout(() => setHasCheckedState(true), 600);
-      return () => clearTimeout(timer);
+      refetch().finally(() => {
+        if (isMounted) setStateChecked(true);
+      });
     } else {
-      setHasCheckedState(false);
+      setStateChecked(false);
     }
+    return () => { isMounted = false; };
   }, [isLoaded, isSignedIn, refetch]);
 
   const signedInEmail = clerkUser?.primaryEmailAddress?.emailAddress || clerkUser?.emailAddresses[0]?.emailAddress || '';
-  const isAccessDenied = isLoaded && isSignedIn && !isLoading && hasCheckedState && !currentUser;
+  const isAccessDenied = isLoaded && isSignedIn && stateChecked && !isLoading && !currentUser;
+  const isVerifying = isLoaded && isSignedIn && (isLoading || !stateChecked);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-bg">
@@ -48,8 +51,15 @@ export default function LoginView() {
           </p>
         </div>
 
-        {/* Access Denied Banner if signed into Clerk with un-whitelisted email */}
-        {isAccessDenied ? (
+        {/* Verifying Session Loader */}
+        {isVerifying ? (
+          <div className="card p-8 text-center space-y-3">
+            <Loader2 className="w-8 h-8 text-accent animate-spin mx-auto" />
+            <h3 className="text-sm font-bold text-ink">Verifying resident authorization...</h3>
+            <p className="text-xs text-ink-tertiary">Connecting to Millennium Village database</p>
+          </div>
+        ) : isAccessDenied ? (
+          /* Access Denied Banner if signed into Clerk with un-whitelisted email */
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -100,51 +110,53 @@ export default function LoginView() {
                     : 'text-slate-400 hover:text-white'
                 }`}
               >
-                Sign Up
+                Create Account
               </button>
             </div>
 
-            {/* Clerk Component */}
-            <div className="flex justify-center">
+            {/* Clerk Form Embed */}
+            <div className="clerk-embed-wrapper card p-2 bg-[#121824] border-slate-800 shadow-2xl">
               {mode === 'signin' ? (
                 <SignIn
                   routing="hash"
+                  signUpUrl="#signup"
                   appearance={{
                     elements: {
                       rootBox: 'w-full',
-                      card: 'bg-[#121824] border border-slate-800/80 shadow-2xl rounded-3xl w-full text-white',
-                      headerTitle: 'text-white font-bold text-xl',
+                      card: 'bg-transparent shadow-none p-4 w-full',
+                      headerTitle: 'text-white text-lg font-bold',
                       headerSubtitle: 'text-slate-400 text-xs',
-                      socialButtonsBlockButton: 'bg-slate-800/80 border-slate-700 text-white hover:bg-slate-700',
-                      formButtonPrimary: 'bg-blue-600 hover:bg-blue-500 text-white rounded-xl py-3 font-bold shadow-lg shadow-blue-600/30 transition-all',
-                      formFieldInput: 'bg-slate-900 border-slate-700 text-white rounded-xl focus:ring-2 focus:ring-blue-500 py-3',
-                      formFieldLabel: 'text-slate-300 font-semibold text-xs uppercase tracking-wider',
-                      footerActionLink: 'text-blue-400 hover:text-blue-300 font-bold',
-                      identityPreviewText: 'text-white font-semibold',
-                      identityPreviewEditButton: 'text-blue-400 hover:text-blue-300',
-                      formResendCodeLink: 'text-blue-400 hover:text-blue-300 font-bold',
-                      otpCodeFieldInput: 'bg-slate-900 border-slate-700 text-white rounded-xl font-mono text-xl font-bold',
+                      socialButtonsBlockButton: 'bg-slate-800 border-slate-700 text-white hover:bg-slate-700',
+                      socialButtonsBlockButtonText: 'text-white font-semibold text-xs',
+                      dividerLine: 'bg-slate-800',
+                      dividerText: 'text-slate-500 text-xs',
+                      formFieldLabel: 'text-slate-300 text-xs font-semibold',
+                      formFieldInput: 'bg-slate-900 border-slate-700 text-white rounded-xl focus:border-blue-500 text-sm',
+                      formButtonPrimary: 'bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl py-2.5 text-sm shadow-lg shadow-blue-600/20',
+                      footerActionLink: 'text-blue-400 hover:text-blue-300 text-xs font-bold',
+                      identityPreviewText: 'text-white font-medium text-xs',
+                      identityPreviewEditButton: 'text-blue-400 text-xs font-bold',
                     },
                   }}
                 />
               ) : (
                 <SignUp
                   routing="hash"
+                  signInUrl="#signin"
                   appearance={{
                     elements: {
                       rootBox: 'w-full',
-                      card: 'bg-[#121824] border border-slate-800/80 shadow-2xl rounded-3xl w-full text-white',
-                      headerTitle: 'text-white font-bold text-xl',
+                      card: 'bg-transparent shadow-none p-4 w-full',
+                      headerTitle: 'text-white text-lg font-bold',
                       headerSubtitle: 'text-slate-400 text-xs',
-                      socialButtonsBlockButton: 'bg-slate-800/80 border-slate-700 text-white hover:bg-slate-700',
-                      formButtonPrimary: 'bg-blue-600 hover:bg-blue-500 text-white rounded-xl py-3 font-bold shadow-lg shadow-blue-600/30 transition-all',
-                      formFieldInput: 'bg-slate-900 border-slate-700 text-white rounded-xl focus:ring-2 focus:ring-blue-500 py-3',
-                      formFieldLabel: 'text-slate-300 font-semibold text-xs uppercase tracking-wider',
-                      footerActionLink: 'text-blue-400 hover:text-blue-300 font-bold',
-                      identityPreviewText: 'text-white font-semibold',
-                      identityPreviewEditButton: 'text-blue-400 hover:text-blue-300',
-                      formResendCodeLink: 'text-blue-400 hover:text-blue-300 font-bold',
-                      otpCodeFieldInput: 'bg-slate-900 border-slate-700 text-white rounded-xl font-mono text-xl font-bold',
+                      socialButtonsBlockButton: 'bg-slate-800 border-slate-700 text-white hover:bg-slate-700',
+                      socialButtonsBlockButtonText: 'text-white font-semibold text-xs',
+                      dividerLine: 'bg-slate-800',
+                      dividerText: 'text-slate-500 text-xs',
+                      formFieldLabel: 'text-slate-300 text-xs font-semibold',
+                      formFieldInput: 'bg-slate-900 border-slate-700 text-white rounded-xl focus:border-blue-500 text-sm',
+                      formButtonPrimary: 'bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl py-2.5 text-sm shadow-lg shadow-blue-600/20',
+                      footerActionLink: 'text-blue-400 hover:text-blue-300 text-xs font-bold',
                     },
                   }}
                 />
@@ -156,5 +168,3 @@ export default function LoginView() {
     </div>
   );
 }
-
-export { LoginView };

@@ -59,7 +59,7 @@ export const HomeView: React.FC<HomeViewProps> = ({ onNavigateTab }) => {
   };
 
   return (
-    <div className="space-y-3.5 max-w-lg mx-auto pb-24 animate-fade-in px-1">
+    <div className="min-h-[calc(100dvh-6rem)] flex flex-col justify-between max-w-lg mx-auto pb-20 sm:pb-24 animate-fade-in px-1 space-y-3">
       {/* PWA install prompt */}
       <InstallPromptCard />
 
