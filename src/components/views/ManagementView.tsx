@@ -18,7 +18,7 @@ interface UnitRecord {
 }
 
 export const ManagementView: React.FC<ManagementViewProps> = ({ onBack }) => {
-  const { demerits, issueDemerit, whitelist, addWhitelistedUser, removeWhitelistedUser, sessions, bootRequest, units, refetch } = useApp();
+  const { demerits, issueDemerit, whitelist, addWhitelistedUser, removeWhitelistedUser, sessions, bootRequest, units, refetch, currentUser } = useApp();
 
   const [activeTab, setActiveTab] = useState<'units' | 'whitelist' | 'demerits' | 'active_sessions'>('whitelist');
 
@@ -37,6 +37,7 @@ export const ManagementView: React.FC<ManagementViewProps> = ({ onBack }) => {
   const [wlName, setWlName] = useState('');
   const [wlUnit, setWlUnit] = useState('');
   const [wlPhone, setWlPhone] = useState('');
+  const [wlRole, setWlRole] = useState<'user' | 'management' | 'admin'>('user');
 
   // Edit Whitelist state
   const [editingWl, setEditingWl] = useState<WhitelistEntry | null>(null);
@@ -108,12 +109,13 @@ export const ManagementView: React.FC<ManagementViewProps> = ({ onBack }) => {
   const handleAddWhitelist = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!wlEmail || !wlUnit) return;
-    await addWhitelistedUser(wlEmail, wlName || 'Resident', wlUnit, wlPhone || '', 'user', 1);
+    await addWhitelistedUser(wlEmail, wlName || 'Resident', wlUnit, wlPhone || '', wlRole, 1);
     setWlEmail('');
     setWlName('');
     setWlUnit('');
     setWlPhone('');
-    alert(`Authorised ${wlEmail} for ${wlUnit}. Clerk email invite sent!`);
+    setWlRole('user');
+    alert(`Authorised ${wlEmail} for ${wlUnit} as ${wlRole}. Clerk email invite sent!`);
   };
 
   const handleSaveEditWl = async (e: React.FormEvent) => {
@@ -323,29 +325,45 @@ export const ManagementView: React.FC<ManagementViewProps> = ({ onBack }) => {
                   <Field label="Phone (optional)" value={wlPhone} onChange={setWlPhone} placeholder="+64 21 555 0000" />
                 </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-ink-tertiary uppercase tracking-wider mb-1.5">
-                    Select Unit Address
-                  </label>
-                  {units.length > 0 ? (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-ink-tertiary uppercase tracking-wider mb-1.5">
+                      Select Unit Address
+                    </label>
+                    {units.length > 0 ? (
+                      <select
+                        value={wlUnit}
+                        onChange={(e) => setWlUnit(e.target.value)}
+                        className="input text-sm font-bold w-full"
+                        required
+                      >
+                        <option value="">-- Choose Unit Address --</option>
+                        {units.map((u) => (
+                          <option key={u.id} value={u.unit_number}>
+                            {u.unit_number} ({u.assigned_parks} Assigned Park{u.assigned_parks > 1 ? 's' : ''})
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <div className="card p-3 bg-warning-soft border-warning/30 text-warning text-xs font-medium">
+                        ⚠️ No building units registered yet. Please create a building unit under the <strong>Building Units</strong> tab above before authorising residents.
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-ink-tertiary uppercase tracking-wider mb-1.5">
+                      Assigned Role
+                    </label>
                     <select
-                      value={wlUnit}
-                      onChange={(e) => setWlUnit(e.target.value)}
+                      value={wlRole}
+                      onChange={(e) => setWlRole(e.target.value as any)}
                       className="input text-sm font-bold w-full"
-                      required
                     >
-                      <option value="">-- Choose Unit Address --</option>
-                      {units.map((u) => (
-                        <option key={u.id} value={u.unit_number}>
-                          {u.unit_number} ({u.assigned_parks} Assigned Park{u.assigned_parks > 1 ? 's' : ''})
-                        </option>
-                      ))}
+                      <option value="user">Resident (User)</option>
+                      <option value="management">Management</option>
+                      {currentUser?.role === 'admin' && <option value="admin">Admin</option>}
                     </select>
-                  ) : (
-                    <div className="card p-3 bg-warning-soft border-warning/30 text-warning text-xs font-medium">
-                      ⚠️ No building units registered yet. Please create a building unit under the <strong>Building Units</strong> tab above before authorising residents.
-                    </div>
-                  )}
+                  </div>
                 </div>
 
                 <button type="submit" disabled={!units.length || !wlUnit} className="btn-primary w-full py-3">
