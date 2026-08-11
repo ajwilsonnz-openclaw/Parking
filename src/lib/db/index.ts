@@ -35,12 +35,6 @@ function getLocalDb() {
 
 function getD1(): any {
   try {
-    const req = typeof require !== 'undefined' ? require : Function('return require')();
-    const { getRequestContext } = req('@cloudflare/next-on-pages');
-    const ctx = getRequestContext();
-    if (ctx?.env?.DB) return ctx.env.DB;
-  } catch {}
-  try {
     const ctx = (globalThis as any).getRequestContext?.();
     if (ctx?.env?.DB) return ctx.env.DB;
   } catch {}
