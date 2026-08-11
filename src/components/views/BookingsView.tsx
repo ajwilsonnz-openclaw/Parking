@@ -128,11 +128,20 @@ function BookingCard({
   onEdit: () => void;
   onCancel: () => void;
 }) {
+  const now = new Date().getTime();
+  const startTime = new Date(session.start_time).getTime();
+  const endTime = new Date(session.expected_end_time).getTime();
+  const isActiveNow = now >= startTime && now <= endTime;
+
   const statusChip = isPast ? (
     <span className="chip chip-danger">Expired</span>
-  ) : (
+  ) : isActiveNow ? (
     <span className="chip chip-success">
-      <CheckCircle2 className="w-3 h-3" /> Upcoming
+      <CheckCircle2 className="w-3 h-3" /> Active Now
+    </span>
+  ) : (
+    <span className="chip chip-accent">
+      <Clock className="w-3 h-3" /> Upcoming
     </span>
   );
 
