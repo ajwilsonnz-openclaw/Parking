@@ -1,13 +1,13 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Carpark, SessionType } from '@/types';
 import { useApp } from '@/lib/context/AppContext';
 import { Modal } from '@/components/ui/Modal';
-import { Car, AlertCircle, Clock } from 'lucide-react';
+import { Car, AlertCircle, Clock, MapPin } from 'lucide-react';
 
 interface BookingModalProps {
-  spot: Carpark | null;
+  spot?: Carpark | null;
   isOpen: boolean;
   onClose: () => void;
   initialPlate?: string;
@@ -39,6 +39,11 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 }) => {
   const { bookSpot, currentUser, vehicles, config, addSavedGuest, savedGuests, carparks } = useApp();
 
+  const availableCarparks = useMemo(
+    () => carparks.filter((c) => c.status === 'available' || c.id === spot?.id),
+    [carparks, spot]
+  );
+
   const defaultSpot: Carpark = useMemo(() => ({
     id: 'v01',
     spot_number: 'V01',
@@ -47,18 +52,29 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     is_visitor: true,
   }), []);
 
-  const activeSpot = spot || carparks.find((c) => c.status === 'available') || carparks[0] || defaultSpot;
+  const activeSpot = spot || availableCarparks[0] || carparks[0] || defaultSpot;
 
   const [selectedSpotId, setSelectedSpotId] = useState<string>(activeSpot.id);
   const [sessionType, setSessionType] = useState<SessionType>('visitor');
   const [durationHours, setDurationHours] = useState<number>(4);
 
-  // Visitor session: custom plate entry
+  // Visitor session details
   const [guestPlate, setGuestPlate] = useState<string>(initialPlate || '');
   const [visitorName, setVisitorName] = useState<string>(initialVisitorName || '');
   const [visitorPhone, setVisitorPhone] = useState<string>(initialVisitorPhone || '');
   const [saveAsRegular, setSaveAsRegular] = useState<boolean>(false);
   const [showGuestPicker, setShowGuestPicker] = useState(false);
+
+  // Sync initial props whenever modal opens or props change
+  useEffect(() => {
+    if (isOpen) {
+      if (initialPlate) setGuestPlate(initialPlate);
+      if (initialVisitorName) setVisitorName(initialVisitorName);
+      if (initialVisitorPhone) setVisitorPhone(initialVisitorPhone);
+      if (spot?.id) setSelectedSpotId(spot.id);
+      else if (availableCarparks.length > 0) setSelectedSpotId(availableCarparks[0].id);
+    }
+  }, [isOpen, initialPlate, initialVisitorName, initialVisitorPhone, spot, availableCarparks]);
 
   // Resident excess: choose from own registered vehicles only
   const unitVehicles = useMemo(
@@ -82,11 +98,11 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     setShowGuestPicker(false);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!finalPlate) return;
+    if (!finalPlate || !currentSpotObj) return;
 
-    bookSpot(
+    await bookSpot(
       currentSpotObj.id,
       currentSpotObj.spot_number,
       finalPlate,
@@ -110,17 +126,41 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   return (
     <Modal isOpen={isOpen} onClose={onClose} maxWidth="lg">
       {/* Header */}
-      <div className="flex items-start gap-3 mb-6">
-        <div className="w-12 h-12 rounded-2xl bg-accent-soft text-accent flex items-center justify-center text-base font-black shrink-0 border border-accent-border">
+      <div className="flex items-start gap-3 mb-5">
+        <div className="w-12 h-12 rounded-2xl bg-accent-soft text-accent flex items-center justify-center text-base font-black shrink-0 border border-accent-border font-mono">
           {currentSpotObj.spot_number.replace('V-', 'V')}
         </div>
         <div className="min-w-0 flex-1">
-          <h3 className="text-xl font-extrabold text-ink tracking-tight">Reserve car park</h3>
+          <h3 className="text-xl font-extrabold text-ink tracking-tight">Reserve Car Park</h3>
           <p className="text-xs text-ink-secondary">{config.complex_name || 'Millennium Village'}</p>
         </div>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-5">
+        {/* Spot Selection Dropdown */}
+        <div>
+          <label className="block text-xs font-bold uppercase tracking-wider text-ink-tertiary mb-1.5 flex items-center gap-1.5">
+            <MapPin className="w-3.5 h-3.5 text-accent" />
+            Choose Car Park Spot
+          </label>
+          <select
+            value={selectedSpotId}
+            onChange={(e) => setSelectedSpotId(e.target.value)}
+            className="input text-sm font-bold w-full font-mono"
+            required
+          >
+            {carparks.length === 0 ? (
+              <option value="">No carparks available</option>
+            ) : (
+              carparks.map((c) => (
+                <option key={c.id} value={c.id} disabled={c.status !== 'available' && c.id !== spot?.id}>
+                  {c.spot_number.replace('V-', 'V')} — {c.status === 'available' || c.id === spot?.id ? 'Available' : 'Occupied'}
+                </option>
+              ))
+            )}
+          </select>
+        </div>
+
         {/* Parking type */}
         <div>
           <label className="block text-xs font-bold uppercase tracking-wider text-ink-tertiary mb-2">
@@ -341,8 +381,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
           </div>
         </div>
 
-        <button type="submit" className="btn-primary w-full" disabled={!finalPlate}>
-          Confirm booking ({formatDurationLabel(durationHours)})
+        <button type="submit" className="btn-primary w-full" disabled={!finalPlate || !currentSpotObj}>
+          Confirm Booking ({currentSpotObj?.spot_number?.replace('V-', 'V')} • {formatDurationLabel(durationHours)})
         </button>
       </form>
     </Modal>

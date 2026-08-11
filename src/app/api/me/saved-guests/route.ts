@@ -1,10 +1,11 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { requireUser } from '@/lib/auth';
-import { queryDb, execDb } from '@/lib/db';
+import { queryDb, execDb, ensureSchema } from '@/lib/db';
 
 export const runtime = 'edge';
 
 export async function GET(req: NextRequest) {
+  await ensureSchema().catch(() => {});
   const user = await requireUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -13,6 +14,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  await ensureSchema().catch(() => {});
   const user = await requireUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -27,7 +29,23 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ success: true, id });
 }
 
+export async function PUT(req: NextRequest) {
+  await ensureSchema().catch(() => {});
+  const user = await requireUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const { id, name, phone, plate, make_model_color } = await req.json();
+  if (!id || !name || !plate) return NextResponse.json({ error: 'ID, name and plate required' }, { status: 400 });
+
+  await execDb(
+    'UPDATE saved_guests SET name = ?, phone = ?, plate = ?, make_model_color = ? WHERE id = ? AND user_id = ?',
+    [name, phone || null, plate.toUpperCase(), make_model_color || null, id, user.id]
+  );
+  return NextResponse.json({ success: true });
+}
+
 export async function DELETE(req: NextRequest) {
+  await ensureSchema().catch(() => {});
   const user = await requireUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 

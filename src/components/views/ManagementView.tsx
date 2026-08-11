@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { useApp } from '@/lib/context/AppContext';
-import { Shield, AlertTriangle, UserCheck, ArrowLeft, Users, Plus, Building2, Minus, Trash2 } from 'lucide-react';
+import { Shield, AlertTriangle, UserCheck, ArrowLeft, Users, Plus, Building2, Minus, Trash2, Edit2 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { WhitelistEntry } from '@/types';
 
 interface ManagementViewProps {
   onBack?: () => void;
@@ -26,12 +27,24 @@ export const ManagementView: React.FC<ManagementViewProps> = ({ onBack }) => {
   const [newUnitParks, setNewUnitParks] = useState(1);
   const [isSavingUnit, setIsSavingUnit] = useState(false);
 
+  // Edit Unit state
+  const [editingUnit, setEditingUnit] = useState<UnitRecord | null>(null);
+  const [editUnitNum, setEditUnitNum] = useState('');
+  const [editUnitParks, setEditUnitParks] = useState(1);
+
   // Whitelist state
   const [wlEmail, setWlEmail] = useState('');
   const [wlName, setWlName] = useState('');
   const [wlUnit, setWlUnit] = useState('');
   const [wlPhone, setWlPhone] = useState('');
-  const [wlParks, setWlParks] = useState(1);
+
+  // Edit Whitelist state
+  const [editingWl, setEditingWl] = useState<WhitelistEntry | null>(null);
+  const [editWlEmail, setEditWlEmail] = useState('');
+  const [editWlName, setEditWlName] = useState('');
+  const [editWlUnit, setEditWlUnit] = useState('');
+  const [editWlPhone, setEditWlPhone] = useState('');
+  const [editWlRole, setEditWlRole] = useState<'user' | 'management' | 'admin'>('user');
 
   // Demerits state
   const [newUnit, setNewUnit] = useState('');
@@ -61,6 +74,20 @@ export const ManagementView: React.FC<ManagementViewProps> = ({ onBack }) => {
     }
   };
 
+  const handleSaveEditUnit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingUnit || !editUnitNum.trim()) return;
+    try {
+      await fetch('/api/admin/units', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: editingUnit.id, unit_number: editUnitNum.trim(), assigned_parks: editUnitParks }),
+      });
+      setEditingUnit(null);
+      refetch();
+    } catch {}
+  };
+
   const handleDeleteUnit = async (id: string, unitNum: string) => {
     if (!confirm(`Delete unit ${unitNum}?`)) return;
     await fetch(`/api/admin/units?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
@@ -81,13 +108,20 @@ export const ManagementView: React.FC<ManagementViewProps> = ({ onBack }) => {
   const handleAddWhitelist = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!wlEmail || !wlUnit) return;
-    await addWhitelistedUser(wlEmail, wlName || 'Resident', wlUnit, wlPhone || '', 'user', wlParks);
+    await addWhitelistedUser(wlEmail, wlName || 'Resident', wlUnit, wlPhone || '', 'user', 1);
     setWlEmail('');
     setWlName('');
     setWlUnit('');
     setWlPhone('');
-    setWlParks(1);
-    alert(`Authorized ${wlEmail} for ${wlUnit} with ${wlParks} assigned park(s). Clerk email invite sent!`);
+    alert(`Authorised ${wlEmail} for ${wlUnit}. Clerk email invite sent!`);
+  };
+
+  const handleSaveEditWl = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingWl || !editWlEmail || !editWlUnit) return;
+    await addWhitelistedUser(editWlEmail, editWlName, editWlUnit, editWlPhone, editWlRole, 1);
+    setEditingWl(null);
+    alert(`Updated details for ${editWlEmail}.`);
   };
 
   const handleRemoveWhitelist = async (id: string) => {
@@ -133,43 +167,75 @@ export const ManagementView: React.FC<ManagementViewProps> = ({ onBack }) => {
       {/* Units registry tab */}
       {activeTab === 'units' && (
         <div className="space-y-4">
-          <div className="card p-4 space-y-3">
-            <h3 className="text-sm font-extrabold uppercase tracking-wider text-text flex items-center gap-1.5">
-              <Building2 className="w-4 h-4 text-accent" />
-              Register Building Unit
-            </h3>
-
-            <form onSubmit={handleAddUnit} className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Unit Address / Number" value={newUnitNum} onChange={setNewUnitNum} placeholder="e.g. Unit 101" required />
-                <div>
-                  <label className="block text-xs font-bold text-ink-tertiary uppercase tracking-wider mb-1.5">
-                    Assigned Parks
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setNewUnitParks(Math.max(1, newUnitParks - 1))}
-                      className="btn-icon p-2 bg-bg-surface hover:bg-border border border-border"
-                    >
-                      <Minus className="w-4 h-4" />
-                    </button>
-                    <span className="font-mono text-base font-black px-4 text-ink">{newUnitParks}</span>
-                    <button
-                      type="button"
-                      onClick={() => setNewUnitParks(newUnitParks + 1)}
-                      className="btn-icon p-2 bg-bg-surface hover:bg-border border border-border"
-                    >
-                      <Plus className="w-4 h-4" />
-                    </button>
+          {editingUnit ? (
+            <div className="card p-4 space-y-3 border-accent">
+              <h3 className="text-sm font-extrabold uppercase tracking-wider text-text flex items-center gap-1.5">
+                <Edit2 className="w-4 h-4 text-accent" />
+                Edit Building Unit ({editingUnit.unit_number})
+              </h3>
+              <form onSubmit={handleSaveEditUnit} className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Unit Address / Number" value={editUnitNum} onChange={setEditUnitNum} required />
+                  <div>
+                    <label className="block text-xs font-bold text-ink-tertiary uppercase tracking-wider mb-1.5">
+                      Assigned Parks
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <button type="button" onClick={() => setEditUnitParks(Math.max(1, editUnitParks - 1))} className="btn-icon p-2 border">
+                        <Minus className="w-4 h-4" />
+                      </button>
+                      <span className="font-mono text-base font-black px-4">{editUnitParks}</span>
+                      <button type="button" onClick={() => setEditUnitParks(editUnitParks + 1)} className="btn-icon p-2 border">
+                        <Plus className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-              <button type="submit" disabled={isSavingUnit || !newUnitNum.trim()} className="btn-primary w-full py-3">
-                {isSavingUnit ? 'Saving Unit...' : 'Add Building Unit'}
-              </button>
-            </form>
-          </div>
+                <div className="flex items-center gap-2 pt-2">
+                  <button type="submit" className="btn-primary flex-1 py-2.5 text-xs">Save Unit Changes</button>
+                  <button type="button" onClick={() => setEditingUnit(null)} className="btn-secondary py-2.5 text-xs">Cancel</button>
+                </div>
+              </form>
+            </div>
+          ) : (
+            <div className="card p-4 space-y-3">
+              <h3 className="text-sm font-extrabold uppercase tracking-wider text-text flex items-center gap-1.5">
+                <Building2 className="w-4 h-4 text-accent" />
+                Register Building Unit
+              </h3>
+
+              <form onSubmit={handleAddUnit} className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Unit Address / Number" value={newUnitNum} onChange={setNewUnitNum} placeholder="e.g. Unit 101" required />
+                  <div>
+                    <label className="block text-xs font-bold text-ink-tertiary uppercase tracking-wider mb-1.5">
+                      Assigned Parks
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setNewUnitParks(Math.max(1, newUnitParks - 1))}
+                        className="btn-icon p-2 bg-bg-surface hover:bg-border border border-border"
+                      >
+                        <Minus className="w-4 h-4" />
+                      </button>
+                      <span className="font-mono text-base font-black px-4 text-ink">{newUnitParks}</span>
+                      <button
+                        type="button"
+                        onClick={() => setNewUnitParks(newUnitParks + 1)}
+                        className="btn-icon p-2 bg-bg-surface hover:bg-border border border-border"
+                      >
+                        <Plus className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <button type="submit" disabled={isSavingUnit || !newUnitNum.trim()} className="btn-primary w-full py-3">
+                  {isSavingUnit ? 'Saving Unit...' : 'Add Building Unit'}
+                </button>
+              </form>
+            </div>
+          )}
 
           <Section title={`Registered Building Units (${units.length})`}>
             {units.length === 0 ? (
@@ -181,9 +247,22 @@ export const ManagementView: React.FC<ManagementViewProps> = ({ onBack }) => {
                     <div className="text-sm font-extrabold text-ink">{u.unit_number}</div>
                     <div className="text-xs text-accent font-bold mt-0.5">{u.assigned_parks} Assigned Park{u.assigned_parks > 1 ? 's' : ''}</div>
                   </div>
-                  <button onClick={() => handleDeleteUnit(u.id, u.unit_number)} className="btn-icon p-2 text-danger hover:bg-danger-soft" aria-label="Delete unit">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={() => {
+                        setEditingUnit(u);
+                        setEditUnitNum(u.unit_number);
+                        setEditUnitParks(u.assigned_parks);
+                      }}
+                      className="btn-icon p-2 text-accent hover:bg-accent-soft"
+                      title="Edit unit"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => handleDeleteUnit(u.id, u.unit_number)} className="btn-icon p-2 text-danger hover:bg-danger-soft" title="Delete unit">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               ))
             )}
@@ -194,50 +273,87 @@ export const ManagementView: React.FC<ManagementViewProps> = ({ onBack }) => {
       {/* Whitelist tab */}
       {activeTab === 'whitelist' && (
         <div className="space-y-4">
-          <div className="card p-4 space-y-3">
-            <h3 className="text-sm font-extrabold uppercase tracking-wider text-text flex items-center gap-1.5">
-              <UserCheck className="w-4 h-4 text-accent" />
-              Authorise Resident Email
-            </h3>
-
-            <form onSubmit={handleAddWhitelist} className="space-y-3">
-              <Field label="Email address" value={wlEmail} onChange={setWlEmail} placeholder="resident@example.com" type="email" required />
-
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Full name" value={wlName} onChange={setWlName} placeholder="e.g. Sarah Jenkins" />
-                <Field label="Phone (optional)" value={wlPhone} onChange={setWlPhone} placeholder="+64 21 555 0000" />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-ink-tertiary uppercase tracking-wider mb-1.5">
-                  Select Unit Address
-                </label>
-                {units.length > 0 ? (
-                  <select
-                    value={wlUnit}
-                    onChange={(e) => setWlUnit(e.target.value)}
-                    className="input text-sm font-bold w-full"
-                    required
-                  >
-                    <option value="">-- Choose Unit Address --</option>
-                    {units.map((u) => (
-                      <option key={u.id} value={u.unit_number}>
-                        {u.unit_number} ({u.assigned_parks} Assigned Park{u.assigned_parks > 1 ? 's' : ''})
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <div className="card p-3 bg-warning-soft border-warning/30 text-warning text-xs font-medium">
-                    ⚠️ No building units registered yet. Please create a building unit under the <strong>Building Units</strong> tab above before authorising residents.
+          {editingWl ? (
+            <div className="card p-4 space-y-3 border-accent">
+              <h3 className="text-sm font-extrabold uppercase tracking-wider text-text flex items-center gap-1.5">
+                <Edit2 className="w-4 h-4 text-accent" />
+                Edit Resident ({editingWl.email})
+              </h3>
+              <form onSubmit={handleSaveEditWl} className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Full Name" value={editWlName} onChange={setEditWlName} required />
+                  <Field label="Phone" value={editWlPhone} onChange={setEditWlPhone} />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-ink-tertiary uppercase tracking-wider mb-1.5">Unit Address</label>
+                    <select value={editWlUnit} onChange={(e) => setEditWlUnit(e.target.value)} className="input text-sm font-bold w-full" required>
+                      {units.map((u) => (
+                        <option key={u.id} value={u.unit_number}>{u.unit_number}</option>
+                      ))}
+                    </select>
                   </div>
-                )}
-              </div>
-
-              <button type="submit" disabled={!units.length || !wlUnit} className="btn-primary w-full py-3">
+                  <div>
+                    <label className="block text-xs font-bold text-ink-tertiary uppercase tracking-wider mb-1.5">Role</label>
+                    <select value={editWlRole} onChange={(e) => setEditWlRole(e.target.value as any)} className="input text-sm font-bold w-full">
+                      <option value="user">Resident (User)</option>
+                      <option value="management">Management</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 pt-2">
+                  <button type="submit" className="btn-primary flex-1 py-2.5 text-xs">Save Resident Changes</button>
+                  <button type="button" onClick={() => setEditingWl(null)} className="btn-secondary py-2.5 text-xs">Cancel</button>
+                </div>
+              </form>
+            </div>
+          ) : (
+            <div className="card p-4 space-y-3">
+              <h3 className="text-sm font-extrabold uppercase tracking-wider text-text flex items-center gap-1.5">
+                <UserCheck className="w-4 h-4 text-accent" />
                 Authorise Resident Email
-              </button>
-            </form>
-          </div>
+              </h3>
+
+              <form onSubmit={handleAddWhitelist} className="space-y-3">
+                <Field label="Email address" value={wlEmail} onChange={setWlEmail} placeholder="resident@example.com" type="email" required />
+
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Full name" value={wlName} onChange={setWlName} placeholder="e.g. Sarah Jenkins" />
+                  <Field label="Phone (optional)" value={wlPhone} onChange={setWlPhone} placeholder="+64 21 555 0000" />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-ink-tertiary uppercase tracking-wider mb-1.5">
+                    Select Unit Address
+                  </label>
+                  {units.length > 0 ? (
+                    <select
+                      value={wlUnit}
+                      onChange={(e) => setWlUnit(e.target.value)}
+                      className="input text-sm font-bold w-full"
+                      required
+                    >
+                      <option value="">-- Choose Unit Address --</option>
+                      {units.map((u) => (
+                        <option key={u.id} value={u.unit_number}>
+                          {u.unit_number} ({u.assigned_parks} Assigned Park{u.assigned_parks > 1 ? 's' : ''})
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div className="card p-3 bg-warning-soft border-warning/30 text-warning text-xs font-medium">
+                      ⚠️ No building units registered yet. Please create a building unit under the <strong>Building Units</strong> tab above before authorising residents.
+                    </div>
+                  )}
+                </div>
+
+                <button type="submit" disabled={!units.length || !wlUnit} className="btn-primary w-full py-3">
+                  Authorise Resident Email
+                </button>
+              </form>
+            </div>
+          )}
 
           <Section title={`Approved Residents (${whitelist.length})`}>
             {whitelist.length === 0 ? (
@@ -247,14 +363,28 @@ export const ManagementView: React.FC<ManagementViewProps> = ({ onBack }) => {
                 <div key={w.id} className="card p-3.5 flex items-center justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="text-sm font-extrabold text-ink truncate">{w.name}</div>
-                    <div className="text-[11px] text-ink-secondary truncate">{w.email} • {w.unit_number} ({w.assigned_parks || 1} Parks)</div>
+                    <div className="text-[11px] text-ink-secondary truncate">{w.email} • {w.unit_number}</div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-1.5 shrink-0">
                     <span className="chip chip-accent text-[10px]">{w.role}</span>
+                    <button
+                      onClick={() => {
+                        setEditingWl(w);
+                        setEditWlEmail(w.email);
+                        setEditWlName(w.name);
+                        setEditWlUnit(w.unit_number);
+                        setEditWlPhone(w.phone || '');
+                        setEditWlRole(w.role || 'user');
+                      }}
+                      className="btn-icon p-1.5 text-accent hover:bg-accent-soft"
+                      title="Edit Resident"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
                     <button
                       onClick={() => handleRemoveWhitelist(w.id)}
                       className="btn-icon p-1.5 text-danger hover:bg-danger-soft"
-                      aria-label="Remove"
+                      title="Remove Resident"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -336,7 +466,7 @@ export const ManagementView: React.FC<ManagementViewProps> = ({ onBack }) => {
         </div>
       )}
 
-      {/* Active sessions tab (boot flow) */}
+      {/* Active sessions tab */}
       {activeTab === 'active_sessions' && (
         <Section title={`Active parking sessions (${activeSessions.length})`}>
           {residentExcessSessions.length === 0 ? (

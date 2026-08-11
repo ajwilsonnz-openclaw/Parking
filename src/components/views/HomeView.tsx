@@ -20,6 +20,7 @@ import { RulesModal } from '@/components/modals/RulesModal';
 import { BookingTimesModal } from '@/components/modals/BookingTimesModal';
 import { InstallPromptCard } from '@/components/pwa/InstallPromptCard';
 import { fmtDate, fmtTimeRange, dateBlockParts } from '@/lib/format';
+import { SavedGuest } from '@/types';
 
 interface HomeViewProps {
   onNavigateTab: (tab: 'home' | 'bookings' | 'status' | 'account') => void;
@@ -32,19 +33,38 @@ export const HomeView: React.FC<HomeViewProps> = ({ onNavigateTab }) => {
   const [showRulesModal, setShowRulesModal] = useState(false);
   const [showTimesModal, setShowTimesModal] = useState(false);
 
+  // Selected regular visitor prefill
+  const [prefillPlate, setPrefillPlate] = useState('');
+  const [prefillName, setPrefillName] = useState('');
+  const [prefillPhone, setPrefillPhone] = useState('');
+
   const activeSessions = sessions.filter((s) => s.is_active);
   const nextBooking = activeSessions[0];
   const availableVisitorCount = carparks.filter((c) => c.status === 'available' && c.spot_number.startsWith(config.spot_prefix || 'V')).length;
+
+  const handleOpenNormalBooking = () => {
+    setPrefillPlate('');
+    setPrefillName('');
+    setPrefillPhone('');
+    setShowBookingModal(true);
+  };
+
+  const handleSelectRegularVisitor = (guest: SavedGuest) => {
+    setPrefillPlate(guest.plate);
+    setPrefillName(guest.name);
+    setPrefillPhone(guest.phone || '');
+    setShowBookingModal(true);
+  };
 
   return (
     <div className="space-y-4 max-w-lg mx-auto pb-4 animate-fade-in">
       {/* PWA install prompt */}
       <InstallPromptCard />
 
-      {/* Hero: Book a Visitor Carpark (Stable layout container to prevent jitter) */}
+      {/* Hero: Book a Visitor Carpark */}
       <div className="w-full">
         <button
-          onClick={() => setShowBookingModal(true)}
+          onClick={handleOpenNormalBooking}
           className="relative overflow-hidden w-full min-h-[110px] rounded-3xl p-5 text-left text-white bg-gradient-to-br from-[#0066ff] to-[#0052cc] shadow-glow-accent active:scale-[0.98] transition-all hover:shadow-xl hover:shadow-blue-600/30"
         >
           <div className="absolute right-2 bottom-1 opacity-10 pointer-events-none">
@@ -92,7 +112,6 @@ export const HomeView: React.FC<HomeViewProps> = ({ onNavigateTab }) => {
             className="card-interactive p-4 flex items-center justify-between cursor-pointer"
           >
             <div className="flex items-center gap-3.5 flex-1 min-w-0">
-              {/* Date block */}
               <div className="w-14 h-14 rounded-2xl bg-accent-soft text-accent flex flex-col items-center justify-center shrink-0 border border-accent-border">
                 <span className="text-[9px] font-black uppercase tracking-wider">{dateBlockParts(nextBooking.expected_end_time).dow}</span>
                 <span className="text-lg font-black leading-none my-0.5">{dateBlockParts(nextBooking.expected_end_time).day}</span>
@@ -164,13 +183,17 @@ export const HomeView: React.FC<HomeViewProps> = ({ onNavigateTab }) => {
 
       {/* Modals */}
       <BookingModal
-        spot={carparks.find((s) => s.status === 'available') || carparks[0] || null}
         isOpen={showBookingModal}
         onClose={() => setShowBookingModal(false)}
+        initialPlate={prefillPlate}
+        initialVisitorName={prefillName}
+        initialVisitorPhone={prefillPhone}
       />
       <BookRegularVisitorModal
         isOpen={showRegularVisitorModal}
         onClose={() => setShowRegularVisitorModal(false)}
+        onSelectGuest={handleSelectRegularVisitor}
+        onGoToNormalBooking={handleOpenNormalBooking}
       />
       <RulesModal isOpen={showRulesModal} onClose={() => setShowRulesModal(false)} />
       <BookingTimesModal isOpen={showTimesModal} onClose={() => setShowTimesModal(false)} />

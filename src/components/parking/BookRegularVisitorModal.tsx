@@ -2,40 +2,65 @@
 
 import React, { useState } from 'react';
 import { Modal } from '@/components/ui/Modal';
-import { Users, Plus, Car, X } from 'lucide-react';
+import { Users, Car, Edit2, Trash2 } from 'lucide-react';
 import { useApp } from '@/lib/context/AppContext';
 import { PlateCard } from '@/components/ui/PlateCard';
+import { SavedGuest } from '@/types';
 
 interface BookRegularVisitorModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onSelectGuest: (guest: SavedGuest) => void;
+  onGoToNormalBooking: () => void;
 }
 
-/**
- * Book a "regular visitor" - someone saved for quick re-booking.
- * If no saved guests, guide user to add one via walking through the normal booking flow.
- */
-export const BookRegularVisitorModal: React.FC<BookRegularVisitorModalProps> = ({ isOpen, onClose }) => {
-  const { savedGuests, carparks, bookSpot, currentUser } = useApp();
-  const [selectedGuestId, setSelectedGuestId] = useState<string | null>(null);
+export const BookRegularVisitorModal: React.FC<BookRegularVisitorModalProps> = ({
+  isOpen,
+  onClose,
+  onSelectGuest,
+  onGoToNormalBooking,
+}) => {
+  const { savedGuests, removeSavedGuest, refetch } = useApp();
+  const [editingGuest, setEditingGuest] = useState<SavedGuest | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editPlate, setEditPlate] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
-  // Find first available visitor spot as default; real app would pick from list
-  const availableSpot = carparks.find((c) => c.status === 'available' && c.spot_number.startsWith('V-')) || carparks[0];
+  const handleStartEdit = (g: SavedGuest, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingGuest(g);
+    setEditName(g.name);
+    setEditPlate(g.plate);
+    setEditPhone(g.phone || '');
+  };
 
-  const handleBookGuest = (guestId: string) => {
-    const guest = savedGuests.find((g) => g.id === guestId);
-    if (!guest || !availableSpot) return;
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingGuest || !editName.trim() || !editPlate.trim()) return;
+    setIsSaving(true);
+    try {
+      await fetch('/api/me/saved-guests', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editingGuest.id,
+          name: editName.trim(),
+          plate: editPlate.trim().toUpperCase(),
+          phone: editPhone.trim() || undefined,
+        }),
+      });
+      setEditingGuest(null);
+      refetch();
+    } catch {} finally {
+      setIsSaving(false);
+    }
+  };
 
-    bookSpot(
-      availableSpot.id,
-      availableSpot.spot_number,
-      guest.plate,
-      4, // default 4 hours; could be a slider later
-      'visitor',
-      guest.name,
-      guest.phone
-    );
-    onClose();
+  const handleDelete = async (id: string, name: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm(`Delete regular visitor ${name}?`)) return;
+    await removeSavedGuest(id);
   };
 
   return (
@@ -45,48 +70,105 @@ export const BookRegularVisitorModal: React.FC<BookRegularVisitorModalProps> = (
           <Users className="w-5 h-5" />
         </div>
         <div>
-          <h3 className="section-title text-base">Book regular visitor</h3>
+          <h3 className="section-title text-base">Book Regular Visitor</h3>
           <p className="text-xs text-ink-secondary mt-0.5">Quick-book a visitor you've saved for future visits.</p>
         </div>
       </div>
 
-      {savedGuests.length === 0 ? (
+      {editingGuest ? (
+        <form onSubmit={handleSaveEdit} className="space-y-3 card p-4 border-accent">
+          <h4 className="text-sm font-bold text-ink">Edit Regular Visitor</h4>
+          <div>
+            <label className="block text-xs font-bold text-ink-tertiary uppercase mb-1">Visitor Name</label>
+            <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} required className="input text-sm" />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-ink-tertiary uppercase mb-1">Vehicle Plate</label>
+            <input type="text" value={editPlate} onChange={(e) => setEditPlate(e.target.value.toUpperCase())} required className="input text-sm font-mono" />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-ink-tertiary uppercase mb-1">Phone Number (optional)</label>
+            <input type="tel" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} className="input text-sm" />
+          </div>
+          <div className="flex items-center gap-2 pt-2">
+            <button type="submit" disabled={isSaving} className="btn-primary flex-1 py-2 text-xs">
+              {isSaving ? 'Saving...' : 'Save Changes'}
+            </button>
+            <button type="button" onClick={() => setEditingGuest(null)} className="btn-secondary py-2 text-xs">
+              Cancel
+            </button>
+          </div>
+        </form>
+      ) : savedGuests.length === 0 ? (
         <div className="text-center py-6">
           <div className="icon-tile w-12 h-12 mx-auto mb-3">
             <Car className="w-6 h-6" />
           </div>
-          <h4 className="text-sm font-bold text-ink">No regular visitors yet</h4>
+          <h4 className="text-sm font-bold text-ink">No regular visitors saved yet</h4>
           <p className="text-xs text-ink-secondary mt-1 max-w-[260px] mx-auto">
             When you book a visitor, tick <em>"Save as regular visitor"</em> to add them here for one-tap bookings.
           </p>
-          <button onClick={onClose} className="btn-ghost mt-4 text-xs">
-            Go to a normal booking
+          <button
+            onClick={() => {
+              onClose();
+              onGoToNormalBooking();
+            }}
+            className="btn-primary mt-4 text-xs w-full py-3"
+          >
+            Go to Normal Booking
           </button>
         </div>
       ) : (
         <div className="space-y-2">
           {savedGuests.map((guest) => (
-            <button
+            <div
               key={guest.id}
-              onClick={() => handleBookGuest(guest.id)}
-              className="card-interactive w-full p-3.5 flex items-center justify-between gap-3 text-left"
+              onClick={() => {
+                onClose();
+                onSelectGuest(guest);
+              }}
+              className="card-interactive w-full p-3.5 flex items-center justify-between gap-3 text-left cursor-pointer group"
             >
               <div className="flex items-center gap-3 min-w-0 flex-1">
                 <PlateCard plate={guest.plate} size="sm" />
                 <div className="min-w-0">
                   <h4 className="text-sm font-bold text-ink truncate">{guest.name}</h4>
-                  <p className="text-[11px] text-ink-secondary truncate">{guest.make_model_color || guest.plate}</p>
+                  <p className="text-[11px] text-ink-secondary truncate">{guest.phone || guest.plate}</p>
                 </div>
               </div>
-              <span className="chip chip-accent shrink-0">Book now</span>
-            </button>
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={(e) => handleStartEdit(guest, e)}
+                  className="btn-icon p-1.5 hover:bg-accent-soft text-accent"
+                  title="Edit Visitor"
+                >
+                  <Edit2 className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => handleDelete(guest.id, guest.name, e)}
+                  className="btn-icon p-1.5 hover:bg-danger-soft text-danger"
+                  title="Delete Visitor"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+                <span className="chip chip-accent ml-1">Book now</span>
+              </div>
+            </div>
           ))}
+
+          <button
+            onClick={() => {
+              onClose();
+              onGoToNormalBooking();
+            }}
+            className="btn-secondary w-full mt-3 text-xs py-2.5"
+          >
+            Go to Normal Booking
+          </button>
         </div>
       )}
-
-      <button onClick={onClose} className="btn-ghost w-full mt-4 text-sm">
-        Close
-      </button>
     </Modal>
   );
 };
