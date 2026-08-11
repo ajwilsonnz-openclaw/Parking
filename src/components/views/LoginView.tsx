@@ -17,7 +17,7 @@ export default function LoginView() {
   useEffect(() => {
     let isMounted = true;
     if (isLoaded && isSignedIn) {
-      refetch().finally(() => {
+      Promise.resolve(refetch()).then(() => {
         if (isMounted) setStateChecked(true);
       });
     } else {
