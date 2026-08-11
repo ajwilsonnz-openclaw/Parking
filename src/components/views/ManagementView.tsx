@@ -17,12 +17,11 @@ interface UnitRecord {
 }
 
 export const ManagementView: React.FC<ManagementViewProps> = ({ onBack }) => {
-  const { demerits, issueDemerit, whitelist, addWhitelistedUser, removeWhitelistedUser, sessions, bootRequest } = useApp();
+  const { demerits, issueDemerit, whitelist, addWhitelistedUser, removeWhitelistedUser, sessions, bootRequest, units, refetch } = useApp();
 
   const [activeTab, setActiveTab] = useState<'units' | 'whitelist' | 'demerits' | 'active_sessions'>('whitelist');
 
   // Units state
-  const [units, setUnits] = useState<UnitRecord[]>([]);
   const [newUnitNum, setNewUnitNum] = useState('');
   const [newUnitParks, setNewUnitParks] = useState(1);
   const [isSavingUnit, setIsSavingUnit] = useState(false);
@@ -41,18 +40,6 @@ export const ManagementView: React.FC<ManagementViewProps> = ({ onBack }) => {
   const [newDesc, setNewDesc] = useState('');
   const [newPoints, setNewPoints] = useState(1);
 
-  const fetchUnits = async () => {
-    try {
-      const res = await fetch('/api/admin/units');
-      const data = await res.json();
-      if (data.units) setUnits(data.units);
-    } catch {}
-  };
-
-  useEffect(() => {
-    fetchUnits();
-  }, []);
-
   const activeSessions = sessions.filter((s) => s.is_active);
   const residentExcessSessions = activeSessions.filter((s) => s.session_type === 'resident_excess');
 
@@ -68,7 +55,7 @@ export const ManagementView: React.FC<ManagementViewProps> = ({ onBack }) => {
       });
       setNewUnitNum('');
       setNewUnitParks(1);
-      await fetchUnits();
+      refetch();
     } catch {} finally {
       setIsSavingUnit(false);
     }
@@ -77,7 +64,7 @@ export const ManagementView: React.FC<ManagementViewProps> = ({ onBack }) => {
   const handleDeleteUnit = async (id: string, unitNum: string) => {
     if (!confirm(`Delete unit ${unitNum}?`)) return;
     await fetch(`/api/admin/units?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
-    await fetchUnits();
+    refetch();
   };
 
   const handleIssueDemerit = async (e: React.FormEvent) => {

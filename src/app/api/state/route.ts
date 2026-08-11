@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserFromClerk } from '@/lib/auth';
-import { queryDb } from '@/lib/db';
+import { queryDb, ensureSchema } from '@/lib/db';
 
 export const runtime = 'edge';
 
 export async function GET(req: NextRequest) {
+  await ensureSchema().catch(() => {});
+
   const user = await getUserFromClerk();
   if (!user) return NextResponse.json({ user: null }, { status: 200 });
 
@@ -18,20 +20,22 @@ export async function GET(req: NextRequest) {
       }
     };
 
-    const [carparks, sessionsRaw, vehiclesRaw, savedGuestsRaw, demerits, rentalsRaw, notificationsRaw, configRows] =
+    const [carparks, sessionsRaw, vehiclesRaw, savedGuestsRaw, demerits, rentalsRaw, notificationsRaw, configRows, unitsRaw, whitelistRaw] =
       await Promise.all([
         safeQuery('SELECT * FROM carparks ORDER BY spot_number'),
         safeQuery('SELECT * FROM parking_sessions WHERE is_active = 1 ORDER BY expected_end_time ASC LIMIT 200'),
         user.role === 'admin' || user.role === 'management'
           ? safeQuery('SELECT * FROM unit_vehicles ORDER BY requested_at DESC LIMIT 200')
-          : safeQuery('SELECT * FROM unit_vehicles WHERE user_id = ? ORDER BY requested_at DESC', [user.id]),
+          : safeQuery('SELECT * FROM unit_vehicles WHERE user_id = ? OR unit_number = ? ORDER BY requested_at DESC', [user.id, user.unit_number]),
         safeQuery('SELECT * FROM saved_guests WHERE user_id = ? ORDER BY created_at DESC', [user.id]),
         user.role === 'admin' || user.role === 'management'
           ? safeQuery('SELECT * FROM demerits ORDER BY created_at DESC LIMIT 200')
-          : safeQuery('SELECT * FROM demerits WHERE user_id = ? ORDER BY created_at DESC LIMIT 100', [user.id]),
+          : safeQuery('SELECT * FROM demerits WHERE user_id = ? OR unit_number = ? ORDER BY created_at DESC LIMIT 100', [user.id, user.unit_number]),
         safeQuery('SELECT * FROM spot_rentals ORDER BY created_at DESC LIMIT 100'),
         safeQuery('SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 50', [user.id]),
         safeQuery('SELECT * FROM system_config'),
+        safeQuery('SELECT * FROM units ORDER BY unit_number ASC'),
+        safeQuery('SELECT * FROM whitelist ORDER BY added_at DESC'),
       ]);
 
     const config: Record<string, string> = {};
@@ -62,6 +66,8 @@ export async function GET(req: NextRequest) {
       demerits: demerits || [],
       rentals: rentalsRaw || [],
       notifications: notificationsRaw || [],
+      units: unitsRaw || [],
+      whitelist: whitelistRaw || [],
       config: {
         max_visitor_hours: parseInt(config.max_visitor_hours || '24', 10),
         max_resident_excess_hours: parseInt(config.max_resident_excess_hours || '12', 10),
@@ -71,6 +77,7 @@ export async function GET(req: NextRequest) {
         complex_name: config.complex_name || 'Millennium Village',
         complex_address: config.complex_address || '',
         spot_prefix: config.spot_prefix || 'V',
+        header_icon: config.header_icon || 'building',
         total_visitor_parks: parseInt(config.total_visitor_parks || '20', 10),
         tow_agency_name: config.tow_agency_name || '',
         tow_agency_phone: config.tow_agency_phone || '',

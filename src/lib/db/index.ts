@@ -1,5 +1,6 @@
 // Database helper for Cloudflare D1 (Edge) + local better-sqlite3 (dev)
 let localDbInstance: any = null;
+let schemaInitialized = false;
 
 function getLocalDb() {
   if (typeof window !== 'undefined') return null;
@@ -15,19 +16,16 @@ function getLocalDb() {
       localDbInstance.pragma('journal_mode = WAL');
 
       // Auto-apply migrations if needed
-      const hasUsers = localDbInstance
-        .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
-        .get();
-      if (!hasUsers) {
-        const migrationsDir = path.join(process.cwd(), 'migrations');
-        if (fs.existsSync(migrationsDir)) {
-          const files = fs.readdirSync(migrationsDir)
-            .filter((f: string) => f.endsWith('.sql'))
-            .sort();
-          for (const file of files) {
+      const migrationsDir = path.join(process.cwd(), 'migrations');
+      if (fs.existsSync(migrationsDir)) {
+        const files = fs.readdirSync(migrationsDir)
+          .filter((f: string) => f.endsWith('.sql'))
+          .sort();
+        for (const file of files) {
+          try {
             const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
             localDbInstance.exec(sql);
-          }
+          } catch {}
         }
       }
     } catch (err) {}
@@ -53,6 +51,59 @@ function getD1(): any {
     if ((process.env as any).DB) return (process.env as any).DB;
   } catch {}
   return null;
+}
+
+export async function ensureSchema() {
+  if (schemaInitialized) return;
+  schemaInitialized = true;
+
+  try {
+    // 1. Core table creations
+    await execDb(`
+      CREATE TABLE IF NOT EXISTS units (
+        id TEXT PRIMARY KEY,
+        unit_number TEXT UNIQUE NOT NULL,
+        assigned_parks INTEGER DEFAULT 1,
+        notes TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+    `).catch(() => {});
+
+    await execDb(`
+      CREATE TABLE IF NOT EXISTS whitelist (
+        id TEXT PRIMARY KEY,
+        email TEXT UNIQUE NOT NULL,
+        name TEXT,
+        unit_number TEXT NOT NULL,
+        phone TEXT,
+        role TEXT DEFAULT 'user',
+        assigned_parks INTEGER DEFAULT 1,
+        added_by_user_id TEXT,
+        added_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+    `).catch(() => {});
+
+    await execDb(`
+      CREATE TABLE IF NOT EXISTS unit_vehicles (
+        id TEXT PRIMARY KEY,
+        user_id TEXT,
+        unit_number TEXT NOT NULL,
+        plate_number TEXT NOT NULL,
+        make_model_color TEXT,
+        is_primary INTEGER DEFAULT 0,
+        status TEXT DEFAULT 'approved',
+        requested_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+    `).catch(() => {});
+
+    // 2. Safe Column Additions for Legacy Tables
+    await execDb('ALTER TABLE whitelist ADD COLUMN assigned_parks INTEGER DEFAULT 1').catch(() => {});
+    await execDb('ALTER TABLE users ADD COLUMN assigned_parks INTEGER DEFAULT 1').catch(() => {});
+    await execDb('ALTER TABLE unit_vehicles ADD COLUMN user_id TEXT').catch(() => {});
+    await execDb('ALTER TABLE unit_vehicles ADD COLUMN status TEXT DEFAULT "approved"').catch(() => {});
+  } catch (err) {
+    console.warn('[ensureSchema warning]:', err);
+  }
 }
 
 async function runD1<T>(sql: string, params: any[]): Promise<T[]> {

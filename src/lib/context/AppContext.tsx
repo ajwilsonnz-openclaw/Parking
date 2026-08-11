@@ -23,6 +23,7 @@ interface AppContextType {
   demerits: DemeritRecord[];
   rentals: SpotRental[];
   whitelist: WhitelistEntry[];
+  units: any[];
   savedGuests: SavedGuest[];
   notifications: any[];
   favourites: string[];
@@ -132,6 +133,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const demerits = data?.demerits || [];
   const rentals = data?.rentals || [];
   const whitelist = data?.whitelist || [];
+  const units = data?.units || [];
   const savedGuests = data?.savedGuests || [];
   const notifications = data?.notifications || [];
 
@@ -322,6 +324,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     demerits,
     rentals,
     whitelist,
+    units,
     savedGuests,
     notifications,
     favourites,

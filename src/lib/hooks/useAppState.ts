@@ -14,6 +14,7 @@ export interface AppState {
   demerits: any[];
   rentals: any[];
   whitelist: any[];
+  units: any[];
   config: SystemConfig;
   notifications: any[];
 }
