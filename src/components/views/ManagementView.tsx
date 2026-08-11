@@ -197,80 +197,51 @@ export const ManagementView: React.FC<ManagementViewProps> = ({ onBack }) => {
           <div className="card p-4 space-y-3">
             <h3 className="text-sm font-extrabold uppercase tracking-wider text-text flex items-center gap-1.5">
               <UserCheck className="w-4 h-4 text-accent" />
-              Authorize Resident Email (Clerk Invited)
+              Authorise Resident Email
             </h3>
 
             <form onSubmit={handleAddWhitelist} className="space-y-3">
               <Field label="Email address" value={wlEmail} onChange={setWlEmail} placeholder="resident@example.com" type="email" required />
-              
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Full name" value={wlName} onChange={setWlName} placeholder="e.g. Sarah Jenkins" />
-                <div>
-                  <label className="block text-xs font-bold text-ink-tertiary uppercase tracking-wider mb-1.5">
-                    Assign to Unit Address
-                  </label>
-                  {units.length > 0 ? (
-                    <select
-                      value={wlUnit}
-                      onChange={(e) => setWlUnit(e.target.value)}
-                      className="input text-sm font-bold"
-                      required
-                    >
-                      <option value="">-- Select Unit --</option>
-                      {units.map((u) => (
-                        <option key={u.id} value={u.unit_number}>
-                          {u.unit_number} ({u.assigned_parks} Parks)
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <input
-                      type="text"
-                      value={wlUnit}
-                      onChange={(e) => setWlUnit(e.target.value)}
-                      placeholder="e.g. Unit 101"
-                      className="input text-sm font-bold"
-                      required
-                    />
-                  )}
-                </div>
-              </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-ink-tertiary uppercase tracking-wider mb-1.5">
-                    Assigned Parks
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setWlParks(Math.max(1, wlParks - 1))}
-                      className="btn-icon p-2 bg-bg-surface hover:bg-border border border-border"
-                    >
-                      <Minus className="w-4 h-4" />
-                    </button>
-                    <span className="font-mono text-base font-black px-4 text-ink">{wlParks}</span>
-                    <button
-                      type="button"
-                      onClick={() => setWlParks(wlParks + 1)}
-                      className="btn-icon p-2 bg-bg-surface hover:bg-border border border-border"
-                    >
-                      <Plus className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
+                <Field label="Full name" value={wlName} onChange={setWlName} placeholder="e.g. Sarah Jenkins" />
                 <Field label="Phone (optional)" value={wlPhone} onChange={setWlPhone} placeholder="+64 21 555 0000" />
               </div>
 
-              <button type="submit" className="btn-primary w-full py-3">
-                Authorize &amp; Send Clerk Email Invite
+              <div>
+                <label className="block text-xs font-bold text-ink-tertiary uppercase tracking-wider mb-1.5">
+                  Select Unit Address
+                </label>
+                {units.length > 0 ? (
+                  <select
+                    value={wlUnit}
+                    onChange={(e) => setWlUnit(e.target.value)}
+                    className="input text-sm font-bold w-full"
+                    required
+                  >
+                    <option value="">-- Choose Unit Address --</option>
+                    {units.map((u) => (
+                      <option key={u.id} value={u.unit_number}>
+                        {u.unit_number} ({u.assigned_parks} Assigned Park{u.assigned_parks > 1 ? 's' : ''})
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="card p-3 bg-warning-soft border-warning/30 text-warning text-xs font-medium">
+                    ⚠️ No building units registered yet. Please create a building unit under the <strong>Building Units</strong> tab above before authorising residents.
+                  </div>
+                )}
+              </div>
+
+              <button type="submit" disabled={!units.length || !wlUnit} className="btn-primary w-full py-3">
+                Authorise Resident Email
               </button>
             </form>
           </div>
 
           <Section title={`Approved Residents (${whitelist.length})`}>
             {whitelist.length === 0 ? (
-              <EmptyState icon={<Users className="w-8 h-8 text-ink-tertiary" />} title="No registered residents" body="Add resident emails above to authorize sign-ins." />
+              <EmptyState icon={<Users className="w-8 h-8 text-ink-tertiary" />} title="No registered residents" body="Add resident emails above to authorise sign-ins." />
             ) : (
               whitelist.map((w) => (
                 <div key={w.id} className="card p-3.5 flex items-center justify-between gap-3">

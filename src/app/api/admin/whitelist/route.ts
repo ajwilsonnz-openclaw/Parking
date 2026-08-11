@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireUser } from '@/lib/auth';
-import { queryDb, execDb } from '@/lib/db';
+import { queryDb, execDb, ensureSchema } from '@/lib/db';
 
 export const runtime = 'edge';
 
 export async function GET(req: NextRequest) {
+  await ensureSchema().catch(() => {});
+
   const user = await requireUser();
   if (!user || (user.role !== 'admin' && user.role !== 'management')) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -15,33 +17,42 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  await ensureSchema().catch(() => {});
+
   const user = await requireUser();
   if (!user || (user.role !== 'admin' && user.role !== 'management')) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
   const { email, name, unit_number, phone, role, assigned_parks } = await req.json();
-  if (!email || !unit_number) return NextResponse.json({ error: 'Email and unit required' }, { status: 400 });
+  if (!email || !unit_number) return NextResponse.json({ error: 'Email and unit address required' }, { status: 400 });
 
   const normalized = String(email).trim().toLowerCase();
+  const cleanUnit = String(unit_number).trim();
   const assignedRole = role || 'user';
-  const parksNum = parseInt(assigned_parks) || 1;
+
+  // Look up assigned parks from units registry table if available
+  let parksNum = parseInt(assigned_parks) || 1;
+  const unitRow = await queryDb('SELECT assigned_parks FROM units WHERE unit_number = ?', [cleanUnit]).catch(() => []);
+  if (unitRow.length > 0 && unitRow[0].assigned_parks) {
+    parksNum = unitRow[0].assigned_parks;
+  }
 
   const existingWl = await queryDb('SELECT id FROM whitelist WHERE LOWER(email) = LOWER(?)', [normalized]);
   if (existingWl.length > 0) {
     await execDb(
       'UPDATE whitelist SET name = ?, unit_number = ?, phone = ?, role = ?, assigned_parks = ? WHERE LOWER(email) = LOWER(?)',
-      [name || normalized.split('@')[0], unit_number, phone || null, assignedRole, parksNum, normalized]
+      [name || normalized.split('@')[0], cleanUnit, phone || null, assignedRole, parksNum, normalized]
     );
   } else {
     const id = `wl-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     await execDb(
       'INSERT INTO whitelist (id, email, name, unit_number, phone, role, assigned_parks, added_by_user_id) VALUES (?,?,?,?,?,?,?,?)',
-      [id, normalized, name || normalized.split('@')[0], unit_number, phone || null, assignedRole, parksNum, user.id]
+      [id, normalized, name || normalized.split('@')[0], cleanUnit, phone || null, assignedRole, parksNum, user.id]
     ).catch(async () => {
       await execDb(
         'INSERT INTO whitelist (id, email, name, unit_number, phone, role, added_by_user_id) VALUES (?,?,?,?,?,?,?)',
-        [id, normalized, name || normalized.split('@')[0], unit_number, phone || null, assignedRole, user.id]
+        [id, normalized, name || normalized.split('@')[0], cleanUnit, phone || null, assignedRole, user.id]
       );
     });
   }
@@ -51,13 +62,18 @@ export async function POST(req: NextRequest) {
   if (existingUser.length === 0) {
     const newUserId = `usr-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
     await execDb(
-      'INSERT INTO users (id, email, name, unit_number, phone, role, status) VALUES (?,?,?,?,?,?,?)',
-      [newUserId, normalized, name || normalized.split('@')[0], unit_number, phone || '', assignedRole, 'active']
-    ).catch(() => {});
+      'INSERT INTO users (id, email, name, unit_number, phone, role, status, assigned_parks) VALUES (?,?,?,?,?,?,?,?)',
+      [newUserId, normalized, name || normalized.split('@')[0], cleanUnit, phone || '', assignedRole, 'active', parksNum]
+    ).catch(async () => {
+      await execDb(
+        'INSERT INTO users (id, email, name, unit_number, phone, role, status) VALUES (?,?,?,?,?,?,?)',
+        [newUserId, normalized, name || normalized.split('@')[0], cleanUnit, phone || '', assignedRole, 'active']
+      );
+    });
   } else {
     await execDb(
-      'UPDATE users SET name = ?, unit_number = ?, phone = ?, role = ? WHERE LOWER(email) = LOWER(?)',
-      [name || normalized.split('@')[0], unit_number, phone || '', assignedRole, normalized]
+      'UPDATE users SET name = ?, unit_number = ?, phone = ?, role = ?, assigned_parks = ? WHERE LOWER(email) = LOWER(?)',
+      [name || normalized.split('@')[0], cleanUnit, phone || '', assignedRole, parksNum, normalized]
     ).catch(() => {});
   }
 
@@ -80,7 +96,7 @@ export async function POST(req: NextRequest) {
     try {
       await clerk.invitations.createInvitation({
         emailAddress: normalized,
-        publicMetadata: { role: assignedRole, unit_number },
+        publicMetadata: { role: assignedRole, unit_number: cleanUnit },
         ignoreExisting: true,
       });
     } catch (e: any) {
@@ -91,7 +107,7 @@ export async function POST(req: NextRequest) {
     const users = await clerk.users.getUserList({ emailAddress: [normalized] });
     if (users.data && users.data.length > 0) {
       await clerk.users.updateUserMetadata(users.data[0].id, {
-        publicMetadata: { role: assignedRole, unit_number },
+        publicMetadata: { role: assignedRole, unit_number: cleanUnit },
       });
     }
   } catch (err) {
@@ -102,6 +118,8 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  await ensureSchema().catch(() => {});
+
   const user = await requireUser();
   if (!user || (user.role !== 'admin' && user.role !== 'management')) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });

@@ -12,14 +12,20 @@ export default function LoginView() {
   const { user: clerkUser } = useUser();
   const { currentUser, refetch, isLoading } = useApp();
 
+  const [hasCheckedState, setHasCheckedState] = useState(false);
+
   useEffect(() => {
     if (isLoaded && isSignedIn) {
       refetch();
+      const timer = setTimeout(() => setHasCheckedState(true), 600);
+      return () => clearTimeout(timer);
+    } else {
+      setHasCheckedState(false);
     }
   }, [isLoaded, isSignedIn, refetch]);
 
   const signedInEmail = clerkUser?.primaryEmailAddress?.emailAddress || clerkUser?.emailAddresses[0]?.emailAddress || '';
-  const isAccessDenied = isLoaded && isSignedIn && !isLoading && !currentUser;
+  const isAccessDenied = isLoaded && isSignedIn && !isLoading && hasCheckedState && !currentUser;
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-bg">
