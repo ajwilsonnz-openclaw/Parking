@@ -109,6 +109,7 @@ export interface WhitelistEntry {
   unit_number: string;
   phone: string;
   role: Role;
+  assigned_parks?: number;
   added_at: string;
 }
 
