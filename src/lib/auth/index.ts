@@ -75,3 +75,14 @@ export async function requireAdmin(): Promise<User | null> {
   if (!user || user.role !== 'admin') return null;
   return user;
 }
+
+export async function requireManagement(): Promise<User | null> {
+  const user = await getUserFromClerk();
+  if (!user || (user.role !== 'admin' && user.role !== 'management')) return null;
+  return user;
+}
+
+export function handleApiError(err: any) {
+  console.error('API Error:', err);
+  return NextResponse.json({ error: err?.message || 'Internal Server Error' }, { status: 500 });
+}
