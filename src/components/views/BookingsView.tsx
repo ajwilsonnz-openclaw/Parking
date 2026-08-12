@@ -24,9 +24,10 @@ export const BookingsView: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'upcoming' | 'past' | 'cancelled'>('upcoming');
   const [showBookingModal, setShowBookingModal] = useState(false);
 
+  const nowMs = Date.now();
   const mySessions = sessions.filter((s) => s.unit_number === currentUser?.unit_number);
-  const activeSessions = mySessions.filter((s) => s.is_active);
-  const pastSessions = mySessions.filter((s) => !s.is_active);
+  const activeSessions = mySessions.filter((s) => s.is_active && new Date(s.expected_end_time).getTime() > nowMs);
+  const pastSessions = mySessions.filter((s) => !s.is_active || new Date(s.expected_end_time).getTime() <= nowMs);
 
   const displayedSessions = activeTab === 'upcoming' ? activeSessions : pastSessions;
 

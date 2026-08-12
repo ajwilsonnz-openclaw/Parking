@@ -40,7 +40,7 @@ export const HomeView: React.FC<HomeViewProps> = ({ onNavigateTab }) => {
   const [prefillName, setPrefillName] = useState('');
   const [prefillPhone, setPrefillPhone] = useState('');
 
-  const activeSessions = sessions.filter((s) => s.is_active);
+  const activeSessions = sessions.filter((s) => s.is_active && new Date(s.expected_end_time).getTime() > Date.now());
   const nextBooking = activeSessions[0];
   const availableVisitorCount = carparks.filter((c) => c.status === 'available' && c.spot_number.startsWith(config.spot_prefix || 'V')).length;
 

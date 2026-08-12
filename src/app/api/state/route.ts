@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserFromClerk } from '@/lib/auth';
-import { queryDb, ensureSchema } from '@/lib/db';
+import { queryDb, ensureSchema, execDb } from '@/lib/db';
 
 export const runtime = 'edge';
 
@@ -11,6 +11,23 @@ export async function GET(req: NextRequest) {
   if (!user) return NextResponse.json({ user: null }, { status: 200 });
 
   try {
+    const nowIso = new Date().toISOString();
+
+    // Auto-expire sessions whose expected end time has passed
+    await execDb(
+      `UPDATE parking_sessions 
+       SET is_active = 0, end_time = COALESCE(end_time, expected_end_time) 
+       WHERE is_active = 1 AND (expected_end_time <= ? OR expected_end_time <= datetime('now'))`,
+      [nowIso]
+    ).catch(() => {});
+
+    // Set carparks back to available if they have no active session
+    await execDb(
+      `UPDATE carparks 
+       SET status = 'available' 
+       WHERE id NOT IN (SELECT carpark_id FROM parking_sessions WHERE is_active = 1)`
+    ).catch(() => {});
+
     const safeQuery = async (sql: string, params: any[] = []) => {
       try {
         return await queryDb(sql, params);
@@ -23,7 +40,7 @@ export async function GET(req: NextRequest) {
     const [carparks, sessionsRaw, vehiclesRaw, savedGuestsRaw, demerits, rentalsRaw, notificationsRaw, configRows, unitsRaw, whitelistRaw] =
       await Promise.all([
         safeQuery('SELECT * FROM carparks ORDER BY spot_number'),
-        safeQuery('SELECT * FROM parking_sessions WHERE is_active = 1 ORDER BY expected_end_time ASC LIMIT 200'),
+        safeQuery('SELECT * FROM parking_sessions ORDER BY expected_end_time DESC LIMIT 200'),
         user.role === 'admin' || user.role === 'management'
           ? safeQuery('SELECT * FROM unit_vehicles ORDER BY requested_at DESC LIMIT 200')
           : safeQuery('SELECT * FROM unit_vehicles WHERE user_id = ? OR unit_number = ? ORDER BY requested_at DESC', [user.id, user.unit_number]),
@@ -44,23 +61,29 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       user,
       carparks: carparks || [],
-      sessions: (sessionsRaw || []).map((s: any) => ({
-        id: s.id,
-        spot_id: s.carpark_id,
-        spot_number: s.spot_number,
-        unit_number: s.unit_number,
-        vehicle_plate: s.vehicle_plate,
-        session_type: s.session_type,
-        start_time: s.start_time,
-        expected_end_time: s.expected_end_time,
-        end_time: s.end_time,
-        is_active: !!s.is_active,
-        boot_requested: !!s.boot_requested,
-        created_by_user_id: s.user_id,
-        visitor_name: s.visitor_name,
-        visitor_phone: s.visitor_phone,
-        saved_guest_id: s.saved_guest_id,
-      })),
+      sessions: (sessionsRaw || []).map((s: any) => {
+        const nowMs = Date.now();
+        const endMs = new Date(s.expected_end_time).getTime();
+        const isStillActive = !!s.is_active && endMs > nowMs && !s.end_time;
+
+        return {
+          id: s.id,
+          spot_id: s.carpark_id,
+          spot_number: s.spot_number,
+          unit_number: s.unit_number,
+          vehicle_plate: s.vehicle_plate,
+          session_type: s.session_type,
+          start_time: s.start_time,
+          expected_end_time: s.expected_end_time,
+          end_time: s.end_time,
+          is_active: isStillActive,
+          boot_requested: !!s.boot_requested,
+          created_by_user_id: s.user_id,
+          visitor_name: s.visitor_name,
+          visitor_phone: s.visitor_phone,
+          saved_guest_id: s.saved_guest_id,
+        };
+      }),
       vehicles: vehiclesRaw || [],
       savedGuests: savedGuestsRaw || [],
       demerits: demerits || [],
