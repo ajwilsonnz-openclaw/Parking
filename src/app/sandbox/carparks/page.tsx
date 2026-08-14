@@ -37,8 +37,8 @@ export default function CarparkSandboxPage() {
         </Link>
       </div>
 
-      {/* Main Map Container */}
-      <main className="flex-1 w-full max-w-lg mx-auto relative pb-20">
+      {/* Main Floorplan Container */}
+      <main className="flex-1 w-full max-w-lg mx-auto relative px-3 pt-3 pb-24">
         <CarparkMapSandbox />
       </main>
 
