@@ -1,30 +1,55 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import {
   Car,
+  Crosshair,
   CheckCircle2,
   Clock,
   X,
   ArrowRight,
   Shield,
   RefreshCw,
-  Check
+  Loader2,
+  Map,
+  Moon,
+  Layers
 } from 'lucide-react';
 import { useApp } from '@/lib/context/AppContext';
-import { SpatialFloorplan, ParkingBayData, CANONICAL_VECTOR_BAYS } from './SpatialFloorplan';
+import { BookingModal } from '@/components/parking/BookingModal';
+
+interface SelectedBay {
+  id: string;
+  bayNumber: string;
+  type: string;
+  status: string;
+  width_m?: number;
+  depth_m?: number;
+  layout?: string;
+  sessionPlate?: string;
+  sessionVisitor?: string;
+  sessionEnd?: string;
+}
+
+type MapTheme = 'google' | 'dark';
+type ZoneFilter = 'front' | 'rear' | 'all';
 
 export const CarparkMapSandbox: React.FC = () => {
   const { carparks, sessions, vehicles, bookSpot, refetch } = useApp();
+  const mapContainer = useRef<HTMLDivElement | null>(null);
+  const map = useRef<any>(null);
 
-  const [selectedBay, setSelectedBay] = useState<ParkingBayData | null>(null);
+  const [activeZone, setActiveZone] = useState<ZoneFilter>('front');
+  const [mapTheme, setMapTheme] = useState<MapTheme>('google');
+  const [selectedBay, setSelectedBay] = useState<SelectedBay | null>(null);
   const [plateNumber, setPlateNumber] = useState<string>('');
   const [visitorName, setVisitorName] = useState<string>('');
   const [durationHours, setDurationHours] = useState<number>(2);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [bookingSuccess, setBookingSuccess] = useState<boolean>(false);
-  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const [isMapLoading, setIsMapLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [geoData, setGeoData] = useState<any>(null);
 
   // Set default plate from user's primary vehicle on mount
   useEffect(() => {
@@ -36,71 +61,298 @@ export const CarparkMapSandbox: React.FC = () => {
     }
   }, [vehicles, plateNumber]);
 
-  // Dynamically compute live status of all real-world bays
-  const dynamicBays = useMemo(() => {
-    const activeSpotMap = new Map<string, any>();
-
-    (sessions || []).forEach((s) => {
-      const nowMs = Date.now();
-      const endMs = new Date(s.expected_end_time).getTime();
-      if (s.is_active && endMs > nowMs && !s.end_time) {
-        const spot = String(s.spot_number || '').toUpperCase().trim();
-        const norm = spot.replace(/^([VR])-?0*(\d+)$/, '$1-$2');
-        const compact = spot.replace(/^([VR])-?0*(\d+)$/, '$1$2');
-        activeSpotMap.set(spot, s);
-        activeSpotMap.set(norm, s);
-        activeSpotMap.set(compact, s);
-      }
-    });
-
-    (carparks || []).forEach((c) => {
-      if (c.status === 'occupied' || c.status === 'rented') {
-        const spot = String(c.spot_number || '').toUpperCase().trim();
-        const norm = spot.replace(/^([VR])-?0*(\d+)$/, '$1-$2');
-        const compact = spot.replace(/^([VR])-?0*(\d+)$/, '$1$2');
-        if (!activeSpotMap.has(spot)) {
-          activeSpotMap.set(spot, { vehicle_plate: 'OCCUPIED' });
-          activeSpotMap.set(norm, { vehicle_plate: 'OCCUPIED' });
-          activeSpotMap.set(compact, { vehicle_plate: 'OCCUPIED' });
-        }
-      }
-    });
-
-    return CANONICAL_VECTOR_BAYS.map((bay) => {
-      const rawNum = bay.bayNumber.toUpperCase().trim();
-      const norm = rawNum.replace(/^([VR])-?0*(\d+)$/, '$1-$2');
-      const compact = rawNum.replace(/^([VR])-?0*(\d+)$/, '$1$2');
-
-      const activeSession = activeSpotMap.get(rawNum) || activeSpotMap.get(norm) || activeSpotMap.get(compact);
-
-      let status = bay.status;
-      if (activeSession) {
-        status = 'occupied';
-      }
-
-      return {
-        ...bay,
-        status,
-        sessionPlate: activeSession?.vehicle_plate || undefined,
-        sessionVisitor: activeSession?.visitor_name || undefined,
-      };
-    });
-  }, [sessions, carparks]);
-
-  const handleSelectBay = (bay: ParkingBayData) => {
-    if (typeof window !== 'undefined' && 'vibrate' in navigator) {
-      try { navigator.vibrate(10); } catch {}
-    }
-    setSelectedBay(bay);
-    setBookingSuccess(false);
-  };
-
-  const handleManualRefresh = async () => {
+  const fetchGeoJSON = useCallback(async () => {
     setIsRefreshing(true);
     try {
-      await refetch();
+      const res = await fetch('/api/carparks/geojson');
+      const data = await res.json();
+      setGeoData(data);
+      if (map.current && map.current.getSource('carparks-source')) {
+        map.current.getSource('carparks-source').setData(data);
+      }
+    } catch (err) {
+      console.error('Failed to load carparks GeoJSON:', err);
     } finally {
       setIsRefreshing(false);
+    }
+  }, []);
+
+  const getMapStyle = (theme: MapTheme) => {
+    if (theme === 'google') {
+      return {
+        version: 8,
+        sources: {
+          'google-roadmap': {
+            type: 'raster',
+            tiles: [
+              'https://mt0.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+              'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+              'https://mt2.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+              'https://mt3.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+            ],
+            tileSize: 256,
+            attribution: '© Google Maps',
+          },
+        },
+        layers: [
+          {
+            id: 'google-roadmap-layer',
+            type: 'raster',
+            source: 'google-roadmap',
+            minzoom: 0,
+            maxzoom: 22,
+          },
+        ],
+      };
+    } else {
+      return {
+        version: 8,
+        sources: {
+          'carto-dark': {
+            type: 'raster',
+            tiles: [
+              'https://basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}@2x.png',
+            ],
+            tileSize: 256,
+            attribution: '© CartoDB, © OpenStreetMap',
+          },
+        },
+        layers: [
+          {
+            id: 'carto-dark-layer',
+            type: 'raster',
+            source: 'carto-dark',
+            minzoom: 0,
+            maxzoom: 22,
+          },
+        ],
+      };
+    }
+  };
+
+  const setupMapLayers = (mapInstance: any, data: any) => {
+    if (mapInstance.getSource('carparks-source')) {
+      mapInstance.getSource('carparks-source').setData(data);
+      return;
+    }
+
+    mapInstance.addSource('carparks-source', {
+      type: 'geojson',
+      data,
+    });
+
+    // Vector Fill Layer
+    mapInstance.addLayer({
+      id: 'carparks-fill',
+      type: 'fill',
+      source: 'carparks-source',
+      paint: {
+        'fill-color': [
+          'match',
+          ['get', 'status'],
+          'available', '#16a34a', // Emerald/Forest green
+          'occupied',  '#64748b', // Slate gray
+          'reserved',  '#f59e0b', // Amber
+          'selected',  '#0066ff', // Blue
+          '#22c55e'
+        ],
+        'fill-opacity': 0.65,
+      },
+    });
+
+    // Crisp Border Lines
+    mapInstance.addLayer({
+      id: 'carparks-outline',
+      type: 'line',
+      source: 'carparks-source',
+      paint: {
+        'line-color': '#0f172a',
+        'line-width': 2,
+      },
+    });
+
+    // Selected Highlight Outline
+    mapInstance.addLayer({
+      id: 'carparks-selected-outline',
+      type: 'line',
+      source: 'carparks-source',
+      paint: {
+        'line-color': '#ffffff',
+        'line-width': 3.5,
+      },
+      filter: ['==', ['id'], ''],
+    });
+
+    // Bay Number Text Labels
+    mapInstance.addLayer({
+      id: 'carparks-label',
+      type: 'symbol',
+      source: 'carparks-source',
+      layout: {
+        'text-field': ['get', 'bay_number'],
+        'text-size': 11,
+        'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
+        'text-allow-overlap': true,
+      },
+      paint: {
+        'text-color': '#ffffff',
+        'text-halo-color': '#0f172a',
+        'text-halo-width': 2,
+      },
+    });
+
+    // Click Handler for Bays
+    mapInstance.on('click', 'carparks-fill', (e: any) => {
+      if (!e.features || e.features.length === 0) return;
+      const feature = e.features[0];
+      const props = feature.properties;
+
+      if (typeof window !== 'undefined' && 'vibrate' in navigator) {
+        try { navigator.vibrate(10); } catch {}
+      }
+
+      setSelectedBay({
+        id: feature.id as string,
+        bayNumber: props?.bay_number,
+        type: props?.type,
+        status: props?.status,
+        width_m: props?.width_m,
+        depth_m: props?.depth_m,
+        layout: props?.layout,
+        sessionPlate: props?.session_plate,
+        sessionVisitor: props?.session_visitor,
+        sessionEnd: props?.session_end,
+      });
+      setBookingSuccess(false);
+
+      if (feature.id) {
+        mapInstance.setFilter('carparks-selected-outline', ['==', ['id'], feature.id]);
+      }
+    });
+
+    // Cursor states
+    mapInstance.on('mouseenter', 'carparks-fill', () => {
+      mapInstance.getCanvas().style.cursor = 'pointer';
+    });
+    mapInstance.on('mouseleave', 'carparks-fill', () => {
+      mapInstance.getCanvas().style.cursor = '';
+    });
+  };
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    const initMap = async () => {
+      // 1. Inject CSS if not present
+      if (!document.getElementById('maplibre-css')) {
+        const link = document.createElement('link');
+        link.id = 'maplibre-css';
+        link.rel = 'stylesheet';
+        link.href = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css';
+        document.head.appendChild(link);
+      }
+
+      // 2. Inject JS if not present
+      if (!(window as any).maplibregl) {
+        await new Promise<void>((resolve, reject) => {
+          const existing = document.getElementById('maplibre-js') as HTMLScriptElement;
+          if (existing) {
+            existing.addEventListener('load', () => resolve());
+            return;
+          }
+          const script = document.createElement('script');
+          script.id = 'maplibre-js';
+          script.src = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js';
+          script.async = true;
+          script.onload = () => resolve();
+          script.onerror = () => reject(new Error('Failed to load maplibre-gl'));
+          document.body.appendChild(script);
+        });
+      }
+
+      if (isCancelled || !mapContainer.current) return;
+      const maplibregl = (window as any).maplibregl;
+
+      // 3. Initialize Map with Google Maps Roadmap style
+      const mapInstance = new maplibregl.Map({
+        container: mapContainer.current,
+        style: getMapStyle('google'),
+        center: [174.6963, -36.7292], // Focused on Front Entrance cluster
+        zoom: 19.0,
+        pitch: 0,
+        bearing: 0,
+        maxZoom: 22,
+        minZoom: 16,
+      });
+
+      mapInstance.addControl(new maplibregl.NavigationControl({ showCompass: true }), 'top-right');
+
+      mapInstance.on('load', async () => {
+        if (isCancelled) return;
+
+        // Fetch live GeoJSON from API
+        const res = await fetch('/api/carparks/geojson');
+        const geojson = await res.json();
+        setGeoData(geojson);
+
+        setupMapLayers(mapInstance, geojson);
+        setIsMapLoading(false);
+      });
+
+      map.current = mapInstance;
+    };
+
+    initMap().catch((err) => {
+      console.error('Error initializing map:', err);
+      setIsMapLoading(false);
+    });
+
+    return () => {
+      isCancelled = true;
+      map.current?.remove?.();
+    };
+  }, []);
+
+  // Handle Theme Toggle (Google Maps Roadmap vs Dark Map)
+  const handleToggleTheme = (theme: MapTheme) => {
+    setMapTheme(theme);
+    if (!map.current || !geoData) return;
+
+    map.current.setStyle(getMapStyle(theme));
+    map.current.once('style.load', () => {
+      setupMapLayers(map.current, geoData);
+      if (selectedBay?.id) {
+        map.current.setFilter('carparks-selected-outline', ['==', ['id'], selectedBay.id]);
+      }
+    });
+  };
+
+  // Focus camera by Zone (Front vs Rear vs All)
+  const handleZoneSwitch = (zone: ZoneFilter) => {
+    setActiveZone(zone);
+    if (!map.current) return;
+
+    if (zone === 'front') {
+      map.current.flyTo({
+        center: [174.6963, -36.7292],
+        zoom: 19.2,
+        pitch: 0,
+        essential: true,
+      });
+    } else if (zone === 'rear') {
+      map.current.flyTo({
+        center: [174.6949, -36.7290],
+        zoom: 19.2,
+        pitch: 0,
+        essential: true,
+      });
+    } else {
+      map.current.flyTo({
+        center: [174.6958, -36.7291],
+        zoom: 18.2,
+        pitch: 0,
+        essential: true,
+      });
     }
   };
 
@@ -130,6 +382,7 @@ export const CarparkMapSandbox: React.FC = () => {
 
       setBookingSuccess(true);
       await refetch();
+      await fetchGeoJSON();
 
       setTimeout(() => {
         setSelectedBay(null);
@@ -142,263 +395,281 @@ export const CarparkMapSandbox: React.FC = () => {
     }
   };
 
+  const totalBays = geoData?.features?.length || 37;
+
   return (
-    <div className="w-full space-y-3 pb-8">
-      {/* Top Header Row with Refresh */}
-      <div className="flex items-center justify-between px-1">
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] font-black uppercase tracking-wider text-slate-400">
-            Real Site Layout Floorplan
-          </span>
+    <div className="relative w-full h-[calc(100dvh-5.5rem)] bg-slate-950 overflow-hidden flex flex-col rounded-3xl border border-slate-800 shadow-2xl">
+      {/* Loading Overlay */}
+      {isMapLoading && (
+        <div className="absolute inset-0 z-40 bg-slate-950/80 backdrop-blur-sm flex flex-col items-center justify-center text-white space-y-3">
+          <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+          <p className="text-xs font-bold text-slate-300">Loading Google Maps Roadmap...</p>
         </div>
-        <button
-          onClick={handleManualRefresh}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white text-xs font-bold shadow-md active:scale-95 transition-all"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-blue-400' : ''}`} />
-          <span>Refresh Live</span>
-        </button>
+      )}
+
+      {/* Top Floating Control Bar */}
+      <div className="absolute top-3 inset-x-3 z-30 flex items-center justify-between pointer-events-none">
+        {/* Zone Switcher */}
+        <div className="flex items-center gap-1 p-1 rounded-2xl bg-slate-900/95 backdrop-blur-md border border-slate-700/70 shadow-xl pointer-events-auto">
+          <button
+            onClick={() => handleZoneSwitch('front')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all ${
+              activeZone === 'front'
+                ? 'bg-blue-600 text-white shadow-md'
+                : 'text-slate-300 hover:text-white'
+            }`}
+          >
+            Front Wing
+          </button>
+          <button
+            onClick={() => handleZoneSwitch('rear')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all ${
+              activeZone === 'rear'
+                ? 'bg-blue-600 text-white shadow-md'
+                : 'text-slate-300 hover:text-white'
+            }`}
+          >
+            Rear Wing
+          </button>
+          <button
+            onClick={() => handleZoneSwitch('all')}
+            className={`px-2.5 py-1.5 rounded-xl text-xs font-black transition-all ${
+              activeZone === 'all'
+                ? 'bg-blue-600 text-white shadow-md'
+                : 'text-slate-300 hover:text-white'
+            }`}
+          >
+            All
+          </button>
+        </div>
+
+        {/* Quick Style & Refresh Controls */}
+        <div className="flex items-center gap-2 pointer-events-auto">
+          <button
+            onClick={() => handleToggleTheme(mapTheme === 'google' ? 'dark' : 'google')}
+            className="px-3 h-10 rounded-2xl bg-slate-900/95 backdrop-blur-md border border-slate-700/70 text-slate-200 hover:text-white flex items-center gap-1.5 shadow-xl active:scale-95 transition-all text-xs font-bold"
+            title="Toggle map style"
+          >
+            {mapTheme === 'google' ? (
+              <>
+                <Map className="w-4 h-4 text-emerald-400" />
+                <span>Google Map</span>
+              </>
+            ) : (
+              <>
+                <Moon className="w-4 h-4 text-indigo-400" />
+                <span>Dark Map</span>
+              </>
+            )}
+          </button>
+
+          <button
+            onClick={fetchGeoJSON}
+            className="w-10 h-10 rounded-2xl bg-slate-900/95 backdrop-blur-md border border-slate-700/70 text-slate-200 hover:text-white flex items-center justify-center shadow-xl active:scale-95 transition-all"
+            title="Refresh live status"
+          >
+            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-blue-400' : ''}`} />
+          </button>
+        </div>
       </div>
 
-      {/* 2D Vector Schematic Floorplan */}
-      <SpatialFloorplan
-        bays={dynamicBays}
-        selectedBayId={selectedBay?.id || null}
-        onSelectBay={handleSelectBay}
-      />
+      {/* Legend Badge Bar */}
+      <div className="absolute top-16 left-3 z-20 pointer-events-none">
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-950/90 backdrop-blur-md border border-slate-800 text-[11px] font-bold text-slate-300 shadow-lg">
+          <span className="flex items-center gap-1">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" /> Available
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="w-2.5 h-2.5 rounded-full bg-slate-500" /> Occupied
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="w-2.5 h-2.5 rounded-full bg-amber-500" /> Reserved
+          </span>
+        </div>
+      </div>
+
+      {/* Map Canvas */}
+      <div ref={mapContainer} className="w-full flex-1" />
 
       {/* Selected Bay Bottom Sheet Modal */}
-      <AnimatePresence>
-        {selectedBay && (
-          <>
-            {/* Backdrop Blur */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setSelectedBay(null)}
-              className="fixed inset-0 bg-slate-950/75 backdrop-blur-sm z-40"
-            />
-
-            {/* Bottom Sheet Card */}
-            <motion.div
-              initial={{ y: '100%' }}
-              animate={{ y: 0 }}
-              exit={{ y: '100%' }}
-              transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-              className="fixed bottom-0 inset-x-0 max-w-lg mx-auto bg-slate-900 border-t border-slate-700/80 rounded-t-3xl p-5 shadow-2xl z-50 overflow-hidden text-white"
-            >
-              {/* Sheet Drag Handle */}
-              <div className="w-12 h-1.5 bg-slate-700 rounded-full mx-auto mb-4" />
-
-              {/* Bay Details Header */}
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-2xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400">
-                    <Car className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xl font-black text-white">
-                        Bay {selectedBay.bayNumber}
-                      </span>
-                      <span
-                        className={`text-[10px] px-2 py-0.5 rounded-md font-extrabold uppercase tracking-wider ${
-                          selectedBay.type === 'visitor'
-                            ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30'
-                            : 'bg-slate-800 text-slate-300 border border-slate-700'
-                        }`}
-                      >
-                        {selectedBay.type}
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-400 font-medium mt-0.5">
-                      {selectedBay.zone === 'front'
-                        ? 'Front Wing · Albany Hwy Entrance'
-                        : 'Rear Wing · Back Courtyard'}
-                    </p>
-                  </div>
+      {selectedBay && (
+        <div className="absolute bottom-2 inset-x-3 sm:max-w-md sm:mx-auto z-40 animate-slide-up">
+          <div className="card p-4 bg-slate-900/95 backdrop-blur-xl border-slate-700 text-white shadow-2xl space-y-3.5 rounded-3xl">
+            {/* Header */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400 font-black text-sm">
+                  <Car className="w-5 h-5" />
                 </div>
-
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`chip text-xs font-black py-1 px-2.5 rounded-full flex items-center gap-1 ${
-                      selectedBay.status === 'available'
-                        ? 'bg-emerald-950/80 border border-emerald-500/40 text-emerald-300'
-                        : 'bg-slate-800 border border-slate-600 text-slate-300'
-                    }`}
-                  >
-                    {selectedBay.status === 'available' && <CheckCircle2 className="w-3 h-3 text-emerald-400" />}
-                    {selectedBay.status === 'occupied' && <Clock className="w-3 h-3 text-slate-400" />}
-                    {selectedBay.status.toUpperCase()}
-                  </span>
-                  <button
-                    onClick={() => setSelectedBay(null)}
-                    className="p-1 rounded-full text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
+                <div>
+                  <h3 className="text-base font-black text-white leading-tight">
+                    Bay {selectedBay.bayNumber}
+                  </h3>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 border border-slate-700">
+                      {selectedBay.type}
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-medium">
+                      {selectedBay.width_m || 2.3}m × {selectedBay.depth_m || 5.0}m
+                    </span>
+                  </div>
                 </div>
               </div>
 
-              {/* Occupied State Notice */}
-              {selectedBay.status === 'occupied' && (
-                <div className="p-3.5 rounded-2xl bg-slate-800/80 border border-slate-700 text-xs space-y-1.5 mb-4 text-slate-300">
-                  <div className="flex justify-between font-bold text-white">
-                    <span>Vehicle In Bay:</span>
-                    <span className="font-mono text-amber-400 font-bold">{selectedBay.sessionPlate || 'OCCUPIED'}</span>
+              <div className="flex items-center gap-2">
+                <span
+                  className={`chip text-xs font-bold py-1 px-2.5 rounded-full flex items-center gap-1 ${
+                    selectedBay.status === 'available'
+                      ? 'bg-emerald-950/80 border border-emerald-500/40 text-emerald-300'
+                      : selectedBay.status === 'reserved'
+                      ? 'bg-amber-950/80 border border-amber-500/40 text-amber-300'
+                      : 'bg-slate-800 border border-slate-600 text-slate-300'
+                  }`}
+                >
+                  {selectedBay.status === 'available' && <CheckCircle2 className="w-3 h-3 text-emerald-400" />}
+                  {selectedBay.status === 'occupied' && <Clock className="w-3 h-3 text-slate-400" />}
+                  {selectedBay.status.toUpperCase()}
+                </span>
+                <button
+                  onClick={() => {
+                    setSelectedBay(null);
+                    map.current?.setFilter?.('carparks-selected-outline', ['==', ['id'], '']);
+                  }}
+                  className="p-1 rounded-full text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Occupied State Details */}
+            {selectedBay.status === 'occupied' && (
+              <div className="p-3 rounded-2xl bg-slate-800/80 border border-slate-700/60 text-xs space-y-1 text-slate-300">
+                <div className="flex justify-between font-bold text-white">
+                  <span>Current Vehicle:</span>
+                  <span className="font-mono text-amber-400">{selectedBay.sessionPlate || 'OCCUPIED'}</span>
+                </div>
+                {selectedBay.sessionVisitor && (
+                  <div className="flex justify-between">
+                    <span>Visitor:</span>
+                    <span>{selectedBay.sessionVisitor}</span>
                   </div>
-                  {selectedBay.sessionVisitor && (
-                    <div className="flex justify-between">
-                      <span>Visitor:</span>
-                      <span>{selectedBay.sessionVisitor}</span>
-                    </div>
-                  )}
-                  <p className="text-[11px] text-slate-400 pt-1">
-                    This space is currently occupied. Please select an available green visitor bay to book.
-                  </p>
-                </div>
-              )}
+                )}
+              </div>
+            )}
 
-              {/* Resident Spot Notice */}
-              {selectedBay.type === 'resident' && selectedBay.status === 'available' && (
-                <div className="p-3 rounded-2xl bg-slate-800/60 border border-slate-700/60 text-xs text-slate-300 flex items-center gap-2 mb-4">
-                  <Shield className="w-4 h-4 text-indigo-400 shrink-0" />
-                  <span>Assigned Resident Carpark. Reserved for designated apartment owner/tenant.</span>
-                </div>
-              )}
+            {/* Resident Notice */}
+            {selectedBay.type === 'resident' && (
+              <div className="p-2.5 rounded-xl bg-slate-800/50 border border-slate-700/40 text-[11px] text-slate-400 flex items-center gap-2">
+                <Shield className="w-4 h-4 text-indigo-400 shrink-0" />
+                <span>Assigned Resident Carpark. Reserved for designated resident.</span>
+              </div>
+            )}
 
-              {/* Booking Form for Available Visitor Bay */}
-              {selectedBay.type === 'visitor' && selectedBay.status === 'available' && (
-                <div className="space-y-3.5">
-                  {/* Vehicle Registration Plate Input */}
-                  <div>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-300">
-                        Vehicle Registration Plate
-                      </label>
-                      {vehicles && vehicles.length > 0 && (
-                        <span className="text-[10px] text-blue-400 font-bold">Quick Select</span>
-                      )}
-                    </div>
-
-                    <input
-                      type="text"
-                      value={plateNumber}
-                      onChange={(e) => setPlateNumber(e.target.value.toUpperCase())}
-                      className="input w-full font-mono font-black text-base uppercase bg-slate-950 border-slate-700 text-white"
-                      placeholder="e.g. ABC123"
-                    />
-
-                    {/* Quick Select Saved Vehicles */}
+            {/* Booking Form for Available Visitor Bay */}
+            {selectedBay.type === 'visitor' && selectedBay.status === 'available' && (
+              <div className="space-y-3">
+                {/* Plate Input */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-300">
+                      Vehicle Plate
+                    </label>
                     {vehicles && vehicles.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 mt-2">
-                        {vehicles.map((v) => (
-                          <button
-                            key={v.id}
-                            type="button"
-                            onClick={() => setPlateNumber(v.plate_number)}
-                            className={`px-2.5 py-1 rounded-lg text-xs font-mono font-bold transition-all ${
-                              plateNumber === v.plate_number
-                                ? 'bg-blue-600 text-white shadow-sm'
-                                : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                            }`}
-                          >
-                            {v.plate_number}
-                          </button>
-                        ))}
-                      </div>
+                      <span className="text-[10px] text-blue-400 font-bold">Quick Select</span>
                     )}
                   </div>
+                  <input
+                    type="text"
+                    value={plateNumber}
+                    onChange={(e) => setPlateNumber(e.target.value.toUpperCase())}
+                    className="input w-full font-mono font-black text-sm uppercase bg-slate-950 border-slate-700 text-white"
+                    placeholder="e.g. ABC123"
+                  />
 
-                  {/* Visitor Name (Optional) */}
-                  <div>
-                    <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-300 block mb-1.5">
-                      Visitor / Guest Name (Optional)
-                    </label>
-                    <input
-                      type="text"
-                      value={visitorName}
-                      onChange={(e) => setVisitorName(e.target.value)}
-                      className="input w-full text-xs font-bold bg-slate-950 border-slate-700 text-white"
-                      placeholder="e.g. John Smith"
-                    />
-                  </div>
-
-                  {/* Duration Selector */}
-                  <div>
-                    <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-300 block mb-1.5">
-                      Parking Duration
-                    </label>
-                    <div className="grid grid-cols-5 gap-1.5">
-                      {[1, 2, 4, 12, 24].map((hours) => (
+                  {/* Quick Select Buttons */}
+                  {vehicles && vehicles.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mt-1.5">
+                      {vehicles.map((v) => (
                         <button
-                          key={hours}
+                          key={v.id}
                           type="button"
-                          onClick={() => setDurationHours(hours)}
-                          className={`py-2 rounded-xl text-xs font-black transition-all ${
-                            durationHours === hours
-                              ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
-                              : 'bg-slate-950 text-slate-400 border border-slate-800 hover:border-slate-700'
+                          onClick={() => setPlateNumber(v.plate_number)}
+                          className={`px-2 py-0.5 rounded-md text-[11px] font-mono font-bold transition-all ${
+                            plateNumber === v.plate_number
+                              ? 'bg-blue-600 text-white shadow-sm'
+                              : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
                           }`}
                         >
-                          {hours}h
+                          {v.plate_number}
                         </button>
                       ))}
                     </div>
-                  </div>
+                  )}
+                </div>
 
-                  {/* Submit Action */}
-                  <div className="pt-2 flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setSelectedBay(null)}
-                      className="w-1/3 btn-ghost py-3 text-xs font-bold text-slate-400"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleConfirmReservation}
-                      disabled={isSubmitting || !plateNumber.trim() || bookingSuccess}
-                      className={`w-2/3 py-3 rounded-2xl text-xs font-black flex items-center justify-center gap-2 shadow-lg transition-all ${
-                        bookingSuccess
-                          ? 'bg-emerald-600 text-white'
-                          : 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-600/30 active:scale-[0.98]'
-                      } disabled:opacity-50`}
-                    >
-                      {isSubmitting ? (
-                        <span>Confirming...</span>
-                      ) : bookingSuccess ? (
-                        <>
-                          <Check className="w-4 h-4" />
-                          <span>Reservation Confirmed!</span>
-                        </>
-                      ) : (
-                        <>
-                          <span>Book Bay {selectedBay.bayNumber}</span>
-                          <ArrowRight className="w-4 h-4" />
-                        </>
-                      )}
-                    </button>
+                {/* Duration Pills */}
+                <div>
+                  <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-300 block mb-1">
+                    Duration
+                  </label>
+                  <div className="grid grid-cols-5 gap-1">
+                    {[1, 2, 4, 12, 24].map((hours) => (
+                      <button
+                        key={hours}
+                        type="button"
+                        onClick={() => setDurationHours(hours)}
+                        className={`py-1.5 rounded-xl text-xs font-black transition-all ${
+                          durationHours === hours
+                            ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
+                            : 'bg-slate-950 text-slate-400 border border-slate-800 hover:border-slate-700'
+                        }`}
+                      >
+                        {hours}h
+                      </button>
+                    ))}
                   </div>
                 </div>
-              )}
 
-              {/* Close Button for Non-Bookable Bay */}
-              {(selectedBay.type === 'resident' || selectedBay.status === 'occupied') && (
-                <button
-                  type="button"
-                  onClick={() => setSelectedBay(null)}
-                  className="w-full btn-secondary py-3 text-xs font-bold mt-2"
-                >
-                  Close
-                </button>
-              )}
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+                {/* Action CTA */}
+                <div className="pt-1 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedBay(null)}
+                    className="w-1/3 btn-ghost py-2.5 text-xs font-bold text-slate-400"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleConfirmReservation}
+                    disabled={isSubmitting || !plateNumber.trim() || bookingSuccess}
+                    className={`w-2/3 py-2.5 rounded-2xl text-xs font-black flex items-center justify-center gap-2 shadow-lg transition-all ${
+                      bookingSuccess
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-600/30 active:scale-[0.98]'
+                    } disabled:opacity-50`}
+                  >
+                    {isSubmitting ? (
+                      <span>Confirming...</span>
+                    ) : bookingSuccess ? (
+                      <>
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span>Reserved!</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Book Bay {selectedBay.bayNumber}</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
