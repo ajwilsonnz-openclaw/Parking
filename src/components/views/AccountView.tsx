@@ -3,8 +3,9 @@
 import React, { useState } from 'react';
 import { useApp } from '@/lib/context/AppContext';
 import { useTheme } from '@/lib/theme/ThemeProvider';
+import Link from 'next/link';
 import {
-  User, Award, ChevronRight, Smartphone, Moon, Sun, Monitor, LogOut, Shield, Sliders, Trash2, Users, Key, Plus, Car, Check, X, Edit2,
+  User, Award, ChevronRight, Smartphone, Moon, Sun, Monitor, LogOut, Shield, Sliders, Trash2, Users, Key, Plus, Car, Check, X, Edit2, Sparkles, MapPin,
 } from 'lucide-react';
 import { PlateCard } from '@/components/ui/PlateCard';
 import { useInstallPrompt } from '@/lib/hooks/useInstallPrompt';
@@ -224,6 +225,28 @@ export const AccountView: React.FC<AccountViewProps> = ({ onOpenManagement, onOp
           </button>
         )}
       </div>
+
+      {/* Interactive Carpark Map Sandbox Button */}
+      <Link
+        href="/sandbox/carparks"
+        className="card p-3.5 flex items-center justify-between bg-gradient-to-r from-blue-950/40 via-indigo-950/30 to-slate-900 border border-blue-500/30 hover:border-blue-400/60 transition-all active:scale-[0.98] group"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-blue-600/20 border border-blue-500/30 text-blue-400 flex items-center justify-center shrink-0">
+            <Sparkles className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-black text-ink">Interactive Carpark Map</span>
+              <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-blue-600/20 text-blue-400 border border-blue-500/30">Sandbox</span>
+            </div>
+            <p className="text-[11px] text-ink-secondary font-medium mt-0.5">
+              Live vector satellite map for visitor &amp; resident bays
+            </p>
+          </div>
+        </div>
+        <ChevronRight className="w-4 h-4 text-ink-tertiary group-hover:text-ink group-hover:translate-x-0.5 transition-all" />
+      </Link>
 
       {/* Admin / Portal access */}
       {isManagementOrAdmin && (
