@@ -8,85 +8,15 @@ import {
   Clock,
   X,
   ArrowRight,
-  Info,
   Shield,
   RefreshCw,
-  Sparkles,
-  Check,
-  AlertCircle
+  Check
 } from 'lucide-react';
 import { useApp } from '@/lib/context/AppContext';
-import { SpatialFloorplan, ParkingBayData } from './SpatialFloorplan';
-
-// Baseline layout definitions for all 56 spaces at Millennium Village
-const BASE_BAYS: ParkingBayData[] = [
-  // Front Zone: Visitor Bays V01-V10
-  { id: 'v01', label: 'V01', zone: 'front', type: 'visitor', status: 'available', x: 46, y: 36, width: 98, height: 44, width_m: 2.4, depth_m: 5.0, layout: 'side_by_side' },
-  { id: 'v02', label: 'V02', zone: 'front', type: 'visitor', status: 'available', x: 46, y: 88, width: 98, height: 44, width_m: 2.4, depth_m: 5.0, layout: 'side_by_side' },
-  { id: 'v03', label: 'V03', zone: 'front', type: 'visitor', status: 'available', x: 46, y: 140, width: 98, height: 44, width_m: 2.4, depth_m: 5.0, layout: 'side_by_side' },
-  { id: 'v04', label: 'V04', zone: 'front', type: 'visitor', status: 'available', x: 46, y: 192, width: 98, height: 44, width_m: 2.4, depth_m: 5.0, layout: 'side_by_side' },
-  { id: 'v05', label: 'V05', zone: 'front', type: 'visitor', status: 'available', x: 46, y: 244, width: 98, height: 44, width_m: 2.4, depth_m: 5.0, layout: 'side_by_side' },
-  { id: 'v06', label: 'V06', zone: 'front', type: 'visitor', status: 'available', x: 46, y: 296, width: 98, height: 44, width_m: 2.4, depth_m: 5.0, layout: 'side_by_side' },
-  { id: 'v07', label: 'V07', zone: 'front', type: 'visitor', status: 'available', x: 46, y: 348, width: 98, height: 44, width_m: 2.4, depth_m: 5.0, layout: 'side_by_side' },
-  { id: 'v08', label: 'V08', zone: 'front', type: 'visitor', status: 'available', x: 46, y: 400, width: 98, height: 44, width_m: 2.4, depth_m: 5.0, layout: 'side_by_side' },
-  { id: 'v09', label: 'V09', zone: 'front', type: 'visitor', status: 'available', x: 46, y: 452, width: 98, height: 44, width_m: 2.4, depth_m: 5.0, layout: 'side_by_side' },
-  { id: 'v10', label: 'V10', zone: 'front', type: 'visitor', status: 'available', x: 46, y: 504, width: 98, height: 44, width_m: 2.4, depth_m: 5.0, layout: 'side_by_side' },
-
-  // Front Zone: Resident Bays R01-R15
-  { id: 'r01', label: 'R01', zone: 'front', type: 'resident', status: 'available', x: 256, y: 36, width: 98, height: 32, width_m: 2.4, depth_m: 5.0, layout: 'side_by_side' },
-  { id: 'r02', label: 'R02', zone: 'front', type: 'resident', status: 'available', x: 256, y: 72, width: 98, height: 32, width_m: 2.4, depth_m: 5.0, layout: 'side_by_side' },
-  { id: 'r03', label: 'R03', zone: 'front', type: 'resident', status: 'available', x: 256, y: 108, width: 98, height: 32, width_m: 2.4, depth_m: 5.0, layout: 'side_by_side' },
-  { id: 'r04', label: 'R04', zone: 'front', type: 'resident', status: 'available', x: 256, y: 144, width: 98, height: 32, width_m: 2.4, depth_m: 5.0, layout: 'side_by_side' },
-  { id: 'r05', label: 'R05', zone: 'front', type: 'resident', status: 'available', x: 256, y: 180, width: 98, height: 32, width_m: 2.4, depth_m: 5.0, layout: 'side_by_side' },
-  { id: 'r06', label: 'R06', zone: 'front', type: 'resident', status: 'available', x: 256, y: 216, width: 98, height: 32, width_m: 2.4, depth_m: 5.0, layout: 'side_by_side' },
-  { id: 'r07', label: 'R07', zone: 'front', type: 'resident', status: 'available', x: 256, y: 252, width: 98, height: 32, width_m: 2.4, depth_m: 5.0, layout: 'side_by_side' },
-  { id: 'r08', label: 'R08', zone: 'front', type: 'resident', status: 'available', x: 256, y: 288, width: 98, height: 32, width_m: 2.4, depth_m: 5.0, layout: 'side_by_side' },
-  { id: 'r09', label: 'R09', zone: 'front', type: 'resident', status: 'available', x: 256, y: 324, width: 98, height: 32, width_m: 2.4, depth_m: 5.0, layout: 'side_by_side' },
-  { id: 'r10', label: 'R10', zone: 'front', type: 'resident', status: 'available', x: 256, y: 360, width: 98, height: 32, width_m: 2.4, depth_m: 5.0, layout: 'side_by_side' },
-  { id: 'r11', label: 'R11', zone: 'front', type: 'resident', status: 'available', x: 256, y: 396, width: 98, height: 32, width_m: 2.4, depth_m: 5.0, layout: 'side_by_side' },
-  { id: 'r12', label: 'R12', zone: 'front', type: 'resident', status: 'available', x: 256, y: 432, width: 98, height: 32, width_m: 2.4, depth_m: 5.0, layout: 'side_by_side' },
-  { id: 'r13', label: 'R13', zone: 'front', type: 'resident', status: 'available', x: 256, y: 468, width: 98, height: 32, width_m: 2.4, depth_m: 5.0, layout: 'side_by_side' },
-  { id: 'r14', label: 'R14', zone: 'front', type: 'resident', status: 'available', x: 256, y: 504, width: 98, height: 32, width_m: 2.4, depth_m: 5.0, layout: 'side_by_side' },
-  { id: 'r15', label: 'R15', zone: 'front', type: 'resident', status: 'available', x: 256, y: 540, width: 98, height: 32, width_m: 2.4, depth_m: 5.0, layout: 'side_by_side' },
-
-  // Rear Zone: Visitor Bays V11-V23
-  { id: 'v11', label: 'V11', zone: 'rear', type: 'visitor', status: 'available', x: 46, y: 600, width: 98, height: 42, width_m: 2.4, depth_m: 5.0, layout: 'side_by_side' },
-  { id: 'v12', label: 'V12', zone: 'rear', type: 'visitor', status: 'available', x: 46, y: 648, width: 98, height: 42, width_m: 2.4, depth_m: 5.0, layout: 'side_by_side' },
-  { id: 'v13', label: 'V13', zone: 'rear', type: 'visitor', status: 'available', x: 46, y: 696, width: 98, height: 42, width_m: 2.4, depth_m: 5.0, layout: 'side_by_side' },
-  { id: 'v14', label: 'V14', zone: 'rear', type: 'visitor', status: 'available', x: 46, y: 744, width: 98, height: 42, width_m: 2.4, depth_m: 5.0, layout: 'side_by_side' },
-  { id: 'v15', label: 'V15', zone: 'rear', type: 'visitor', status: 'available', x: 46, y: 792, width: 98, height: 42, width_m: 2.4, depth_m: 5.0, layout: 'side_by_side' },
-  { id: 'v16', label: 'V16', zone: 'rear', type: 'visitor', status: 'available', x: 46, y: 840, width: 98, height: 42, width_m: 2.4, depth_m: 5.0, layout: 'side_by_side' },
-  { id: 'v17', label: 'V17', zone: 'rear', type: 'visitor', status: 'available', x: 46, y: 888, width: 98, height: 42, width_m: 2.4, depth_m: 5.0, layout: 'side_by_side' },
-  { id: 'v18', label: 'V18', zone: 'rear', type: 'visitor', status: 'available', x: 46, y: 936, width: 98, height: 42, width_m: 2.4, depth_m: 5.0, layout: 'side_by_side' },
-  { id: 'v19', label: 'V19', zone: 'rear', type: 'visitor', status: 'available', x: 46, y: 984, width: 98, height: 42, width_m: 2.4, depth_m: 5.0, layout: 'side_by_side' },
-  { id: 'v20', label: 'V20', zone: 'rear', type: 'visitor', status: 'available', x: 46, y: 1032, width: 98, height: 42, width_m: 2.4, depth_m: 5.0, layout: 'side_by_side' },
-  { id: 'v21', label: 'V21', zone: 'rear', type: 'visitor', status: 'available', x: 46, y: 1080, width: 98, height: 42, width_m: 2.4, depth_m: 5.0, layout: 'side_by_side' },
-  { id: 'v22', label: 'V22', zone: 'rear', type: 'visitor', status: 'available', x: 46, y: 1128, width: 98, height: 42, width_m: 2.4, depth_m: 5.0, layout: 'side_by_side' },
-  { id: 'v23', label: 'V23', zone: 'rear', type: 'visitor', status: 'available', x: 152, y: 1144, width: 96, height: 44, width_m: 2.4, depth_m: 5.0, layout: 'side_by_side' },
-
-  // Rear Zone: Resident Bays R16-R33
-  { id: 'r16', label: 'R16', zone: 'rear', type: 'resident', status: 'available', x: 256, y: 600, width: 98, height: 30, width_m: 2.4, depth_m: 5.0, layout: 'side_by_side' },
-  { id: 'r17', label: 'R17', zone: 'rear', type: 'resident', status: 'available', x: 256, y: 634, width: 98, height: 30, width_m: 2.4, depth_m: 5.0, layout: 'side_by_side' },
-  { id: 'r18', label: 'R18', zone: 'rear', type: 'resident', status: 'available', x: 256, y: 668, width: 98, height: 30, width_m: 2.4, depth_m: 5.0, layout: 'side_by_side' },
-  { id: 'r19', label: 'R19', zone: 'rear', type: 'resident', status: 'available', x: 256, y: 702, width: 98, height: 30, width_m: 2.4, depth_m: 5.0, layout: 'side_by_side' },
-  { id: 'r20', label: 'R20', zone: 'rear', type: 'resident', status: 'available', x: 256, y: 736, width: 98, height: 30, width_m: 2.4, depth_m: 5.0, layout: 'side_by_side' },
-  { id: 'r21', label: 'R21', zone: 'rear', type: 'resident', status: 'available', x: 256, y: 770, width: 98, height: 30, width_m: 2.4, depth_m: 5.0, layout: 'side_by_side' },
-  { id: 'r22', label: 'R22', zone: 'rear', type: 'resident', status: 'available', x: 256, y: 804, width: 98, height: 30, width_m: 2.4, depth_m: 5.0, layout: 'side_by_side' },
-  { id: 'r23', label: 'R23', zone: 'rear', type: 'resident', status: 'available', x: 256, y: 838, width: 98, height: 30, width_m: 2.4, depth_m: 5.0, layout: 'side_by_side' },
-  { id: 'r24', label: 'R24', zone: 'rear', type: 'resident', status: 'available', x: 256, y: 872, width: 98, height: 30, width_m: 2.4, depth_m: 5.0, layout: 'side_by_side' },
-  { id: 'r25', label: 'R25', zone: 'rear', type: 'resident', status: 'available', x: 256, y: 906, width: 98, height: 30, width_m: 2.4, depth_m: 5.0, layout: 'side_by_side' },
-  { id: 'r26', label: 'R26', zone: 'rear', type: 'resident', status: 'available', x: 256, y: 940, width: 98, height: 30, width_m: 2.4, depth_m: 5.0, layout: 'side_by_side' },
-  { id: 'r27', label: 'R27', zone: 'rear', type: 'resident', status: 'available', x: 256, y: 974, width: 98, height: 30, width_m: 2.4, depth_m: 5.0, layout: 'side_by_side' },
-  { id: 'r28', label: 'R28', zone: 'rear', type: 'resident', status: 'available', x: 256, y: 1008, width: 98, height: 30, width_m: 2.4, depth_m: 5.0, layout: 'side_by_side' },
-  { id: 'r29', label: 'R29', zone: 'rear', type: 'resident', status: 'available', x: 256, y: 1042, width: 98, height: 30, width_m: 2.4, depth_m: 5.0, layout: 'side_by_side' },
-  { id: 'r30', label: 'R30', zone: 'rear', type: 'resident', status: 'available', x: 256, y: 1076, width: 98, height: 30, width_m: 2.4, depth_m: 5.0, layout: 'side_by_side' },
-  { id: 'r31', label: 'R31', zone: 'rear', type: 'resident', status: 'available', x: 256, y: 1110, width: 98, height: 30, width_m: 2.4, depth_m: 5.0, layout: 'side_by_side' },
-  { id: 'r32', label: 'R32', zone: 'rear', type: 'resident', status: 'available', x: 256, y: 1144, width: 98, height: 30, width_m: 2.4, depth_m: 5.0, layout: 'side_by_side' },
-  { id: 'r33', label: 'R33', zone: 'rear', type: 'resident', status: 'available', x: 256, y: 1178, width: 98, height: 30, width_m: 2.4, depth_m: 5.0, layout: 'side_by_side' },
-];
+import { SpatialFloorplan, ParkingBayData, CANONICAL_VECTOR_BAYS } from './SpatialFloorplan';
 
 export const CarparkMapSandbox: React.FC = () => {
-  const { carparks, sessions, vehicles, currentUser, bookSpot, refetch } = useApp();
+  const { carparks, sessions, vehicles, bookSpot, refetch } = useApp();
 
   const [selectedBay, setSelectedBay] = useState<ParkingBayData | null>(null);
   const [plateNumber, setPlateNumber] = useState<string>('');
@@ -106,7 +36,7 @@ export const CarparkMapSandbox: React.FC = () => {
     }
   }, [vehicles, plateNumber]);
 
-  // Dynamically compute live status of all 56 bays
+  // Dynamically compute live status of all real-world bays
   const dynamicBays = useMemo(() => {
     const activeSpotMap = new Map<string, any>();
 
@@ -115,26 +45,33 @@ export const CarparkMapSandbox: React.FC = () => {
       const endMs = new Date(s.expected_end_time).getTime();
       if (s.is_active && endMs > nowMs && !s.end_time) {
         const spot = String(s.spot_number || '').toUpperCase().trim();
-        const norm = spot.replace(/^([VR])-?0*(\d+)$/, '$1$2');
+        const norm = spot.replace(/^([VR])-?0*(\d+)$/, '$1-$2');
+        const compact = spot.replace(/^([VR])-?0*(\d+)$/, '$1$2');
         activeSpotMap.set(spot, s);
         activeSpotMap.set(norm, s);
+        activeSpotMap.set(compact, s);
       }
     });
 
     (carparks || []).forEach((c) => {
       if (c.status === 'occupied' || c.status === 'rented') {
         const spot = String(c.spot_number || '').toUpperCase().trim();
-        const norm = spot.replace(/^([VR])-?0*(\d+)$/, '$1$2');
+        const norm = spot.replace(/^([VR])-?0*(\d+)$/, '$1-$2');
+        const compact = spot.replace(/^([VR])-?0*(\d+)$/, '$1$2');
         if (!activeSpotMap.has(spot)) {
           activeSpotMap.set(spot, { vehicle_plate: 'OCCUPIED' });
           activeSpotMap.set(norm, { vehicle_plate: 'OCCUPIED' });
+          activeSpotMap.set(compact, { vehicle_plate: 'OCCUPIED' });
         }
       }
     });
 
-    return BASE_BAYS.map((bay) => {
-      const bayNorm = bay.label.replace(/^([VR])-?0*(\d+)$/, '$1$2').toUpperCase();
-      const activeSession = activeSpotMap.get(bay.label.toUpperCase()) || activeSpotMap.get(bayNorm);
+    return CANONICAL_VECTOR_BAYS.map((bay) => {
+      const rawNum = bay.bayNumber.toUpperCase().trim();
+      const norm = rawNum.replace(/^([VR])-?0*(\d+)$/, '$1-$2');
+      const compact = rawNum.replace(/^([VR])-?0*(\d+)$/, '$1$2');
+
+      const activeSession = activeSpotMap.get(rawNum) || activeSpotMap.get(norm) || activeSpotMap.get(compact);
 
       let status = bay.status;
       if (activeSession) {
@@ -172,15 +109,15 @@ export const CarparkMapSandbox: React.FC = () => {
 
     setIsSubmitting(true);
     try {
-      // Find matching carpark in app state
       const targetSpot = carparks.find(
         (c) =>
-          c.spot_number.toUpperCase() === selectedBay.label.toUpperCase() ||
-          c.spot_number.toUpperCase() === selectedBay.label.replace(/^([VR])0*(\d+)$/, '$1-$2').toUpperCase()
+          c.spot_number.toUpperCase() === selectedBay.bayNumber.toUpperCase() ||
+          c.spot_number.toUpperCase() === selectedBay.bayNumber.replace(/^([VR])-?0*(\d+)$/, '$1$2').toUpperCase() ||
+          c.spot_number.toUpperCase() === selectedBay.bayNumber.replace(/^([VR])-?0*(\d+)$/, '$1-$2').toUpperCase()
       ) || carparks[0];
 
-      const spotId = targetSpot?.id || `spot_${selectedBay.label.toLowerCase()}`;
-      const spotNum = targetSpot?.spot_number || selectedBay.label;
+      const spotId = targetSpot?.id || `spot_${selectedBay.bayNumber.toLowerCase().replace('-', '')}`;
+      const spotNum = targetSpot?.spot_number || selectedBay.bayNumber;
 
       await bookSpot(
         spotId,
@@ -211,7 +148,7 @@ export const CarparkMapSandbox: React.FC = () => {
       <div className="flex items-center justify-between px-1">
         <div className="flex items-center gap-2">
           <span className="text-[11px] font-black uppercase tracking-wider text-slate-400">
-            Interactive 2D Site Schematic
+            Real Site Layout Floorplan
           </span>
         </div>
         <button
@@ -263,7 +200,7 @@ export const CarparkMapSandbox: React.FC = () => {
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="text-xl font-black text-white">
-                        Bay {selectedBay.label}
+                        Bay {selectedBay.bayNumber}
                       </span>
                       <span
                         className={`text-[10px] px-2 py-0.5 rounded-md font-extrabold uppercase tracking-wider ${
@@ -278,7 +215,7 @@ export const CarparkMapSandbox: React.FC = () => {
                     <p className="text-xs text-slate-400 font-medium mt-0.5">
                       {selectedBay.zone === 'front'
                         ? 'Front Wing · Albany Hwy Entrance'
-                        : 'Rear Courtyard · Back Turning Circle'}
+                        : 'Rear Wing · Back Courtyard'}
                     </p>
                   </div>
                 </div>
@@ -439,7 +376,7 @@ export const CarparkMapSandbox: React.FC = () => {
                         </>
                       ) : (
                         <>
-                          <span>Book Bay {selectedBay.label}</span>
+                          <span>Book Bay {selectedBay.bayNumber}</span>
                           <ArrowRight className="w-4 h-4" />
                         </>
                       )}
