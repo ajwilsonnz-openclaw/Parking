@@ -50,19 +50,19 @@ export const SectionAisle: React.FC<SectionAisleProps> = ({
   };
 
   return (
-    <div className="card p-4 space-y-3 bg-white border border-slate-200/90 shadow-sm rounded-3xl">
+    <div className="card p-3 space-y-2 bg-white border border-slate-200/90 shadow-sm rounded-2xl">
       {/* Section Header */}
-      <div className="flex items-center justify-between px-1">
+      <div className="flex items-center justify-between px-0.5">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center font-black">
-            <MapPin className="w-4 h-4 text-slate-600" />
+          <div className="w-6 h-6 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center font-black">
+            <MapPin className="w-3.5 h-3.5 text-slate-600" />
           </div>
           <div>
-            <h3 className="text-sm font-extrabold text-slate-900 tracking-tight">
+            <h3 className="text-xs font-extrabold text-slate-900 tracking-tight">
               {title}
             </h3>
             {description && (
-              <p className="text-[11px] font-medium text-slate-500">
+              <p className="text-[10px] font-medium text-slate-500">
                 {description}
               </p>
             )}
@@ -71,19 +71,19 @@ export const SectionAisle: React.FC<SectionAisleProps> = ({
 
         {/* Live Availability Badge */}
         <div
-          className={`chip text-[11px] font-extrabold py-1 px-3 rounded-full ${
+          className={`chip text-[10px] font-extrabold py-0.5 px-2.5 rounded-full ${
             availableCount > 0
               ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
               : 'bg-slate-100 text-slate-500 border border-slate-200'
           }`}
         >
-          {availableCount} of {spots.length} Available
+          {availableCount} of {spots.length} Free
         </div>
       </div>
 
-      {/* Horizontal Swipeable Parking Aisle */}
-      <div className="relative pt-1 pb-2">
-        <div className="flex gap-2.5 overflow-x-auto no-scrollbar py-1 px-1 scroll-smooth snap-x snap-mandatory">
+      {/* Horizontal Swipeable Parking Aisle (Without Driveway Lane) */}
+      <div className="relative pt-0.5">
+        <div className="flex gap-2 overflow-x-auto no-scrollbar py-1 px-0.5 scroll-smooth snap-x snap-mandatory">
           {spots.map((spot) => {
             const isSelected = selectedSpotId === spot.id;
             const session = getSessionForSpot(spot);
@@ -99,12 +99,6 @@ export const SectionAisle: React.FC<SectionAisleProps> = ({
               </div>
             );
           })}
-        </div>
-
-        {/* Driving Lane Markings Line Under Stalls */}
-        <div className="w-full mt-2 pt-1 border-t-2 border-dashed border-slate-200 flex items-center justify-between px-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-          <span>Driveway Lane</span>
-          <span>Swipe for more →</span>
         </div>
       </div>
     </div>
