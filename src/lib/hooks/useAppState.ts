@@ -7,6 +7,8 @@ const REFRESH_MS = 30_000;
 
 export interface AppState {
   user: any | null;
+  site?: any;
+  sections?: any[];
   carparks: any[];
   sessions: any[];
   vehicles: any[];
