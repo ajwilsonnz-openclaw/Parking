@@ -3,30 +3,26 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/lib/context/AppContext';
 import {
-  MapPin,
   Clock,
   CheckCircle2,
   Car,
-  ChevronDown,
   Info,
-  ShieldAlert,
   ArrowRight,
-  Sparkles,
-  Layers
+  ShieldCheck
 } from 'lucide-react';
 import { SectionAisle } from '@/components/parking/SectionAisle';
 import { StickyBookingFooter } from '@/components/parking/StickyBookingFooter';
 import { RulesModal } from '@/components/modals/RulesModal';
 import { BookingTimesModal } from '@/components/modals/BookingTimesModal';
 import { InstallPromptCard } from '@/components/pwa/InstallPromptCard';
-import { Carpark, Section } from '@/types';
+import { Carpark } from '@/types';
 
 interface HomeViewProps {
   onNavigateTab: (tab: 'home' | 'bookings' | 'status' | 'account') => void;
 }
 
 export const HomeView: React.FC<HomeViewProps> = ({ onNavigateTab }) => {
-  const { site, sections, carparks, sessions, vehicles, bookSpot, releaseSpot, refetch } = useApp();
+  const { site, sections, carparks, sessions, vehicles, savedGuests, bookSpot, releaseSpot, refetch } = useApp();
 
   const [selectedSpot, setSelectedSpot] = useState<Carpark | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -43,7 +39,6 @@ export const HomeView: React.FC<HomeViewProps> = ({ onNavigateTab }) => {
 
   // Group carparks dynamically by section
   const sectionGroups = useMemo(() => {
-    // If dynamic sections exist in database
     if (sections && sections.length > 0) {
       return sections.map((sec) => ({
         id: sec.id,
@@ -78,7 +73,6 @@ export const HomeView: React.FC<HomeViewProps> = ({ onNavigateTab }) => {
     ];
   }, [sections, carparks]);
 
-  const totalVisitorBays = carparks.length || 23;
   const totalAvailableCount = useMemo(() => {
     return carparks.filter((spot) => {
       const isOccupied =
@@ -106,6 +100,7 @@ export const HomeView: React.FC<HomeViewProps> = ({ onNavigateTab }) => {
     plateNumber: string;
     durationHours: number;
     visitorName?: string;
+    savedGuestId?: string;
   }) => {
     setIsSubmitting(true);
     try {
@@ -115,7 +110,9 @@ export const HomeView: React.FC<HomeViewProps> = ({ onNavigateTab }) => {
         params.plateNumber,
         params.durationHours,
         'visitor',
-        params.visitorName
+        params.visitorName,
+        undefined,
+        params.savedGuestId
       );
       await refetch();
     } catch (err: any) {
@@ -127,67 +124,48 @@ export const HomeView: React.FC<HomeViewProps> = ({ onNavigateTab }) => {
   };
 
   return (
-    <div className="min-h-[calc(100dvh-6rem)] flex flex-col max-w-lg mx-auto pb-32 animate-fade-in space-y-4">
+    <div className="min-h-[calc(100dvh-6rem)] flex flex-col max-w-lg mx-auto pb-36 animate-fade-in space-y-3.5 px-1">
       {/* PWA Install Alert */}
       <InstallPromptCard />
 
-      {/* Top Location Header (Inspired by Nordic Mobility App) */}
-      <div className="card p-4 bg-white border border-slate-200/90 shadow-sm rounded-3xl space-y-2">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-black">
-              <MapPin className="w-5 h-5 text-emerald-600" />
-            </div>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <h2 className="text-base font-extrabold text-slate-900 tracking-tight">
-                  {site?.name || 'Millennium Village'}
-                </h2>
-                <ChevronDown className="w-4 h-4 text-slate-400" />
-              </div>
-              <p className="text-xs text-slate-500 font-medium mt-0.5">
-                {site?.address || '548 Albany Highway, Auckland'}
-              </p>
-            </div>
-          </div>
-
-          <div className="text-right">
-            <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">
-              Live Status
-            </span>
-            <span className="text-sm font-black text-emerald-600">
-              {totalAvailableCount} Free
-            </span>
+      {/* Top Action & Status Bar */}
+      <div className="flex items-center justify-between px-1 pt-1">
+        <div>
+          <h2 className="text-base font-extrabold text-slate-900 tracking-tight">
+            Select a Visitor Car Park
+          </h2>
+          <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-500 font-medium">
+            <button
+              onClick={() => setShowTimesModal(true)}
+              className="hover:text-slate-900 transition-colors flex items-center gap-1"
+            >
+              <Clock className="w-3.5 h-3.5 text-slate-400" />
+              <span>24h Max</span>
+            </button>
+            <span>·</span>
+            <button
+              onClick={() => setShowRulesModal(true)}
+              className="hover:text-slate-900 transition-colors flex items-center gap-1"
+            >
+              <Info className="w-3.5 h-3.5 text-slate-400" />
+              <span>Visitor Rules</span>
+            </button>
           </div>
         </div>
 
-        {/* Quick Rule Pills */}
-        <div className="flex items-center gap-2 pt-2 border-t border-slate-100 text-[11px] font-bold text-slate-500">
-          <button
-            onClick={() => setShowTimesModal(true)}
-            className="flex items-center gap-1 hover:text-slate-900 transition-colors"
-          >
-            <Clock className="w-3.5 h-3.5 text-slate-400" />
-            <span>24h Max Stay</span>
-          </button>
-          <span>·</span>
-          <button
-            onClick={() => setShowRulesModal(true)}
-            className="flex items-center gap-1 hover:text-slate-900 transition-colors"
-          >
-            <Info className="w-3.5 h-3.5 text-slate-400" />
-            <span>Visitor Rules</span>
-          </button>
+        {/* Live Free Counter */}
+        <div className="chip py-1.5 px-3 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-black">
+          {totalAvailableCount} of {carparks.length || 23} Free
         </div>
       </div>
 
       {/* Active Session Highlight Card (if any) */}
       {activeSessions.length > 0 && (
-        <div className="card p-4 bg-emerald-900 text-white shadow-lg rounded-3xl space-y-3 animate-slide-up">
+        <div className="card p-3.5 bg-emerald-900 text-white shadow-md rounded-2xl space-y-2.5 animate-slide-up">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-xs font-black uppercase tracking-wider text-emerald-300">
+              <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-[11px] font-black uppercase tracking-wider text-emerald-300">
                 Active Parking Session
               </span>
             </div>
@@ -196,32 +174,34 @@ export const HomeView: React.FC<HomeViewProps> = ({ onNavigateTab }) => {
               className="text-xs font-bold text-emerald-200 hover:text-white flex items-center gap-1"
             >
               <span>View details</span>
-              <ArrowRight className="w-3.5 h-3.5" />
+              <ArrowRight className="w-3 h-3" />
             </button>
           </div>
 
-          <div className="flex items-center justify-between bg-emerald-950/60 p-3 rounded-2xl border border-emerald-800/80">
+          <div className="flex items-center justify-between bg-emerald-950/60 p-2.5 rounded-xl border border-emerald-800/80">
             <div>
-              <span className="text-xs font-bold text-emerald-300">Bay</span>
-              <div className="text-xl font-black font-mono text-white">
+              <span className="text-[10px] font-bold text-emerald-300">Park</span>
+              <div className="text-lg font-black font-mono text-white">
                 {activeSessions[0].spot_number.replace('-', '')}
               </div>
             </div>
             <div className="text-right">
-              <span className="text-xs font-bold text-emerald-300">Vehicle</span>
-              <div className="text-xl font-black font-mono text-amber-300">
+              <span className="text-[10px] font-bold text-emerald-300">
+                {activeSessions[0].visitor_name || 'Vehicle'}
+              </span>
+              <div className="text-lg font-black font-mono text-amber-300">
                 {activeSessions[0].vehicle_plate}
               </div>
             </div>
           </div>
 
-          <div className="flex items-center justify-between pt-1 text-xs">
+          <div className="flex items-center justify-between text-xs">
             <span className="text-emerald-200 font-medium">
               Until {new Date(activeSessions[0].expected_end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </span>
             <button
               onClick={() => releaseSpot(activeSessions[0].id)}
-              className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs transition-colors"
+              className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white font-bold text-xs transition-colors"
             >
               Release Early
             </button>
@@ -229,18 +209,8 @@ export const HomeView: React.FC<HomeViewProps> = ({ onNavigateTab }) => {
         </div>
       )}
 
-      {/* Instruction Sub-Header */}
-      <div className="flex items-center justify-between px-1">
-        <h3 className="section-title text-slate-900">
-          Select a Parking Bay
-        </h3>
-        <span className="text-[11px] font-bold text-slate-400">
-          Swipe aisle to browse
-        </span>
-      </div>
-
       {/* Dynamic Section Aisles */}
-      <div className="space-y-4">
+      <div className="space-y-3.5">
         {sectionGroups.map((sec) => (
           <SectionAisle
             key={sec.id}
@@ -254,10 +224,11 @@ export const HomeView: React.FC<HomeViewProps> = ({ onNavigateTab }) => {
         ))}
       </div>
 
-      {/* Sticky Booking Drawer (Inspired by Reference App) */}
+      {/* Sticky Booking Drawer */}
       <StickyBookingFooter
         selectedSpot={selectedSpot}
         vehicles={vehicles}
+        savedGuests={savedGuests}
         onClearSelection={() => setSelectedSpot(null)}
         onConfirmBooking={handleConfirmBooking}
         isSubmitting={isSubmitting}

@@ -8,7 +8,6 @@ export async function GET(req: NextRequest) {
   await ensureSchema().catch(() => {});
 
   const user = await getUserFromClerk();
-  if (!user) return NextResponse.json({ user: null }, { status: 200 });
 
   try {
     const nowIso = new Date().toISOString();
@@ -41,15 +40,23 @@ export async function GET(req: NextRequest) {
       await Promise.all([
         safeQuery('SELECT * FROM carparks ORDER BY spot_number'),
         safeQuery('SELECT * FROM parking_sessions ORDER BY expected_end_time DESC LIMIT 200'),
-        user.role === 'admin' || user.role === 'management'
+        user && (user.role === 'admin' || user.role === 'management')
           ? safeQuery('SELECT * FROM unit_vehicles ORDER BY requested_at DESC LIMIT 200')
-          : safeQuery('SELECT * FROM unit_vehicles WHERE user_id = ? OR unit_number = ? ORDER BY requested_at DESC', [user.id, user.unit_number]),
-        safeQuery('SELECT * FROM saved_guests WHERE user_id = ? ORDER BY created_at DESC', [user.id]),
-        user.role === 'admin' || user.role === 'management'
+          : user
+          ? safeQuery('SELECT * FROM unit_vehicles WHERE user_id = ? OR unit_number = ? ORDER BY requested_at DESC', [user.id, user.unit_number])
+          : Promise.resolve([]),
+        user
+          ? safeQuery('SELECT * FROM saved_guests WHERE user_id = ? ORDER BY created_at DESC', [user.id])
+          : Promise.resolve([]),
+        user && (user.role === 'admin' || user.role === 'management')
           ? safeQuery('SELECT * FROM demerits ORDER BY created_at DESC LIMIT 200')
-          : safeQuery('SELECT * FROM demerits WHERE user_id = ? OR unit_number = ? ORDER BY created_at DESC LIMIT 100', [user.id, user.unit_number]),
+          : user
+          ? safeQuery('SELECT * FROM demerits WHERE user_id = ? OR unit_number = ? ORDER BY created_at DESC LIMIT 100', [user.id, user.unit_number])
+          : Promise.resolve([]),
         safeQuery('SELECT * FROM spot_rentals ORDER BY created_at DESC LIMIT 100'),
-        safeQuery('SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 50', [user.id]),
+        user
+          ? safeQuery('SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 50', [user.id])
+          : Promise.resolve([]),
         safeQuery('SELECT * FROM system_config'),
         safeQuery('SELECT * FROM units ORDER BY unit_number ASC'),
         safeQuery('SELECT * FROM whitelist ORDER BY added_at DESC'),
@@ -60,9 +67,45 @@ export async function GET(req: NextRequest) {
     const config: Record<string, string> = {};
     (configRows || []).forEach((row: any) => { config[row.key] = row.value; });
 
+    const DEFAULT_SECTIONS = [
+      { id: 'sec_entrance', site_id: 'site_mv', name: 'Entrance', display_order: 1, description: 'Main entrance area' },
+      { id: 'sec_units_1_7', site_id: 'site_mv', name: 'Units 1–7', display_order: 2, description: 'Front townhouse wing' },
+      { id: 'sec_units_8_13', site_id: 'site_mv', name: 'Units 8–13', display_order: 3, description: 'Middle townhouse wing' },
+      { id: 'sec_back', site_id: 'site_mv', name: 'Back of Complex', display_order: 4, description: 'Rear courtyard area' },
+    ];
+
+    const DEFAULT_CARPARKS = [
+      { id: 'cp_v01', site_id: 'site_mv', section_id: 'sec_entrance', section: 'Entrance', spot_number: 'V01', status: 'available' },
+      { id: 'cp_v02', site_id: 'site_mv', section_id: 'sec_entrance', section: 'Entrance', spot_number: 'V02', status: 'available' },
+      { id: 'cp_v03', site_id: 'site_mv', section_id: 'sec_entrance', section: 'Entrance', spot_number: 'V03', status: 'available' },
+      { id: 'cp_v04', site_id: 'site_mv', section_id: 'sec_units_1_7', section: 'Units 1–7', spot_number: 'V04', status: 'available' },
+      { id: 'cp_v05', site_id: 'site_mv', section_id: 'sec_units_1_7', section: 'Units 1–7', spot_number: 'V05', status: 'available' },
+      { id: 'cp_v06', site_id: 'site_mv', section_id: 'sec_units_1_7', section: 'Units 1–7', spot_number: 'V06', status: 'available' },
+      { id: 'cp_v07', site_id: 'site_mv', section_id: 'sec_units_1_7', section: 'Units 1–7', spot_number: 'V07', status: 'available' },
+      { id: 'cp_v08', site_id: 'site_mv', section_id: 'sec_units_1_7', section: 'Units 1–7', spot_number: 'V08', status: 'available' },
+      { id: 'cp_v09', site_id: 'site_mv', section_id: 'sec_units_1_7', section: 'Units 1–7', spot_number: 'V09', status: 'available' },
+      { id: 'cp_v10', site_id: 'site_mv', section_id: 'sec_units_1_7', section: 'Units 1–7', spot_number: 'V10', status: 'available' },
+      { id: 'cp_v11', site_id: 'site_mv', section_id: 'sec_units_1_7', section: 'Units 1–7', spot_number: 'V11', status: 'available' },
+      { id: 'cp_v12', site_id: 'site_mv', section_id: 'sec_units_1_7', section: 'Units 1–7', spot_number: 'V12', status: 'available' },
+      { id: 'cp_v13', site_id: 'site_mv', section_id: 'sec_units_1_7', section: 'Units 1–7', spot_number: 'V13', status: 'available' },
+      { id: 'cp_v14', site_id: 'site_mv', section_id: 'sec_units_1_7', section: 'Units 1–7', spot_number: 'V14', status: 'available' },
+      { id: 'cp_v15', site_id: 'site_mv', section_id: 'sec_units_8_13', section: 'Units 8–13', spot_number: 'V15', status: 'available' },
+      { id: 'cp_v16', site_id: 'site_mv', section_id: 'sec_units_8_13', section: 'Units 8–13', spot_number: 'V16', status: 'available' },
+      { id: 'cp_v17', site_id: 'site_mv', section_id: 'sec_units_8_13', section: 'Units 8–13', spot_number: 'V17', status: 'available' },
+      { id: 'cp_v18', site_id: 'site_mv', section_id: 'sec_units_8_13', section: 'Units 8–13', spot_number: 'V18', status: 'available' },
+      { id: 'cp_v19', site_id: 'site_mv', section_id: 'sec_units_8_13', section: 'Units 8–13', spot_number: 'V19', status: 'available' },
+      { id: 'cp_v20', site_id: 'site_mv', section_id: 'sec_units_8_13', section: 'Units 8–13', spot_number: 'V20', status: 'available' },
+      { id: 'cp_v21', site_id: 'site_mv', section_id: 'sec_back', section: 'Back of Complex', spot_number: 'V21', status: 'available' },
+      { id: 'cp_v22', site_id: 'site_mv', section_id: 'sec_back', section: 'Back of Complex', spot_number: 'V22', status: 'available' },
+      { id: 'cp_v23', site_id: 'site_mv', section_id: 'sec_back', section: 'Back of Complex', spot_number: 'V23', status: 'available' },
+    ];
+
+    const finalCarparks = carparks && carparks.length > 0 ? carparks : DEFAULT_CARPARKS;
+    const finalSections = sectionsRaw && sectionsRaw.length > 0 ? sectionsRaw : DEFAULT_SECTIONS;
+
     return NextResponse.json({
       user,
-      carparks: carparks || [],
+      carparks: finalCarparks,
       sessions: (sessionsRaw || []).map((s: any) => {
         const nowMs = Date.now();
         const endMs = new Date(s.expected_end_time).getTime();
@@ -93,7 +136,7 @@ export async function GET(req: NextRequest) {
       notifications: notificationsRaw || [],
       units: unitsRaw || [],
       whitelist: whitelistRaw || [],
-      sections: sectionsRaw || [],
+      sections: finalSections,
       site: sitesRaw && sitesRaw.length > 0 ? sitesRaw[0] : {
         id: 'site_mv',
         name: 'Millennium Village',
