@@ -29,12 +29,30 @@ export interface AssignedSpot {
   floor_section: string;
 }
 
+export interface Site {
+  id: string;
+  name: string;
+  address: string;
+  total_visitor_parks?: number;
+  max_duration_hours?: number;
+}
+
+export interface Section {
+  id: string;
+  site_id: string;
+  name: string;
+  display_order: number;
+  description?: string;
+}
+
 export type SpotStatus = 'available' | 'occupied' | 'maintenance' | 'rented';
 
 export interface Carpark {
   id: string;
   spot_number: string;
   section: string;
+  section_id?: string;
+  site_id?: string;
   status: SpotStatus;
   is_rentable_private?: boolean;
   owner_unit_number?: string;

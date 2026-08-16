@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useMemo, useCallback, useState, useEffect } from 'react';
 import {
   Carpark, ParkingSession, User, UnitVehicle, DemeritRecord,
-  SpotRental, SystemConfig, WhitelistEntry, Role, SessionType, SavedGuest,
+  SpotRental, SystemConfig, WhitelistEntry, Role, SessionType, SavedGuest, Section, Site,
 } from '@/types';
 import { useAppState, apiPost, apiDelete } from '@/lib/hooks/useAppState';
 
@@ -17,6 +17,8 @@ interface AppContextType {
   logout: () => Promise<void>;
 
   config: SystemConfig;
+  site: Site | null;
+  sections: Section[];
   carparks: Carpark[];
   sessions: ParkingSession[];
   vehicles: UnitVehicle[];
@@ -318,6 +320,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     refetch: invalidate,
     logout,
     config,
+    site: data?.site || null,
+    sections: data?.sections || [],
     carparks,
     sessions,
     vehicles,

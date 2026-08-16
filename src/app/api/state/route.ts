@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
       }
     };
 
-    const [carparks, sessionsRaw, vehiclesRaw, savedGuestsRaw, demerits, rentalsRaw, notificationsRaw, configRows, unitsRaw, whitelistRaw] =
+    const [carparks, sessionsRaw, vehiclesRaw, savedGuestsRaw, demerits, rentalsRaw, notificationsRaw, configRows, unitsRaw, whitelistRaw, sectionsRaw, sitesRaw] =
       await Promise.all([
         safeQuery('SELECT * FROM carparks ORDER BY spot_number'),
         safeQuery('SELECT * FROM parking_sessions ORDER BY expected_end_time DESC LIMIT 200'),
@@ -53,6 +53,8 @@ export async function GET(req: NextRequest) {
         safeQuery('SELECT * FROM system_config'),
         safeQuery('SELECT * FROM units ORDER BY unit_number ASC'),
         safeQuery('SELECT * FROM whitelist ORDER BY added_at DESC'),
+        safeQuery('SELECT * FROM sections ORDER BY display_order ASC'),
+        safeQuery('SELECT * FROM sites LIMIT 1'),
       ]);
 
     const config: Record<string, string> = {};
@@ -91,6 +93,14 @@ export async function GET(req: NextRequest) {
       notifications: notificationsRaw || [],
       units: unitsRaw || [],
       whitelist: whitelistRaw || [],
+      sections: sectionsRaw || [],
+      site: sitesRaw && sitesRaw.length > 0 ? sitesRaw[0] : {
+        id: 'site_mv',
+        name: 'Millennium Village',
+        address: '548 Albany Highway, Auckland',
+        total_visitor_parks: 23,
+        max_duration_hours: 24,
+      },
       config: {
         max_visitor_hours: parseInt(config.max_visitor_hours || '24', 10),
         max_resident_excess_hours: parseInt(config.max_resident_excess_hours || '12', 10),

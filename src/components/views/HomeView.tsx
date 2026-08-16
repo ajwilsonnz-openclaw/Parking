@@ -1,241 +1,271 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useApp } from '@/lib/context/AppContext';
 import {
   MapPin,
-  ArrowRight,
-  Calendar,
   Clock,
-  HelpCircle,
-  ShieldCheck,
-  ChevronRight,
   CheckCircle2,
   Car,
-  Users,
+  ChevronDown,
   Info,
-  Shield,
+  ShieldAlert,
+  ArrowRight,
+  Sparkles,
+  Layers
 } from 'lucide-react';
-import { BookingModal } from '@/components/parking/BookingModal';
-import { BookRegularVisitorModal } from '@/components/parking/BookRegularVisitorModal';
+import { SectionAisle } from '@/components/parking/SectionAisle';
+import { StickyBookingFooter } from '@/components/parking/StickyBookingFooter';
 import { RulesModal } from '@/components/modals/RulesModal';
 import { BookingTimesModal } from '@/components/modals/BookingTimesModal';
 import { InstallPromptCard } from '@/components/pwa/InstallPromptCard';
-import { fmtDate, fmtTimeRange, dateBlockParts } from '@/lib/format';
-import { SavedGuest } from '@/types';
+import { Carpark, Section } from '@/types';
 
 interface HomeViewProps {
   onNavigateTab: (tab: 'home' | 'bookings' | 'status' | 'account') => void;
 }
 
 export const HomeView: React.FC<HomeViewProps> = ({ onNavigateTab }) => {
-  const { config, sessions, carparks } = useApp();
-  const [showBookingModal, setShowBookingModal] = useState(false);
-  const [showRegularVisitorModal, setShowRegularVisitorModal] = useState(false);
+  const { site, sections, carparks, sessions, vehicles, bookSpot, releaseSpot, refetch } = useApp();
+
+  const [selectedSpot, setSelectedSpot] = useState<Carpark | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [showRulesModal, setShowRulesModal] = useState(false);
   const [showTimesModal, setShowTimesModal] = useState(false);
 
-  // Selected regular visitor prefill
-  const [prefillPlate, setPrefillPlate] = useState('');
-  const [prefillName, setPrefillName] = useState('');
-  const [prefillPhone, setPrefillPhone] = useState('');
+  // Active bookings for currently logged-in user / unit
+  const activeSessions = useMemo(() => {
+    const nowMs = Date.now();
+    return sessions.filter(
+      (s) => s.is_active && new Date(s.expected_end_time).getTime() > nowMs && !s.end_time
+    );
+  }, [sessions]);
 
-  const activeSessions = sessions.filter((s) => s.is_active && new Date(s.expected_end_time).getTime() > Date.now());
-  const nextBooking = activeSessions[0];
-  const availableVisitorCount = carparks.filter((c) => c.status === 'available' && c.spot_number.startsWith(config.spot_prefix || 'V')).length;
+  // Group carparks dynamically by section
+  const sectionGroups = useMemo(() => {
+    // If dynamic sections exist in database
+    if (sections && sections.length > 0) {
+      return sections.map((sec) => ({
+        id: sec.id,
+        name: sec.name,
+        description: sec.description,
+        spots: carparks.filter(
+          (c) => c.section_id === sec.id || c.section === sec.name
+        ),
+      }));
+    }
 
-  const handleOpenNormalBooking = () => {
-    setPrefillPlate('');
-    setPrefillName('');
-    setPrefillPhone('');
-    setShowBookingModal(true);
+    // Fallback default sections if DB empty
+    const entrance = carparks.filter((c) => ['V01', 'V02', 'V03', 'V-01', 'V-02', 'V-03'].includes(c.spot_number));
+    const units1_7 = carparks.filter((c) => {
+      const num = parseInt(c.spot_number.replace(/^V-?/i, ''), 10);
+      return num >= 4 && num <= 14;
+    });
+    const units8_13 = carparks.filter((c) => {
+      const num = parseInt(c.spot_number.replace(/^V-?/i, ''), 10);
+      return num >= 15 && num <= 20;
+    });
+    const back = carparks.filter((c) => {
+      const num = parseInt(c.spot_number.replace(/^V-?/i, ''), 10);
+      return num >= 21 && num <= 23;
+    });
+
+    return [
+      { id: 'sec_entrance', name: 'Entrance', description: 'Main entrance area', spots: entrance.length ? entrance : carparks.slice(0, 3) },
+      { id: 'sec_units_1_7', name: 'Units 1–7', description: 'Front townhouse wing', spots: units1_7.length ? units1_7 : carparks.slice(3, 14) },
+      { id: 'sec_units_8_13', name: 'Units 8–13', description: 'Middle townhouse wing', spots: units8_13.length ? units8_13 : carparks.slice(14, 20) },
+      { id: 'sec_back', name: 'Back of Complex', description: 'Rear courtyard area', spots: back.length ? back : carparks.slice(20, 23) },
+    ];
+  }, [sections, carparks]);
+
+  const totalVisitorBays = carparks.length || 23;
+  const totalAvailableCount = useMemo(() => {
+    return carparks.filter((spot) => {
+      const isOccupied =
+        spot.status === 'occupied' ||
+        sessions.some(
+          (s) =>
+            s.is_active &&
+            (s.spot_number === spot.spot_number ||
+              s.spot_number.replace('-', '') === spot.spot_number.replace('-', ''))
+        );
+      return !isOccupied && spot.status === 'available';
+    }).length;
+  }, [carparks, sessions]);
+
+  const handleSpotSelect = (spot: Carpark) => {
+    if (selectedSpot?.id === spot.id) {
+      setSelectedSpot(null);
+    } else {
+      setSelectedSpot(spot);
+    }
   };
 
-  const handleSelectRegularVisitor = (guest: SavedGuest) => {
-    setPrefillPlate(guest.plate);
-    setPrefillName(guest.name);
-    setPrefillPhone(guest.phone || '');
-    setShowBookingModal(true);
+  const handleConfirmBooking = async (params: {
+    spot: Carpark;
+    plateNumber: string;
+    durationHours: number;
+    visitorName?: string;
+  }) => {
+    setIsSubmitting(true);
+    try {
+      await bookSpot(
+        params.spot.id,
+        params.spot.spot_number,
+        params.plateNumber,
+        params.durationHours,
+        'visitor',
+        params.visitorName
+      );
+      await refetch();
+    } catch (err: any) {
+      alert(err.message || 'Failed to book parking space');
+      throw err;
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
-    <div className="min-h-[calc(100dvh-6rem)] flex flex-col justify-between max-w-lg mx-auto pb-20 sm:pb-24 animate-fade-in px-1 space-y-3">
-      {/* PWA install prompt */}
+    <div className="min-h-[calc(100dvh-6rem)] flex flex-col max-w-lg mx-auto pb-32 animate-fade-in space-y-4">
+      {/* PWA Install Alert */}
       <InstallPromptCard />
 
-      {/* Hero: Book a Visitor Carpark */}
-      <div className="w-full">
-        <button
-          onClick={handleOpenNormalBooking}
-          className="relative overflow-hidden w-full rounded-3xl p-5 text-left text-white bg-gradient-to-br from-[#0066ff] via-[#0055e6] to-[#0044cc] shadow-xl shadow-blue-600/20 active:scale-[0.98] transition-all hover:shadow-2xl hover:shadow-blue-600/30 border border-blue-400/20"
-        >
-          <div className="absolute -right-4 -bottom-6 opacity-10 pointer-events-none">
-            <Car className="w-40 h-40" />
-          </div>
-          <div className="flex items-center justify-between relative z-10">
-            <div className="flex-1 pr-3">
-              <h3 className="text-2xl font-black text-white tracking-tight leading-tight">
-                Book a Visitor Carpark
-              </h3>
-              <p className="text-xs text-blue-100/90 mt-1.5 max-w-[220px] leading-relaxed font-medium">
-                Reserve a parking space for your visitors in a few taps.
+      {/* Top Location Header (Inspired by Nordic Mobility App) */}
+      <div className="card p-4 bg-white border border-slate-200/90 shadow-sm rounded-3xl space-y-2">
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-black">
+              <MapPin className="w-5 h-5 text-emerald-600" />
+            </div>
+            <div>
+              <div className="flex items-center gap-1.5">
+                <h2 className="text-base font-extrabold text-slate-900 tracking-tight">
+                  {site?.name || 'Millennium Village'}
+                </h2>
+                <ChevronDown className="w-4 h-4 text-slate-400" />
+              </div>
+              <p className="text-xs text-slate-500 font-medium mt-0.5">
+                {site?.address || '548 Albany Highway, Auckland'}
               </p>
-              <div className="inline-flex items-center gap-2 mt-3 px-3 py-1 rounded-full bg-blue-950/40 backdrop-blur-md border border-blue-400/20 text-xs font-bold text-blue-100">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span>{availableVisitorCount} available now</span>
-              </div>
-            </div>
-            <div className="w-12 h-12 rounded-2xl bg-white text-blue-600 flex items-center justify-center shadow-lg shrink-0 font-bold">
-              <ArrowRight className="w-6 h-6 stroke-[2.5]" />
             </div>
           </div>
-        </button>
-      </div>
 
-      {/* Your upcoming booking */}
-      <div className="space-y-1.5">
-        <div className="flex items-center justify-between px-1">
-          <h3 className="text-sm font-black text-ink tracking-tight">Your upcoming booking</h3>
-          <button
-            onClick={() => onNavigateTab('bookings')}
-            className="text-xs font-extrabold text-accent hover:underline"
-          >
-            View all
-          </button>
-        </div>
-
-        {nextBooking ? (
-          <div
-            onClick={() => onNavigateTab('bookings')}
-            className="card p-3.5 flex items-center justify-between cursor-pointer hover:border-accent/40 transition-all"
-          >
-            <div className="flex items-center gap-3.5 flex-1 min-w-0">
-              {/* Date block */}
-              <div className="w-14 h-16 rounded-2xl bg-blue-950/50 dark:bg-slate-900 border border-blue-500/20 text-blue-400 flex flex-col items-center justify-center shrink-0">
-                <span className="text-[9px] font-black uppercase tracking-wider text-blue-300">{dateBlockParts(nextBooking.expected_end_time).dow}</span>
-                <span className="text-xl font-black leading-none my-0.5 text-white">{dateBlockParts(nextBooking.expected_end_time).day}</span>
-                <span className="text-[9px] font-black uppercase tracking-wider text-blue-300">{dateBlockParts(nextBooking.expected_end_time).mon}</span>
-              </div>
-              <div className="min-w-0 flex-1">
-                <h4 className="text-sm font-extrabold text-ink truncate">{fmtDate(nextBooking.expected_end_time)}</h4>
-                <p className="text-xs font-medium text-ink-secondary mt-0.5">{fmtTimeRange(nextBooking.start_time, nextBooking.expected_end_time)}</p>
-                <div className="flex items-center gap-1.5 text-xs text-ink font-bold mt-1">
-                  <Car className="w-3.5 h-3.5 text-ink-tertiary shrink-0" />
-                  <span className="truncate">{nextBooking.visitor_name || `Spot ${nextBooking.spot_number}`} ({nextBooking.vehicle_plate})</span>
-                </div>
-              </div>
-            </div>
-            <span className="chip bg-emerald-950/60 border border-emerald-500/30 text-emerald-400 font-bold text-xs shrink-0 py-1 px-2.5 rounded-full flex items-center gap-1">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Confirmed
+          <div className="text-right">
+            <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">
+              Live Status
+            </span>
+            <span className="text-sm font-black text-emerald-600">
+              {totalAvailableCount} Free
             </span>
           </div>
-        ) : (
-          <div className="card p-5 text-center">
-            <Calendar className="w-8 h-8 text-ink-tertiary mx-auto mb-1.5 opacity-50" />
-            <span className="text-xs font-bold text-ink block">No Active Bookings</span>
-            <p className="text-[11px] text-ink-tertiary mt-0.5">Tap above to reserve a visitor park</p>
-          </div>
-        )}
-      </div>
-
-      {/* Quick actions */}
-      <div className="space-y-1.5">
-        <h3 className="text-sm font-black text-ink tracking-tight px-1">Quick actions</h3>
-        <div className="grid grid-cols-3 gap-2">
-          <QuickActionCard
-            icon={<Calendar className="w-5 h-5 text-blue-400" />}
-            title="My Bookings"
-            subtitle="View and manage"
-            onClick={() => onNavigateTab('bookings')}
-          />
-          <QuickActionCard
-            icon={<Users className="w-5 h-5 text-blue-400" />}
-            title="Book Regular Visitor"
-            subtitle="Add a regular visitor"
-            onClick={() => setShowRegularVisitorModal(true)}
-          />
-          <QuickActionCard
-            icon={<Info className="w-5 h-5 text-blue-400" />}
-            title="How It Works"
-            subtitle="Learn more"
-            onClick={() => setShowRulesModal(true)}
-          />
         </div>
-      </div>
 
-      {/* Need to know */}
-      <div className="space-y-1.5">
-        <h3 className="text-sm font-black text-ink tracking-tight px-1">Need to know</h3>
-        <div className="card overflow-hidden">
-          <NeedToKnowRow
-            icon={<Shield className="w-4 h-4 text-blue-400" />}
-            title="Visitor parking rules"
-            description="Please familiarise yourself with the rules."
-            onClick={() => setShowRulesModal(true)}
-          />
-          <div className="h-px bg-border/50" />
-          <NeedToKnowRow
-            icon={<Clock className="w-4 h-4 text-blue-400" />}
-            title="Booking Times"
-            description="How long can I book for?"
+        {/* Quick Rule Pills */}
+        <div className="flex items-center gap-2 pt-2 border-t border-slate-100 text-[11px] font-bold text-slate-500">
+          <button
             onClick={() => setShowTimesModal(true)}
-          />
+            className="flex items-center gap-1 hover:text-slate-900 transition-colors"
+          >
+            <Clock className="w-3.5 h-3.5 text-slate-400" />
+            <span>24h Max Stay</span>
+          </button>
+          <span>·</span>
+          <button
+            onClick={() => setShowRulesModal(true)}
+            className="flex items-center gap-1 hover:text-slate-900 transition-colors"
+          >
+            <Info className="w-3.5 h-3.5 text-slate-400" />
+            <span>Visitor Rules</span>
+          </button>
         </div>
       </div>
 
-      {/* Modals */}
-      <BookingModal
-        isOpen={showBookingModal}
-        onClose={() => setShowBookingModal(false)}
-        initialPlate={prefillPlate}
-        initialVisitorName={prefillName}
-        initialVisitorPhone={prefillPhone}
+      {/* Active Session Highlight Card (if any) */}
+      {activeSessions.length > 0 && (
+        <div className="card p-4 bg-emerald-900 text-white shadow-lg rounded-3xl space-y-3 animate-slide-up">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-xs font-black uppercase tracking-wider text-emerald-300">
+                Active Parking Session
+              </span>
+            </div>
+            <button
+              onClick={() => onNavigateTab('bookings')}
+              className="text-xs font-bold text-emerald-200 hover:text-white flex items-center gap-1"
+            >
+              <span>View details</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          <div className="flex items-center justify-between bg-emerald-950/60 p-3 rounded-2xl border border-emerald-800/80">
+            <div>
+              <span className="text-xs font-bold text-emerald-300">Bay</span>
+              <div className="text-xl font-black font-mono text-white">
+                {activeSessions[0].spot_number.replace('-', '')}
+              </div>
+            </div>
+            <div className="text-right">
+              <span className="text-xs font-bold text-emerald-300">Vehicle</span>
+              <div className="text-xl font-black font-mono text-amber-300">
+                {activeSessions[0].vehicle_plate}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between pt-1 text-xs">
+            <span className="text-emerald-200 font-medium">
+              Until {new Date(activeSessions[0].expected_end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </span>
+            <button
+              onClick={() => releaseSpot(activeSessions[0].id)}
+              className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs transition-colors"
+            >
+              Release Early
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Instruction Sub-Header */}
+      <div className="flex items-center justify-between px-1">
+        <h3 className="section-title text-slate-900">
+          Select a Parking Bay
+        </h3>
+        <span className="text-[11px] font-bold text-slate-400">
+          Swipe aisle to browse
+        </span>
+      </div>
+
+      {/* Dynamic Section Aisles */}
+      <div className="space-y-4">
+        {sectionGroups.map((sec) => (
+          <SectionAisle
+            key={sec.id}
+            title={sec.name}
+            description={sec.description}
+            spots={sec.spots}
+            sessions={sessions}
+            selectedSpotId={selectedSpot?.id || null}
+            onSelectSpot={handleSpotSelect}
+          />
+        ))}
+      </div>
+
+      {/* Sticky Booking Drawer (Inspired by Reference App) */}
+      <StickyBookingFooter
+        selectedSpot={selectedSpot}
+        vehicles={vehicles}
+        onClearSelection={() => setSelectedSpot(null)}
+        onConfirmBooking={handleConfirmBooking}
+        isSubmitting={isSubmitting}
       />
-      <BookRegularVisitorModal
-        isOpen={showRegularVisitorModal}
-        onClose={() => setShowRegularVisitorModal(false)}
-        onSelectGuest={handleSelectRegularVisitor}
-        onGoToNormalBooking={handleOpenNormalBooking}
-      />
+
+      {/* Rules & Info Modals */}
       <RulesModal isOpen={showRulesModal} onClose={() => setShowRulesModal(false)} />
       <BookingTimesModal isOpen={showTimesModal} onClose={() => setShowTimesModal(false)} />
     </div>
   );
 };
-
-function QuickActionCard({ icon, title, subtitle, onClick }: { icon: React.ReactNode; title: string; subtitle: string; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className="card p-3.5 flex flex-col items-center justify-center text-center gap-1.5 hover:border-accent/40 transition-all active:scale-[0.97]"
-    >
-      <div className="w-10 h-10 rounded-2xl bg-blue-950/40 dark:bg-slate-900 border border-blue-500/20 flex items-center justify-center shrink-0">
-        {icon}
-      </div>
-      <div className="min-w-0">
-        <span className="text-xs font-bold text-ink block truncate">{title}</span>
-        <span className="text-[10px] font-medium text-ink-tertiary block truncate">{subtitle}</span>
-      </div>
-    </button>
-  );
-}
-
-function NeedToKnowRow({ icon, title, description, onClick }: { icon: React.ReactNode; title: string; description: string; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className="w-full flex items-center justify-between p-3.5 hover:bg-bg-surface transition-colors group text-left"
-    >
-      <div className="flex items-center gap-3">
-        <div className="w-8 h-8 rounded-xl bg-blue-950/40 dark:bg-slate-900 border border-blue-500/20 flex items-center justify-center shrink-0">
-          {icon}
-        </div>
-        <div>
-          <h4 className="text-xs font-bold text-ink">{title}</h4>
-          <p className="text-[11px] text-ink-secondary font-medium">{description}</p>
-        </div>
-      </div>
-      <ChevronRight className="w-4 h-4 text-ink-tertiary group-hover:translate-x-0.5 group-hover:text-ink transition-all" />
-    </button>
-  );
-}

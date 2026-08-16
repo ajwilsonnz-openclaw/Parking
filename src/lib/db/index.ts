@@ -104,11 +104,35 @@ export async function ensureSchema() {
       );
     `).catch(() => {});
 
+    await execDb(`
+      CREATE TABLE IF NOT EXISTS sites (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        address TEXT NOT NULL,
+        total_visitor_parks INTEGER DEFAULT 23,
+        max_duration_hours INTEGER DEFAULT 24,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+    `).catch(() => {});
+
+    await execDb(`
+      CREATE TABLE IF NOT EXISTS sections (
+        id TEXT PRIMARY KEY,
+        site_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        display_order INTEGER DEFAULT 0,
+        description TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+    `).catch(() => {});
+
     // 2. Safe Column Additions for Legacy Tables
     await execDb('ALTER TABLE whitelist ADD COLUMN assigned_parks INTEGER DEFAULT 1').catch(() => {});
     await execDb('ALTER TABLE users ADD COLUMN assigned_parks INTEGER DEFAULT 1').catch(() => {});
     await execDb('ALTER TABLE unit_vehicles ADD COLUMN user_id TEXT').catch(() => {});
     await execDb('ALTER TABLE unit_vehicles ADD COLUMN status TEXT DEFAULT "approved"').catch(() => {});
+    await execDb('ALTER TABLE carparks ADD COLUMN site_id TEXT DEFAULT "site_mv"').catch(() => {});
+    await execDb('ALTER TABLE carparks ADD COLUMN section_id TEXT').catch(() => {});
   } catch (err) {
     console.warn('[ensureSchema warning]:', err);
   }
