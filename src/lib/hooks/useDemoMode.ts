@@ -1,6 +1,6 @@
 'use client';
 
-import { usePathname, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 /**
@@ -10,12 +10,17 @@ import { useEffect, useState } from 'react';
  */
 export function useDemoMode(): boolean {
   const searchParams = useSearchParams();
-  const [demo, setDemo] = useState(false);
+  const [demo, setDemo] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return (
+      window.location.search.includes('demo=1') ||
+      sessionStorage.getItem('mvp-demo') === '1'
+    );
+  });
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    // URL param takes priority; sticky within the session
-    const fromUrl = searchParams?.get('demo') === '1';
+    const fromUrl = searchParams?.get('demo') === '1' || window.location.search.includes('demo=1');
     if (fromUrl) {
       sessionStorage.setItem('mvp-demo', '1');
       setDemo(true);

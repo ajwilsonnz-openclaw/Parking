@@ -94,7 +94,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Demo mode via ?demo=1
   const [demoUser, setDemoUser] = useState<User | null>(null);
-  const [isDemoMode, setIsDemoMode] = useState(false);
+  const [isDemoMode, setIsDemoMode] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return (
+      window.location.search.includes('demo=1') ||
+      sessionStorage.getItem('mvp-demo') === '1'
+    );
+  });
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const urlDemo = window.location.search.includes('demo=1');
@@ -107,7 +114,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   const currentUser: User | null = useMemo(() => {
-    if (isDemoMode && demoUser) return demoUser;
+    if (isDemoMode) {
+      return (
+        demoUser || {
+          id: 'usr-demo',
+          email: 'resident@millennium.nz',
+          name: 'Alex Johnson',
+          unit_number: 'Unit 4',
+          phone: '+64 21 555 0192',
+          role: 'resident',
+          assigned_parks: 1,
+          created_at: new Date().toISOString(),
+        }
+      );
+    }
     return data?.user || null;
   }, [data?.user, isDemoMode, demoUser]);
 

@@ -7,7 +7,7 @@ export const runtime = 'edge';
 export async function GET(req: NextRequest) {
   await ensureSchema().catch(() => {});
 
-  const user = await getUserFromClerk();
+  const user = await getUserFromClerk().catch(() => null);
 
   try {
     const nowIso = new Date().toISOString();

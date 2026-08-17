@@ -90,19 +90,19 @@ function Shell() {
     }
   }, [searchParams, router]);
 
-  if (!mounted || isLoading) {
-    return <div className="min-h-screen" style={{ backgroundColor: 'var(--bg-app)' }} />;
+  if (!mounted) {
+    return <div className="min-h-screen bg-slate-50" />;
   }
 
-  if (isDemoParam) {
+  if (isDemoParam || isAuthed) {
     return <AuthedShell />;
   }
 
-  if (!isAuthed) {
-    return <LoginView />;
+  if (isLoading) {
+    return <div className="min-h-screen bg-slate-50" />;
   }
 
-  return <AuthedShell />;
+  return <LoginView />;
 }
 
 export default function Home() {

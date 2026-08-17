@@ -11,8 +11,11 @@ import {
   X,
   ArrowRight,
   Sparkles,
-  Users
+  Users,
+  BookmarkPlus,
+  Sliders
 } from 'lucide-react';
+import { useApp } from '@/lib/context/AppContext';
 import { Carpark, UnitVehicle, SavedGuest } from '@/types';
 
 interface StickyBookingFooterProps {
@@ -40,6 +43,8 @@ export const StickyBookingFooter: React.FC<StickyBookingFooterProps> = ({
   onConfirmBooking,
   isSubmitting,
 }) => {
+  const { addSavedGuest } = useApp();
+
   // Mode selection: default to 'saved' if saved guests exist, else 'new'
   const [carMode, setCarMode] = useState<CarSourceMode>(() =>
     savedGuests.length > 0 ? 'saved' : 'new'
@@ -53,6 +58,7 @@ export const StickyBookingFooter: React.FC<StickyBookingFooterProps> = ({
   // New guest inputs
   const [newVisitorName, setNewVisitorName] = useState('');
   const [newPlate, setNewPlate] = useState('');
+  const [saveForFuture, setSaveForFuture] = useState(true);
 
   // Resident vehicle selection
   const [selectedResidentPlate, setSelectedResidentPlate] = useState<string>(() => {
@@ -61,12 +67,10 @@ export const StickyBookingFooter: React.FC<StickyBookingFooterProps> = ({
   });
 
   // End time presets & custom picker
-  // Calculate dynamic target times from current clock
   const timePresets = useMemo(() => {
     const now = new Date();
     const presets: { label: string; hoursFromNow: number; timeStr: string }[] = [];
 
-    // Helper to calculate hours delta
     const getHoursDelta = (targetHours: number, targetMinutes: number, addDays: number = 0) => {
       const target = new Date(now);
       target.setDate(target.getDate() + addDays);
@@ -75,7 +79,6 @@ export const StickyBookingFooter: React.FC<StickyBookingFooterProps> = ({
       return Math.max(0.5, Math.min(24, Math.round(diffHours * 10) / 10));
     };
 
-    // Afternoon / Evening checkpoints
     const currentHour = now.getHours();
 
     if (currentHour < 12) {
@@ -90,12 +93,9 @@ export const StickyBookingFooter: React.FC<StickyBookingFooterProps> = ({
     if (currentHour < 21) {
       presets.push({ label: '9:00 PM', hoursFromNow: getHoursDelta(21, 0), timeStr: '9:00 PM' });
     }
-    // Midnight
     presets.push({ label: 'Midnight', hoursFromNow: getHoursDelta(23, 59), timeStr: '11:59 PM' });
-    // Tomorrow morning (8:00 AM)
     presets.push({ label: 'Tmrw 8 AM', hoursFromNow: getHoursDelta(8, 0, 1), timeStr: 'Tomorrow 8:00 AM' });
 
-    // Fallback if late night: 2h, 4h, 8h, 24h
     if (presets.length < 3) {
       return [
         { label: '2 Hours', hoursFromNow: 2, timeStr: '2 Hours' },
@@ -108,6 +108,8 @@ export const StickyBookingFooter: React.FC<StickyBookingFooterProps> = ({
     return presets.slice(0, 4);
   }, []);
 
+  const [isCustomTime, setIsCustomTime] = useState(false);
+  const [customTimeValue, setCustomTimeValue] = useState<string>('18:00');
   const [selectedDurationHours, setSelectedDurationHours] = useState<number>(() =>
     timePresets.length > 0 ? timePresets[0].hoursFromNow : 2
   );
@@ -116,6 +118,28 @@ export const StickyBookingFooter: React.FC<StickyBookingFooterProps> = ({
   );
 
   const [bookingSuccess, setBookingSuccess] = useState(false);
+
+  // Handle custom time change
+  const handleCustomTimeChange = (timeStr: string) => {
+    setCustomTimeValue(timeStr);
+    if (!timeStr) return;
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    const now = new Date();
+    const target = new Date(now);
+    target.setHours(hours, minutes, 0, 0);
+
+    // If target time is earlier than now, assume tomorrow
+    if (target.getTime() <= now.getTime()) {
+      target.setDate(target.getDate() + 1);
+    }
+
+    const diffHours = (target.getTime() - now.getTime()) / (1000 * 60 * 60);
+    const clampedHours = Math.max(0.5, Math.min(24, Math.round(diffHours * 10) / 10));
+    setSelectedDurationHours(clampedHours);
+
+    const formatted = target.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    setSelectedPresetLabel(formatted);
+  };
 
   if (!selectedSpot) return null;
 
@@ -147,6 +171,14 @@ export const StickyBookingFooter: React.FC<StickyBookingFooterProps> = ({
   const handleStartParking = async () => {
     if (!activePlate) return;
     try {
+      // If user entered a new visitor and checked "Save for future"
+      if (carMode === 'new' && saveForFuture && activePlate && activeVisitorName) {
+        addSavedGuest({
+          name: activeVisitorName,
+          plate: activePlate,
+        }).catch(() => {});
+      }
+
       await onConfirmBooking({
         spot: selectedSpot,
         plateNumber: activePlate,
@@ -171,12 +203,12 @@ export const StickyBookingFooter: React.FC<StickyBookingFooterProps> = ({
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 80, opacity: 0 }}
         transition={{ type: 'spring', stiffness: 400, damping: 32 }}
-        className="card p-4 bg-white/98 backdrop-blur-2xl border border-slate-200/90 shadow-2xl rounded-3xl pointer-events-auto space-y-3.5"
+        className="card p-3.5 bg-white/98 backdrop-blur-2xl border border-slate-200/90 shadow-2xl rounded-3xl pointer-events-auto space-y-3"
       >
         {/* Top Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-mono font-black text-sm shadow-md shadow-emerald-600/30">
+            <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-mono font-black text-xs shadow-md shadow-emerald-600/30">
               {rawNumber}
             </div>
             <div>
@@ -188,9 +220,6 @@ export const StickyBookingFooter: React.FC<StickyBookingFooterProps> = ({
                   {selectedSpot.section || 'Complex'}
                 </span>
               </div>
-              <p className="text-[11px] font-medium text-slate-500">
-                Visitor Parking Stall
-              </p>
             </div>
           </div>
 
@@ -198,7 +227,7 @@ export const StickyBookingFooter: React.FC<StickyBookingFooterProps> = ({
             onClick={onClearSelection}
             className="p-1 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
@@ -222,8 +251,8 @@ export const StickyBookingFooter: React.FC<StickyBookingFooterProps> = ({
                     : 'text-slate-500 hover:text-slate-900'
                 }`}
               >
-                <Users className="w-3.5 h-3.5" />
-                <span>Saved Visitor</span>
+                <Users className="w-3 h-3" />
+                <span>Saved ({savedGuests.length})</span>
               </button>
             )}
 
@@ -236,7 +265,7 @@ export const StickyBookingFooter: React.FC<StickyBookingFooterProps> = ({
                   : 'text-slate-500 hover:text-slate-900'
               } ${savedGuests.length === 0 ? 'col-span-2' : ''}`}
             >
-              <Plus className="w-3.5 h-3.5" />
+              <Plus className="w-3 h-3" />
               <span>New Visitor</span>
             </button>
 
@@ -249,7 +278,7 @@ export const StickyBookingFooter: React.FC<StickyBookingFooterProps> = ({
                   : 'text-slate-500 hover:text-slate-900'
               }`}
             >
-              <Car className="w-3.5 h-3.5" />
+              <Car className="w-3 h-3" />
               <span>My Car</span>
             </button>
           </div>
@@ -262,7 +291,7 @@ export const StickyBookingFooter: React.FC<StickyBookingFooterProps> = ({
                   key={guest.id}
                   type="button"
                   onClick={() => setSelectedGuestId(guest.id)}
-                  className={`px-3 py-2 rounded-xl text-left border shrink-0 transition-all ${
+                  className={`px-3 py-1.5 rounded-xl text-left border shrink-0 transition-all ${
                     selectedGuestId === guest.id
                       ? 'bg-emerald-50 border-emerald-400 text-emerald-950 font-bold'
                       : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
@@ -276,32 +305,47 @@ export const StickyBookingFooter: React.FC<StickyBookingFooterProps> = ({
           )}
 
           {carMode === 'new' && (
-            <div className="grid grid-cols-2 gap-2 animate-fade-in">
-              <div>
-                <label className="text-[10px] font-bold text-slate-500 block mb-0.5">
-                  Visitor Name
-                </label>
-                <input
-                  type="text"
-                  value={newVisitorName}
-                  onChange={(e) => setNewVisitorName(e.target.value)}
-                  placeholder="e.g. John Smith"
-                  className="input w-full py-1.5 px-2.5 text-xs text-slate-900"
-                />
+            <div className="space-y-2 animate-fade-in">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 block mb-0.5">
+                    Visitor Name
+                  </label>
+                  <input
+                    type="text"
+                    value={newVisitorName}
+                    onChange={(e) => setNewVisitorName(e.target.value)}
+                    placeholder="e.g. John Smith"
+                    className="input w-full py-1.5 px-2.5 text-xs text-slate-900"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 block mb-0.5">
+                    License Plate
+                  </label>
+                  <input
+                    type="text"
+                    value={newPlate}
+                    onChange={(e) => setNewPlate(e.target.value.toUpperCase())}
+                    placeholder="e.g. ABC123"
+                    className="input w-full py-1.5 px-2.5 text-xs font-mono font-bold uppercase text-slate-900"
+                    autoFocus
+                  />
+                </div>
               </div>
-              <div>
-                <label className="text-[10px] font-bold text-slate-500 block mb-0.5">
-                  License Plate
-                </label>
+
+              {/* Save for Future Checkbox */}
+              <label className="flex items-center gap-2 cursor-pointer select-none px-0.5">
                 <input
-                  type="text"
-                  value={newPlate}
-                  onChange={(e) => setNewPlate(e.target.value.toUpperCase())}
-                  placeholder="e.g. ABC123"
-                  className="input w-full py-1.5 px-2.5 text-xs font-mono font-bold uppercase text-slate-900"
-                  autoFocus
+                  type="checkbox"
+                  checked={saveForFuture}
+                  onChange={(e) => setSaveForFuture(e.target.checked)}
+                  className="w-3.5 h-3.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
                 />
-              </div>
+                <span className="text-[11px] font-medium text-slate-600">
+                  Save this visitor vehicle for future bookings
+                </span>
+              </label>
             </div>
           )}
 
@@ -312,7 +356,7 @@ export const StickyBookingFooter: React.FC<StickyBookingFooterProps> = ({
                   key={v.id}
                   type="button"
                   onClick={() => setSelectedResidentPlate(v.plate_number)}
-                  className={`px-3 py-2 rounded-xl text-left border shrink-0 transition-all ${
+                  className={`px-3 py-1.5 rounded-xl text-left border shrink-0 transition-all ${
                     selectedResidentPlate === v.plate_number
                       ? 'bg-emerald-50 border-emerald-400 text-emerald-950 font-bold'
                       : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
@@ -326,37 +370,71 @@ export const StickyBookingFooter: React.FC<StickyBookingFooterProps> = ({
           )}
         </div>
 
-        {/* End Time Selection (Booking to a specific time e.g. 6:00 PM) */}
+        {/* End Time Selection & Specific Time Picker */}
         <div className="space-y-1.5 pt-1 border-t border-slate-100">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
               Book Until
             </span>
-            <span className="text-[11px] font-extrabold text-emerald-700">
-              {selectedPresetLabel}
-            </span>
-          </div>
-
-          {/* Time Preset Buttons */}
-          <div className="grid grid-cols-4 gap-1.5">
-            {timePresets.map((preset) => (
+            <div className="flex items-center gap-2">
               <button
-                key={preset.label}
                 type="button"
                 onClick={() => {
-                  setSelectedDurationHours(preset.hoursFromNow);
-                  setSelectedPresetLabel(preset.label);
+                  const nextCustom = !isCustomTime;
+                  setIsCustomTime(nextCustom);
+                  if (nextCustom) {
+                    handleCustomTimeChange(customTimeValue);
+                  } else if (timePresets.length > 0) {
+                    setSelectedDurationHours(timePresets[0].hoursFromNow);
+                    setSelectedPresetLabel(timePresets[0].label);
+                  }
                 }}
-                className={`py-2 rounded-xl text-xs font-black transition-all ${
-                  selectedPresetLabel === preset.label
-                    ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
+                className="text-[10px] font-extrabold text-blue-600 hover:text-blue-700 flex items-center gap-1 transition-colors"
               >
-                {preset.label}
+                <Clock className="w-3 h-3" />
+                <span>{isCustomTime ? 'Quick Presets' : 'Choose Specific Time'}</span>
               </button>
-            ))}
+              <span className="text-[11px] font-extrabold text-emerald-700">
+                {selectedPresetLabel}
+              </span>
+            </div>
           </div>
+
+          {/* Time Selection Mode: Presets vs Specific Time Input */}
+          {!isCustomTime ? (
+            <div className="grid grid-cols-4 gap-1.5">
+              {timePresets.map((preset) => (
+                <button
+                  key={preset.label}
+                  type="button"
+                  onClick={() => {
+                    setSelectedDurationHours(preset.hoursFromNow);
+                    setSelectedPresetLabel(preset.label);
+                  }}
+                  className={`py-1.5 rounded-xl text-xs font-black transition-all ${
+                    !isCustomTime && selectedPresetLabel === preset.label
+                      ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200 animate-fade-in">
+              <Clock className="w-4 h-4 text-slate-500" />
+              <input
+                type="time"
+                value={customTimeValue}
+                onChange={(e) => handleCustomTimeChange(e.target.value)}
+                className="input py-1 px-2 text-xs font-bold text-slate-900 flex-1"
+              />
+              <span className="text-[11px] font-bold text-slate-500">
+                ({selectedDurationHours}h total)
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Primary Action Button */}
@@ -364,7 +442,7 @@ export const StickyBookingFooter: React.FC<StickyBookingFooterProps> = ({
           type="button"
           onClick={handleStartParking}
           disabled={isSubmitting || !activePlate || bookingSuccess}
-          className={`w-full py-3.5 rounded-2xl text-sm font-extrabold flex items-center justify-center gap-2 shadow-lg transition-all ${
+          className={`w-full py-3 rounded-2xl text-xs font-extrabold flex items-center justify-center gap-2 shadow-lg transition-all ${
             bookingSuccess
               ? 'bg-emerald-600 text-white'
               : 'bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white shadow-emerald-600/30'
@@ -374,7 +452,7 @@ export const StickyBookingFooter: React.FC<StickyBookingFooterProps> = ({
             <span>Confirming Reservation...</span>
           ) : bookingSuccess ? (
             <>
-              <CheckCircle2 className="w-5 h-5" />
+              <CheckCircle2 className="w-4 h-4" />
               <span>Reserved Successfully!</span>
             </>
           ) : (

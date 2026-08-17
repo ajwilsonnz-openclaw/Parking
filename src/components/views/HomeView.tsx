@@ -215,7 +215,6 @@ export const HomeView: React.FC<HomeViewProps> = ({ onNavigateTab }) => {
           <SectionAisle
             key={sec.id}
             title={sec.name}
-            description={sec.description}
             spots={sec.spots}
             sessions={sessions}
             selectedSpotId={selectedSpot?.id || null}

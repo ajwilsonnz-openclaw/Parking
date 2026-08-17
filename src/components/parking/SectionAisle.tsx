@@ -7,7 +7,6 @@ import { MapPin } from 'lucide-react';
 
 interface SectionAisleProps {
   title: string;
-  description?: string;
   spots: Carpark[];
   sessions: ParkingSession[];
   selectedSpotId: string | null;
@@ -16,7 +15,6 @@ interface SectionAisleProps {
 
 export const SectionAisle: React.FC<SectionAisleProps> = ({
   title,
-  description,
   spots,
   sessions,
   selectedSpotId,
@@ -51,22 +49,15 @@ export const SectionAisle: React.FC<SectionAisleProps> = ({
 
   return (
     <div className="card p-3 space-y-2 bg-white border border-slate-200/90 shadow-sm rounded-2xl">
-      {/* Section Header */}
+      {/* Section Header (Clean Title Only, No Description) */}
       <div className="flex items-center justify-between px-0.5">
         <div className="flex items-center gap-2">
           <div className="w-6 h-6 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center font-black">
             <MapPin className="w-3.5 h-3.5 text-slate-600" />
           </div>
-          <div>
-            <h3 className="text-xs font-extrabold text-slate-900 tracking-tight">
-              {title}
-            </h3>
-            {description && (
-              <p className="text-[10px] font-medium text-slate-500">
-                {description}
-              </p>
-            )}
-          </div>
+          <h3 className="text-xs font-extrabold text-slate-900 tracking-tight">
+            {title}
+          </h3>
         </div>
 
         {/* Live Availability Badge */}
@@ -81,7 +72,7 @@ export const SectionAisle: React.FC<SectionAisleProps> = ({
         </div>
       </div>
 
-      {/* Horizontal Swipeable Parking Aisle (Without Driveway Lane) */}
+      {/* Horizontal Swipeable Parking Aisle */}
       <div className="relative pt-0.5">
         <div className="flex gap-2 overflow-x-auto no-scrollbar py-1 px-0.5 scroll-smooth snap-x snap-mandatory">
           {spots.map((spot) => {
