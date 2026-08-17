@@ -16,9 +16,15 @@ interface AccountViewProps {
   onOpenManagement?: () => void;
   onOpenAdmin?: () => void;
   onOpenPushGuide?: () => void;
+  onOpenOnboarding?: () => void;
 }
 
-export const AccountView: React.FC<AccountViewProps> = ({ onOpenManagement, onOpenAdmin, onOpenPushGuide }) => {
+export const AccountView: React.FC<AccountViewProps> = ({
+  onOpenManagement,
+  onOpenAdmin,
+  onOpenPushGuide,
+  onOpenOnboarding,
+}) => {
   const { currentUser, vehicles, demerits, carparks, logout, savedGuests, removeSavedGuest, addVehicle, removeVehicle, units, refetch } = useApp();
   const { palette, paletteConfig, setPalette } = useTheme();
   const { canInstall, isInstalled, isIos, install } = useInstallPrompt();
@@ -38,7 +44,7 @@ export const AccountView: React.FC<AccountViewProps> = ({ onOpenManagement, onOp
   const [newMakeModel, setNewMakeModel] = useState('');
   const [isAddingVehicle, setIsAddingVehicle] = useState(false);
 
-  const unitNumber = currentUser?.unit_number || 'Unit 402';
+  const unitNumber = currentUser?.unit_number || 'Unit 5';
   const unitVehicles = vehicles.filter((v) => v.unit_number === unitNumber || v.user_id === currentUser?.id);
   const unitDemerits = demerits.filter((d) => d.unit_number === unitNumber);
   const totalDemeritPoints = unitDemerits.reduce((s, d) => s + d.demerit_points, 0);
@@ -246,18 +252,25 @@ export const AccountView: React.FC<AccountViewProps> = ({ onOpenManagement, onOp
 
       {/* Admin / Portal access */}
       {isManagementOrAdmin && (
-        <div className="card p-3.5 space-y-2 bg-gradient-to-r from-blue-900/20 to-indigo-900/20 border-blue-500/30">
-          <span className="text-[10px] font-extrabold uppercase tracking-wider text-blue-400 block">Privileged Controls</span>
+        <div className="card p-3.5 space-y-2.5 bg-gradient-to-r from-blue-900/20 to-indigo-900/20 border-blue-500/30">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-extrabold uppercase tracking-wider text-blue-400 block">Privileged Controls</span>
+            <span className="text-[10px] text-slate-400 font-mono">PC & Mobile</span>
+          </div>
           <div className="grid grid-cols-2 gap-2">
-            {onOpenManagement && (
-              <button onClick={onOpenManagement} className="btn-secondary text-xs py-2.5 flex items-center justify-center gap-1.5">
-                <Shield className="w-4 h-4 text-info" /> Management
-              </button>
-            )}
-            {isAdmin && onOpenAdmin && (
-              <button onClick={onOpenAdmin} className="btn-secondary text-xs py-2.5 flex items-center justify-center gap-1.5">
-                <Sliders className="w-4 h-4 text-danger" /> Admin Controls
-              </button>
+            <Link
+              href="/management"
+              className="btn-secondary text-xs py-2.5 flex items-center justify-center gap-1.5 border border-blue-500/40 text-blue-200 hover:text-white"
+            >
+              <Shield className="w-4 h-4 text-info" /> Management (PC)
+            </Link>
+            {isAdmin && (
+              <Link
+                href="/admin"
+                className="btn-secondary text-xs py-2.5 flex items-center justify-center gap-1.5 border border-rose-500/40 text-rose-200 hover:text-white"
+              >
+                <Sliders className="w-4 h-4 text-danger" /> D1 Studio (PC)
+              </Link>
             )}
           </div>
         </div>
@@ -276,44 +289,84 @@ export const AccountView: React.FC<AccountViewProps> = ({ onOpenManagement, onOp
         </div>
 
         {showAddVehicleModal && (
-          <form onSubmit={handleAddVehicleSubmit} className="card p-4 space-y-3 border-accent/40 bg-accent-soft/30 animate-fade-in">
+          <form
+            onSubmit={handleAddVehicleSubmit}
+            className="card p-4 space-y-3.5 border animate-fade-in"
+            style={{
+              backgroundColor: 'var(--card-bg)',
+              borderColor: 'var(--accent-primary)',
+              boxShadow: '0 0 20px var(--ambient-glow)',
+            }}
+          >
             <div className="flex items-center justify-between">
-              <h4 className="text-xs font-extrabold text-ink uppercase tracking-wider flex items-center gap-1.5">
-                <Car className="w-4 h-4 text-accent" /> Register new vehicle plate
+              <h4 className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-1.5">
+                <Car className="w-4 h-4" style={{ color: 'var(--accent-secondary)' }} />
+                Register New Vehicle Plate
               </h4>
-              <button type="button" onClick={() => setShowAddVehicleModal(false)} className="btn-icon p-1 text-ink-tertiary">
+              <button
+                type="button"
+                onClick={() => setShowAddVehicleModal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+              >
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <div className="grid grid-cols-2 gap-2">
+
+            <div className="space-y-3">
               <div>
-                <label className="block text-[10px] font-bold uppercase text-ink-tertiary mb-1">Plate Number</label>
+                <label className="block text-[10px] font-bold uppercase mb-1" style={{ color: 'var(--text-muted)' }}>
+                  Plate Number *
+                </label>
                 <input
                   type="text"
                   value={newPlate}
                   onChange={(e) => setNewPlate(e.target.value.toUpperCase())}
-                  placeholder="e.g. GHJ125"
-                  className="input font-mono text-center text-sm font-bold uppercase"
+                  placeholder="e.g. HZZ303"
+                  className="w-full py-2 px-3 text-xs font-mono font-bold uppercase text-white rounded-xl focus:outline-none border bg-black/50"
+                  style={{ borderColor: 'var(--card-border)' }}
                   maxLength={6}
                   required
+                  autoFocus
                 />
               </div>
+
               <div>
-                <label className="block text-[10px] font-bold uppercase text-ink-tertiary mb-1">Make / Model / Color</label>
+                <label className="block text-[10px] font-bold uppercase mb-1" style={{ color: 'var(--text-muted)' }}>
+                  Vehicle Description
+                </label>
                 <input
                   type="text"
                   value={newMakeModel}
                   onChange={(e) => setNewMakeModel(e.target.value)}
-                  placeholder="e.g. Toyota Aqua Blue"
-                  className="input text-xs"
+                  placeholder="e.g. Silver Toyota Aqua"
+                  className="w-full py-2 px-3 text-xs text-white rounded-xl focus:outline-none border bg-black/50"
+                  style={{ borderColor: 'var(--card-border)' }}
                 />
               </div>
+
+              {/* Real-time NZ Plate Preview */}
+              <div className="flex items-center justify-between pt-1 border-t border-white/10">
+                <span className="text-[10px] font-bold" style={{ color: 'var(--text-muted)' }}>
+                  Plate Preview:
+                </span>
+                <PlateCard plate={newPlate || 'HZZ303'} size="sm" showScrews={true} />
+              </div>
             </div>
-            <div className="flex justify-end gap-2 pt-1">
-              <button type="button" onClick={() => setShowAddVehicleModal(false)} className="btn-ghost text-xs py-1.5 px-3">
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-white/10">
+              <button
+                type="button"
+                onClick={() => setShowAddVehicleModal(false)}
+                className="btn-ghost text-xs py-1.5 px-3"
+              >
                 Cancel
               </button>
-              <button type="submit" disabled={isAddingVehicle || !newPlate.trim()} className="btn-primary text-xs py-1.5 px-4">
+              <button
+                type="submit"
+                disabled={isAddingVehicle || !newPlate.trim()}
+                className="py-1.5 px-4 rounded-xl text-slate-950 font-black text-xs transition-all active:scale-[0.98] shadow-md flex items-center gap-1"
+                style={{ background: 'var(--accent-gradient)' }}
+              >
                 {isAddingVehicle ? 'Saving...' : 'Save Vehicle'}
               </button>
             </div>
@@ -346,6 +399,38 @@ export const AccountView: React.FC<AccountViewProps> = ({ onOpenManagement, onOp
             ))}
           </div>
         )}
+      </div>
+
+      {/* App Setup, PWA Install & Expiry Alerts Guide */}
+      <div className="card p-4 space-y-2.5 shadow-lg border">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div
+              className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-950 shadow-xs"
+              style={{ background: 'var(--accent-gradient)' }}
+            >
+              <Smartphone className="w-4 h-4 stroke-[2.5]" />
+            </div>
+            <div>
+              <h3 className="text-xs font-black text-white">App Setup & Notification Alerts</h3>
+              <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                Replay guided setup or enable free lock-screen expiry alerts
+              </p>
+            </div>
+          </div>
+          {onOpenOnboarding && (
+            <button
+              onClick={onOpenOnboarding}
+              className="py-1.5 px-3 rounded-xl border text-xs font-bold text-slate-200 hover:text-white transition-all active:scale-[0.98] shrink-0"
+              style={{
+                backgroundColor: 'rgba(0,0,0,0.4)',
+                borderColor: 'var(--card-border)',
+              }}
+            >
+              Open Setup
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Theme / Palette Selection (Named Custom Palettes) */}

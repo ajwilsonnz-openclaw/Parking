@@ -27,13 +27,14 @@ export const BookingView: React.FC<BookingViewProps> = () => {
     let allParks = carparks;
     if (!allParks || allParks.length === 0) {
       allParks = Array.from({ length: 23 }, (_, i) => {
-        const num = (i + 1).toString().padStart(2, '0');
+        const spotNum = 23 - i;
+        const num = spotNum.toString().padStart(2, '0');
         return {
           id: `cp_v${num}`,
           site_id: 'site_mv',
           spot_number: `V${num}`,
-          section_id: i < 3 ? 'sec_entrance' : i < 14 ? 'sec_units_1_7' : i < 20 ? 'sec_units_8_13' : 'sec_back',
-          section: i < 3 ? 'Entrance' : i < 14 ? 'Units 1–7' : i < 20 ? 'Units 8–13' : 'Back of Complex',
+          section_id: spotNum >= 21 ? 'sec_entrance' : spotNum >= 15 ? 'sec_units_8_13' : spotNum >= 4 ? 'sec_units_1_7' : 'sec_back',
+          section: spotNum >= 21 ? 'Entrance' : spotNum >= 15 ? 'Units 8–13' : spotNum >= 4 ? 'Units 1–7' : 'Back of Complex',
           status: 'available',
           is_rentable_private: false,
         };
@@ -41,19 +42,29 @@ export const BookingView: React.FC<BookingViewProps> = () => {
     }
 
     const defaultDefs = [
-      { id: 'sec_entrance', name: 'Entrance', min: 1, max: 3 },
-      { id: 'sec_units_1_7', name: 'Units 1–7', min: 4, max: 14 },
+      { id: 'sec_entrance', name: 'Entrance', min: 21, max: 23 },
       { id: 'sec_units_8_13', name: 'Units 8–13', min: 15, max: 20 },
-      { id: 'sec_back', name: 'Back of Complex', min: 21, max: 99 },
+      { id: 'sec_units_1_7', name: 'Units 1–7', min: 4, max: 14 },
+      { id: 'sec_back', name: 'Back of Complex', min: 1, max: 3 },
     ];
 
     return defaultDefs.map((def) => {
       const matchingSpots = allParks.filter((c) => {
+        const num = parseInt((c?.spot_number || '').replace(/^V-?/i, ''), 10);
+        if (!isNaN(num) && num >= def.min && num <= def.max) {
+          return true;
+        }
         if (c.section_id === def.id || (c.section && c.section.toLowerCase().includes(def.name.toLowerCase()))) {
           return true;
         }
-        const num = parseInt((c?.spot_number || '').replace(/^V-?/i, ''), 10);
-        return !isNaN(num) && num >= def.min && num <= def.max;
+        return false;
+      });
+
+      // Sort descending within section (23 -> 22 -> 21, etc.)
+      matchingSpots.sort((a, b) => {
+        const numA = parseInt((a?.spot_number || '').replace(/^V-?/i, ''), 10) || 0;
+        const numB = parseInt((b?.spot_number || '').replace(/^V-?/i, ''), 10) || 0;
+        return numB - numA;
       });
 
       const freeCount = matchingSpots.filter((spot) => {

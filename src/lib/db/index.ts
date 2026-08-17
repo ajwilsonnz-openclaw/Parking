@@ -1,17 +1,18 @@
-// Database helper for Cloudflare D1 (Edge) + in-memory store fallback (dev)
+// Database helper for Cloudflare D1 (Edge) + fully-featured in-memory store fallback (dev)
 let schemaInitialized = false;
 
 export const CANONICAL_SECTIONS = [
   { id: 'sec_entrance', site_id: 'site_mv', name: 'Entrance', display_order: 1, description: 'Main entrance area' },
-  { id: 'sec_units_1_7', site_id: 'site_mv', name: 'Units 1–7', display_order: 2, description: 'Front townhouse wing' },
-  { id: 'sec_units_8_13', site_id: 'site_mv', name: 'Units 8–13', display_order: 3, description: 'Middle townhouse wing' },
+  { id: 'sec_units_8_13', site_id: 'site_mv', name: 'Units 8–13', display_order: 2, description: 'Middle townhouse wing' },
+  { id: 'sec_units_1_7', site_id: 'site_mv', name: 'Units 1–7', display_order: 3, description: 'Front townhouse wing' },
   { id: 'sec_back', site_id: 'site_mv', name: 'Back of Complex', display_order: 4, description: 'Rear courtyard area' },
 ];
 
 export const CANONICAL_CARPARKS = Array.from({ length: 23 }, (_, i) => {
-  const num = (i + 1).toString().padStart(2, '0');
-  const sectionId = i < 3 ? 'sec_entrance' : i < 14 ? 'sec_units_1_7' : i < 20 ? 'sec_units_8_13' : 'sec_back';
-  const sectionName = i < 3 ? 'Entrance' : i < 14 ? 'Units 1–7' : i < 20 ? 'Units 8–13' : 'Back of Complex';
+  const spotNum = 23 - i; // 23 starts at entrance, down to 01
+  const num = spotNum.toString().padStart(2, '0');
+  const sectionId = spotNum >= 21 ? 'sec_entrance' : spotNum >= 15 ? 'sec_units_8_13' : spotNum >= 4 ? 'sec_units_1_7' : 'sec_back';
+  const sectionName = spotNum >= 21 ? 'Entrance' : spotNum >= 15 ? 'Units 8–13' : spotNum >= 4 ? 'Units 1–7' : 'Back of Complex';
   return {
     id: `cp_v${num}`,
     site_id: 'site_mv',
@@ -24,6 +25,32 @@ export const CANONICAL_CARPARKS = Array.from({ length: 23 }, (_, i) => {
   };
 });
 
+export const DEFAULT_WHITELIST = [
+  { id: 'wl-aj', email: 'ajwilsonnz@gmail.com', name: 'Adam Wilson', unit_number: 'Unit 5', phone: '+64 21 000 0000', role: 'admin', assigned_parks: 1, added_by_user_id: 'usr-aj', added_at: new Date().toISOString() },
+  { id: 'wl-1', email: 'resident@millennium.com', name: 'Adam Miller', unit_number: 'Unit 12', phone: '+64 21 555 0192', role: 'user', assigned_parks: 1, added_by_user_id: 'usr-aj', added_at: new Date().toISOString() },
+  { id: 'wl-2', email: 'manager@millennium.com', name: 'Sarah Jenkins', unit_number: 'Unit 1', phone: '+64 21 555 0888', role: 'management', assigned_parks: 2, added_by_user_id: 'usr-aj', added_at: new Date().toISOString() },
+  { id: 'wl-3', email: 'admin@millennium.com', name: 'BodyCorp Admin', unit_number: 'Unit 5', phone: '+64 21 555 0999', role: 'admin', assigned_parks: 1, added_by_user_id: 'usr-aj', added_at: new Date().toISOString() },
+  { id: 'wl-4', email: 'unit8@millennium.com', name: 'David Chen', unit_number: 'Unit 8', phone: '+64 21 555 0441', role: 'user', assigned_parks: 1, added_by_user_id: 'usr-aj', added_at: new Date().toISOString() },
+  { id: 'wl-5', email: 'unit27@millennium.com', name: 'Emma Williams', unit_number: 'Unit 27', phone: '+64 21 555 0772', role: 'user', assigned_parks: 1, added_by_user_id: 'usr-aj', added_at: new Date().toISOString() },
+];
+
+export const DEFAULT_USERS = [
+  { id: 'usr-aj', email: 'ajwilsonnz@gmail.com', name: 'Adam Wilson', unit_number: 'Unit 5', phone: '+64 21 000 0000', role: 'admin', status: 'active', assigned_parks: 1, created_at: new Date().toISOString() },
+  { id: 'usr-1', email: 'resident@millennium.com', name: 'Adam Miller', unit_number: 'Unit 12', phone: '+64 21 555 0192', role: 'user', status: 'active', assigned_parks: 1, created_at: new Date().toISOString() },
+  { id: 'usr-2', email: 'manager@millennium.com', name: 'Sarah Jenkins', unit_number: 'Unit 1', phone: '+64 21 555 0888', role: 'management', status: 'active', assigned_parks: 2, created_at: new Date().toISOString() },
+  { id: 'usr-3', email: 'admin@millennium.com', name: 'BodyCorp Admin', unit_number: 'Unit 5', phone: '+64 21 555 0999', role: 'admin', status: 'active', assigned_parks: 1, created_at: new Date().toISOString() },
+  { id: 'usr-4', email: 'unit8@millennium.com', name: 'David Chen', unit_number: 'Unit 8', phone: '+64 21 555 0441', role: 'user', status: 'active', assigned_parks: 1, created_at: new Date().toISOString() },
+  { id: 'usr-5', email: 'unit27@millennium.com', name: 'Emma Williams', unit_number: 'Unit 27', phone: '+64 21 555 0772', role: 'user', status: 'active', assigned_parks: 1, created_at: new Date().toISOString() },
+];
+
+export const DEFAULT_UNITS = Array.from({ length: 27 }, (_, i) => ({
+  id: `unit-${i + 1}`,
+  unit_number: `Unit ${i + 1}`,
+  assigned_parks: i === 0 ? 2 : 1,
+  notes: `Townhouse ${i + 1}`,
+  created_at: new Date().toISOString(),
+}));
+
 interface DevStore {
   carparks: any[];
   parking_sessions: any[];
@@ -35,6 +62,9 @@ interface DevStore {
   sections: any[];
   sites: any[];
   system_config: any[];
+  demerits: any[];
+  spot_rentals: any[];
+  notifications: any[];
 }
 
 function getMemoryStore(): DevStore {
@@ -42,15 +72,50 @@ function getMemoryStore(): DevStore {
   if (!g.__dev_store__ || !g.__dev_store__.carparks || g.__dev_store__.carparks.length < 23) {
     g.__dev_store__ = {
       carparks: CANONICAL_CARPARKS.map((c) => ({ ...c })),
-      parking_sessions: g.__dev_store__?.parking_sessions || [],
-      saved_guests: g.__dev_store__?.saved_guests || [],
-      unit_vehicles: g.__dev_store__?.unit_vehicles || [],
-      users: g.__dev_store__?.users || [],
-      units: g.__dev_store__?.units || [],
-      whitelist: g.__dev_store__?.whitelist || [],
+      parking_sessions: [
+        {
+          id: 'sess-1',
+          carpark_id: 'cp_v21',
+          spot_number: 'V21',
+          user_id: 'usr-1',
+          unit_number: 'Unit 12',
+          vehicle_plate: 'GHJ125',
+          session_type: 'visitor',
+          start_time: new Date(Date.now() - 2 * 3600000).toISOString(),
+          expected_end_time: new Date(Date.now() + 4 * 3600000).toISOString(),
+          is_active: 1,
+          visitor_name: 'Mark Taylor',
+          visitor_phone: '+64 21 555 9911',
+        },
+      ],
+      saved_guests: [
+        { id: 'sg-1', user_id: 'usr-1', name: 'Mark Taylor', phone: '+64 21 555 9911', plate: 'GHJ125', make_model_color: 'White Tesla Model 3' },
+      ],
+      unit_vehicles: [
+        { id: 'v-1', user_id: 'usr-aj', unit_number: 'Unit 5', plate_number: 'HZZ303', make_model_color: 'Grey Sedan', is_primary: 1, status: 'approved' },
+        { id: 'v-2', user_id: 'usr-1', unit_number: 'Unit 12', plate_number: 'GHJ125', make_model_color: 'White Tesla Model 3', is_primary: 1, status: 'approved' },
+      ],
+      users: DEFAULT_USERS.map((u) => ({ ...u })),
+      units: DEFAULT_UNITS.map((u) => ({ ...u })),
+      whitelist: DEFAULT_WHITELIST.map((w) => ({ ...w })),
       sections: CANONICAL_SECTIONS.map((s) => ({ ...s })),
       sites: [{ id: 'site_mv', name: 'Millennium Village', address: '548 Albany Highway, Auckland', total_visitor_parks: 23, max_duration_hours: 24 }],
-      system_config: g.__dev_store__?.system_config || [],
+      system_config: [
+        { key: 'complex_name', value: 'Millennium Village' },
+        { key: 'max_visitor_hours', value: '24' },
+        { key: 'max_resident_excess_hours', value: '12' },
+        { key: 'demerit_fine_threshold', value: '3' },
+        { key: 'demerit_fine_amount', value: '50' },
+        { key: 'total_visitor_parks', value: '23' },
+        { key: 'spot_prefix', value: 'V' },
+      ],
+      demerits: [
+        { id: 'dem-1', unit_number: 'Unit 8', user_id: 'usr-4', vehicle_plate: 'PQR334', spot_number: 'V05', violation_type: 'overtime', description: 'Overstayed 24-hr guest window.', demerit_points: 1, fine_amount: 0, status: 'issued', created_at: new Date().toISOString() },
+      ],
+      spot_rentals: [],
+      notifications: [
+        { id: 'n-1', user_id: 'usr-aj', title: 'Welcome to Millennium Village Parking', body: 'Your unit (Unit 5) has administrator privileges.', created_at: new Date().toISOString() },
+      ],
     };
   }
   return g.__dev_store__;
@@ -138,27 +203,16 @@ export async function ensureSchema() {
     `).catch(() => {});
 
     await execDb(`
-      CREATE TABLE IF NOT EXISTS saved_guests (
-        id TEXT PRIMARY KEY,
-        user_id TEXT NOT NULL,
-        name TEXT NOT NULL,
-        phone TEXT,
-        plate TEXT NOT NULL,
-        make_model_color TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      );
-    `).catch(() => {});
-
-    await execDb(`
       CREATE TABLE IF NOT EXISTS carparks (
         id TEXT PRIMARY KEY,
         site_id TEXT DEFAULT 'site_mv',
         section_id TEXT,
         section TEXT,
         spot_number TEXT UNIQUE NOT NULL,
-        status TEXT CHECK(status IN ('available', 'occupied', 'maintenance', 'rented')) DEFAULT 'available',
+        status TEXT NOT NULL DEFAULT 'available',
         is_rentable_private INTEGER DEFAULT 0,
-        owner_unit_number TEXT
+        owner_unit_number TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
     `).catch(() => {});
 
@@ -168,15 +222,15 @@ export async function ensureSchema() {
         carpark_id TEXT,
         spot_id TEXT,
         spot_number TEXT NOT NULL,
-        unit_number TEXT NOT NULL,
         user_id TEXT,
         created_by_user_id TEXT,
+        unit_number TEXT NOT NULL,
         vehicle_plate TEXT NOT NULL,
-        session_type TEXT CHECK(session_type IN ('visitor', 'resident_excess', 'rented_private')) NOT NULL,
+        session_type TEXT NOT NULL,
         start_time DATETIME NOT NULL,
         expected_end_time DATETIME NOT NULL,
         end_time DATETIME,
-        is_active INTEGER DEFAULT 1,
+        is_active INTEGER NOT NULL DEFAULT 1,
         boot_requested INTEGER DEFAULT 0,
         visitor_name TEXT,
         visitor_phone TEXT,
@@ -207,36 +261,7 @@ export async function ensureSchema() {
       );
     `).catch(() => {});
 
-    // 2. Safe Column Additions for Legacy D1 Tables
-    await execDb('ALTER TABLE whitelist ADD COLUMN assigned_parks INTEGER DEFAULT 1').catch(() => {});
-    await execDb('ALTER TABLE users ADD COLUMN assigned_parks INTEGER DEFAULT 1').catch(() => {});
-    await execDb('ALTER TABLE unit_vehicles ADD COLUMN user_id TEXT').catch(() => {});
-    await execDb('ALTER TABLE unit_vehicles ADD COLUMN status TEXT DEFAULT "approved"').catch(() => {});
-    await execDb('ALTER TABLE carparks ADD COLUMN site_id TEXT DEFAULT "site_mv"').catch(() => {});
-    await execDb('ALTER TABLE carparks ADD COLUMN section_id TEXT').catch(() => {});
-    await execDb('ALTER TABLE carparks ADD COLUMN section TEXT').catch(() => {});
-
-    await execDb('ALTER TABLE parking_sessions ADD COLUMN carpark_id TEXT').catch(() => {});
-    await execDb('ALTER TABLE parking_sessions ADD COLUMN spot_id TEXT').catch(() => {});
-    await execDb('ALTER TABLE parking_sessions ADD COLUMN user_id TEXT').catch(() => {});
-    await execDb('ALTER TABLE parking_sessions ADD COLUMN created_by_user_id TEXT').catch(() => {});
-    await execDb('ALTER TABLE parking_sessions ADD COLUMN visitor_name TEXT').catch(() => {});
-    await execDb('ALTER TABLE parking_sessions ADD COLUMN visitor_phone TEXT').catch(() => {});
-    await execDb('ALTER TABLE parking_sessions ADD COLUMN saved_guest_id TEXT').catch(() => {});
-
-    // 3. Seed Default Site & Sections if not present
-    await execDb(`
-      INSERT OR REPLACE INTO sites (id, name, address, total_visitor_parks, max_duration_hours) VALUES
-      ('site_mv', 'Millennium Village', '548 Albany Highway, Auckland', 23, 24);
-
-      INSERT OR REPLACE INTO sections (id, site_id, name, display_order, description) VALUES
-      ('sec_entrance', 'site_mv', 'Entrance', 1, 'Main entrance area'),
-      ('sec_units_1_7', 'site_mv', 'Units 1–7', 2, 'Front townhouse wing'),
-      ('sec_units_8_13', 'site_mv', 'Units 8–13', 3, 'Middle townhouse wing'),
-      ('sec_back', 'site_mv', 'Back of Complex', 4, 'Rear courtyard area');
-    `).catch(() => {});
-
-    // 4. Seed Canonical 23 Visitor Bays on D1 if missing
+    // Seed Canonical 23 Visitor Bays on D1 if missing
     const existingBays = await queryDb('SELECT COUNT(*) as count FROM carparks WHERE spot_number LIKE "V%"').catch(() => [{ count: 0 }]);
     if (!existingBays || existingBays[0]?.count < 23) {
       for (const park of CANONICAL_CARPARKS) {
@@ -246,21 +271,6 @@ export async function ensureSchema() {
         ).catch(() => {});
       }
     }
-
-    // 5. Backfill section_id and section for any existing carparks missing them
-    await execDb(`
-      UPDATE carparks SET section_id = 'sec_entrance', section = 'Entrance' 
-      WHERE (section_id IS NULL OR section_id = '') AND (spot_number IN ('V01', 'V02', 'V03', 'V-01', 'V-02', 'V-03'));
-      
-      UPDATE carparks SET section_id = 'sec_units_1_7', section = 'Units 1–7' 
-      WHERE (section_id IS NULL OR section_id = '') AND (spot_number IN ('V04', 'V05', 'V06', 'V07', 'V08', 'V09', 'V10', 'V11', 'V12', 'V13', 'V14', 'V-04', 'V-05', 'V-06', 'V-07', 'V-08', 'V-09', 'V-10', 'V-11', 'V-12', 'V-13', 'V-14'));
-      
-      UPDATE carparks SET section_id = 'sec_units_8_13', section = 'Units 8–13' 
-      WHERE (section_id IS NULL OR section_id = '') AND (spot_number IN ('V15', 'V16', 'V17', 'V18', 'V19', 'V20', 'V-15', 'V-16', 'V-17', 'V-18', 'V-19', 'V-20'));
-      
-      UPDATE carparks SET section_id = 'sec_back', section = 'Back of Complex' 
-      WHERE (section_id IS NULL OR section_id = '') AND (spot_number IN ('V21', 'V22', 'V23', 'V-21', 'V-22', 'V-23'));
-    `).catch(() => {});
   } catch (err) {
     console.warn('[ensureSchema warning]:', err);
   }
@@ -288,7 +298,7 @@ function runMemoryQuery<T>(sql: string, params: any[] = []): T[] {
   // Handle COUNT
   if (trimmed.includes('count(*)')) {
     const tableMatch = trimmed.match(/from\s+([a-z_]+)/i);
-    const table = tableMatch ? tableMatch[1] : '';
+    const table = tableMatch ? tableMatch[1].toLowerCase() : '';
     const items = (store as any)[table] || [];
     return [{ count: items.length }] as any;
   }
@@ -296,7 +306,7 @@ function runMemoryQuery<T>(sql: string, params: any[] = []): T[] {
   // Handle SELECT * FROM table
   const tableMatch = trimmed.match(/from\s+([a-z_]+)/i);
   if (tableMatch) {
-    const table = tableMatch[1];
+    const table = tableMatch[1].toLowerCase();
     let items = ((store as any)[table] || []) as any[];
 
     // Filter active sessions
@@ -304,13 +314,35 @@ function runMemoryQuery<T>(sql: string, params: any[] = []): T[] {
       const nowIso = new Date().toISOString();
       items = items.filter((i) => i.is_active === 1 && (!i.expected_end_time || i.expected_end_time > nowIso));
     }
+
+    // Filter by LOWER(email) = LOWER(?)
+    if (trimmed.includes('lower(email) = lower(?)') || trimmed.includes('email = ?')) {
+      const email = String(params[0] || '').toLowerCase();
+      items = items.filter((i) => String(i.email || '').toLowerCase() === email);
+    }
+
+    // Filter by spot_number or carpark_id
     if (trimmed.includes('carpark_id = ?') || trimmed.includes('spot_id = ?')) {
       const targetId = params[0];
       items = items.filter((i) => i.carpark_id === targetId || i.spot_id === targetId || i.id === targetId || i.spot_number === targetId);
     }
+
+    // Filter by user_id
     if (trimmed.includes('user_id = ?')) {
       const userId = params[0];
       items = items.filter((i) => !userId || i.user_id === userId);
+    }
+
+    // Filter by unit_number
+    if (trimmed.includes('unit_number = ?')) {
+      const unit = params[0];
+      items = items.filter((i) => !unit || i.unit_number === unit);
+    }
+
+    // Filter by id = ?
+    if (trimmed.includes('id = ?')) {
+      const id = params[0];
+      items = items.filter((i) => i.id === id);
     }
 
     return items as T[];
@@ -324,9 +356,9 @@ function runMemoryExec(sql: string, params: any[] = []): { lastID?: number; chan
   const trimmed = sql.trim().toLowerCase();
 
   // INSERT INTO table
-  const insertMatch = trimmed.match(/insert\s+(?:or\s+replace\s+)?into\s+([a-z_]+)\s*\(([^)]+)\)\s*values/i);
+  const insertMatch = trimmed.match(/insert\s+(?:or\s+replace\s+|or\s+ignore\s+)?into\s+([a-z_]+)\s*\(([^)]+)\)\s*values/i);
   if (insertMatch) {
-    const table = insertMatch[1];
+    const table = insertMatch[1].toLowerCase();
     const columns = insertMatch[2].split(',').map((c) => c.trim().toLowerCase());
     if (!(store as any)[table]) (store as any)[table] = [];
 
@@ -335,9 +367,13 @@ function runMemoryExec(sql: string, params: any[] = []): { lastID?: number; chan
       row[col] = params[idx] !== undefined ? params[idx] : null;
     });
 
-    // Replace if id exists
     const list = (store as any)[table];
-    const existingIdx = row.id ? list.findIndex((r: any) => r.id === row.id) : -1;
+    const existingIdx = row.id
+      ? list.findIndex((r: any) => r.id === row.id)
+      : row.email
+      ? list.findIndex((r: any) => String(r.email).toLowerCase() === String(row.email).toLowerCase())
+      : -1;
+
     if (existingIdx >= 0) {
       list[existingIdx] = { ...list[existingIdx], ...row };
     } else {
@@ -356,6 +392,43 @@ function runMemoryExec(sql: string, params: any[] = []): { lastID?: number; chan
     return { changes: 1 };
   }
 
+  // UPDATE table SET ... WHERE ...
+  const updateMatch = trimmed.match(/update\s+([a-z_]+)\s+set\s+(.+)\s+where\s+(.+)/i);
+  if (updateMatch) {
+    const table = updateMatch[1].toLowerCase();
+    const setClause = updateMatch[2];
+    const whereClause = updateMatch[3];
+    const list = (store as any)[table] || [];
+
+    if (whereClause.includes('lower(email) = lower(?)') || whereClause.includes('email = ?')) {
+      const emailParam = String(params[params.length - 1] || '').toLowerCase();
+      list.forEach((item: any) => {
+        if (String(item.email || '').toLowerCase() === emailParam) {
+          const assignments = setClause.split(',').map((a) => a.trim());
+          assignments.forEach((assign, idx) => {
+            const col = assign.split('=')[0].trim().toLowerCase();
+            if (params[idx] !== undefined) item[col] = params[idx];
+          });
+        }
+      });
+      return { changes: 1 };
+    }
+
+    if (whereClause.includes('id = ?')) {
+      const idParam = params[params.length - 1];
+      list.forEach((item: any) => {
+        if (item.id === idParam) {
+          const assignments = setClause.split(',').map((a) => a.trim());
+          assignments.forEach((assign, idx) => {
+            const col = assign.split('=')[0].trim().toLowerCase();
+            if (params[idx] !== undefined) item[col] = params[idx];
+          });
+        }
+      });
+      return { changes: 1 };
+    }
+  }
+
   // UPDATE carparks SET status = ?
   if (trimmed.includes('update carparks set status = ?')) {
     const status = params[0];
@@ -369,34 +442,22 @@ function runMemoryExec(sql: string, params: any[] = []): { lastID?: number; chan
     return { changes: 1 };
   }
 
-  // UPDATE carparks SET status = 'available' WHERE id NOT IN (...)
-  if (trimmed.includes('update carparks') && trimmed.includes("status = 'available'")) {
-    const activeSessions = (store.parking_sessions || []).filter((s) => s.is_active === 1);
-    const activeSpotIds = new Set(activeSessions.map((s) => s.carpark_id || s.spot_id || s.spot_number));
-    store.carparks.forEach((c) => {
-      if (!activeSpotIds.has(c.id) && !activeSpotIds.has(c.spot_number)) {
-        c.status = 'available';
-      }
-    });
-    return { changes: 1 };
-  }
+  // DELETE FROM table WHERE ...
+  const deleteMatch = trimmed.match(/delete\s+from\s+([a-z_]+)\s+where\s+(.+)/i);
+  if (deleteMatch) {
+    const table = deleteMatch[1].toLowerCase();
+    const whereClause = deleteMatch[2];
+    const target = params[0];
 
-  // Auto-expire parking sessions
-  if (trimmed.includes('update parking_sessions') && trimmed.includes('is_active = 0')) {
-    const nowIso = new Date().toISOString();
-    store.parking_sessions.forEach((s) => {
-      if (s.expected_end_time && s.expected_end_time <= nowIso) {
-        s.is_active = 0;
-        s.end_time = s.expected_end_time;
+    if ((store as any)[table]) {
+      if (whereClause.includes('id = ?')) {
+        (store as any)[table] = (store as any)[table].filter((item: any) => item.id !== target);
+      } else if (whereClause.includes('email = ?') || whereClause.includes('lower(email)')) {
+        (store as any)[table] = (store as any)[table].filter(
+          (item: any) => String(item.email || '').toLowerCase() !== String(target || '').toLowerCase()
+        );
       }
-    });
-    return { changes: 1 };
-  }
-
-  // DELETE FROM saved_guests WHERE id = ?
-  if (trimmed.includes('delete from saved_guests')) {
-    const targetId = params[0];
-    store.saved_guests = store.saved_guests.filter((g) => g.id !== targetId);
+    }
     return { changes: 1 };
   }
 

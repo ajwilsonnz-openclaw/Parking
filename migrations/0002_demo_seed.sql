@@ -5,7 +5,7 @@
 
 -- Users (whitelist + users rows for each)
 INSERT OR IGNORE INTO whitelist (id, email, name, unit_number, phone, role) VALUES
-  ('wl-aj', 'ajwilsonnz@gmail.com', 'Adam Wilson', 'Admin HQ', '+64 21 000 0000', 'admin'),
+  ('wl-aj', 'ajwilsonnz@gmail.com', 'Adam Wilson', 'Unit 5', '+64 21 000 0000', 'admin'),
   ('wl-1', 'resident@millennium.com', 'Adam Miller', 'Unit 12', '+64 21 555 0192', 'user'),
   ('wl-2', 'manager@millennium.com', 'Sarah Jenkins', 'Body Corp Office', '+64 21 555 0888', 'management'),
   ('wl-3', 'admin@millennium.com', 'BodyCorp Admin', 'Body Corp HQ', '+64 21 555 0999', 'admin'),
@@ -13,7 +13,7 @@ INSERT OR IGNORE INTO whitelist (id, email, name, unit_number, phone, role) VALU
   ('wl-5', 'unit27@millennium.com', 'Emma Williams', 'Unit 27', '+64 21 555 0772', 'user');
 
 INSERT OR IGNORE INTO users (id, email, name, unit_number, phone, role, status) VALUES
-  ('usr-aj', 'ajwilsonnz@gmail.com', 'Adam Wilson', 'Admin HQ', '+64 21 000 0000', 'admin', 'active'),
+  ('usr-aj', 'ajwilsonnz@gmail.com', 'Adam Wilson', 'Unit 5', '+64 21 000 0000', 'admin', 'active'),
   ('usr-1', 'resident@millennium.com', 'Adam Miller', 'Unit 12', '+64 21 555 0192', 'user', 'active'),
   ('usr-2', 'manager@millennium.com', 'Sarah Jenkins', 'Body Corp Office', '+64 21 555 0888', 'management', 'active'),
   ('usr-3', 'admin@millennium.com', 'BodyCorp Admin', 'Body Corp HQ', '+64 21 555 0999', 'admin', 'active'),

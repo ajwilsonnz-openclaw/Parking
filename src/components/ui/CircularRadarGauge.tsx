@@ -22,17 +22,23 @@ export const CircularRadarGauge: React.FC<CircularRadarGaugeProps> = ({
   const strokeDashoffset = circumference - percentAvailable * circumference;
 
   return (
-    <div className="relative w-full flex flex-col items-center justify-center py-4 select-none overflow-hidden">
-      {/* --- Ambient 3D Orbital Rings (Matching active palette) --- */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+    <div className="relative w-full flex flex-col items-center justify-center py-2 select-none">
+      {/* --- Ambient 3D Orbital Rings with Soft Feathered Fade (No Hard Cutoff) --- */}
+      <div
+        className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-visible"
+        style={{
+          maskImage: 'radial-gradient(ellipse 65% 65% at 50% 50%, black 40%, transparent 100%)',
+          WebkitMaskImage: 'radial-gradient(ellipse 65% 65% at 50% 50%, black 40%, transparent 100%)',
+        }}
+      >
         {/* Outer Elliptical Swirl 1 */}
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 24, repeat: Infinity, ease: 'linear' }}
-          className="absolute w-72 h-44 rounded-full border opacity-60"
+          className="absolute w-52 h-32 rounded-full border opacity-40"
           style={{
             borderColor: paletteConfig.borderPrimary,
-            boxShadow: `0 0 25px ${paletteConfig.ambientGlow}`,
+            boxShadow: `0 0 20px ${paletteConfig.ambientGlow}`,
             transform: 'rotateX(60deg)',
           }}
         />
@@ -40,22 +46,22 @@ export const CircularRadarGauge: React.FC<CircularRadarGaugeProps> = ({
         <motion.div
           animate={{ rotate: -360 }}
           transition={{ duration: 18, repeat: Infinity, ease: 'linear' }}
-          className="absolute w-80 h-48 rounded-full border opacity-40"
+          className="absolute w-56 h-36 rounded-full border opacity-30"
           style={{
             borderColor: paletteConfig.accentSecondary,
-            boxShadow: `0 0 35px ${paletteConfig.ambientGlow}`,
+            boxShadow: `0 0 25px ${paletteConfig.ambientGlow}`,
             transform: 'rotateX(65deg) rotateY(20deg)',
           }}
         />
         {/* Radial Ambient Center Glow */}
         <div
-          className="absolute w-48 h-48 rounded-full blur-2xl pointer-events-none"
+          className="absolute w-36 h-36 rounded-full blur-2xl pointer-events-none opacity-60"
           style={{ backgroundColor: paletteConfig.ambientGlow }}
         />
       </div>
 
       {/* --- Main Circular Radar & Gauge SVG Container --- */}
-      <div className="relative w-60 h-60 flex items-center justify-center z-10">
+      <div className="relative w-52 h-52 flex items-center justify-center z-10">
         {/* Rotating Conic Radar Sweep */}
         <motion.div
           animate={{ rotate: 360 }}

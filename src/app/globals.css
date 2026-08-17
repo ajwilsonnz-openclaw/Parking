@@ -152,11 +152,16 @@
   }
 
   .input {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
     background-color: rgba(0, 0, 0, 0.4);
     border: 1px solid var(--card-border);
     color: var(--text-heading);
     border-radius: 0.875rem;
-    padding: 0.75rem 1rem;
+    padding: 0.625rem 0.875rem;
+    font-size: 0.875rem;
     outline: none;
     transition: all 0.15s ease;
   }

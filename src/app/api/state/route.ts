@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getUserFromClerk } from '@/lib/auth';
+import { requireUser } from '@/lib/auth';
 import { queryDb, ensureSchema, execDb } from '@/lib/db';
 
 export const runtime = 'edge';
@@ -7,7 +7,7 @@ export const runtime = 'edge';
 export async function GET(req: NextRequest) {
   await ensureSchema().catch(() => {});
 
-  const user = await getUserFromClerk().catch(() => null);
+  const user = await requireUser().catch(() => null);
 
   try {
     const nowIso = new Date().toISOString();

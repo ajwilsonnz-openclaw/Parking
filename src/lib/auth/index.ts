@@ -31,7 +31,7 @@ export async function getUserFromClerk(): Promise<User | null> {
     }
 
     let assignedRole = isOwnerAdmin ? 'admin' : (whitelistEntry?.role || dbUser?.role || clerkRole || 'user');
-    let assignedUnit = isOwnerAdmin ? 'Body Corp HQ' : (whitelistEntry?.unit_number || dbUser?.unit_number || 'Unassigned');
+    let assignedUnit = whitelistEntry?.unit_number || dbUser?.unit_number || (isOwnerAdmin ? 'Unit 5' : 'Unassigned');
     let assignedName = whitelistEntry?.name || dbUser?.name || clerkUser.fullName || (clerkUser.firstName ? `${clerkUser.firstName} ${clerkUser.lastName || ''}`.trim() : normalized.split('@')[0]);
     let assignedPhone = whitelistEntry?.phone || dbUser?.phone || clerkUser.phoneNumbers?.[0]?.phoneNumber || '';
     let assignedParks = whitelistEntry?.assigned_parks || dbUser?.assigned_parks || 1;
@@ -73,12 +73,12 @@ export async function requireUser(): Promise<User | null> {
   // Fallback for local development or demo mode
   if (process.env.NODE_ENV === 'development' || !process.env.CLERK_SECRET_KEY) {
     return {
-      id: 'usr-alex',
-      email: 'alex@millenniumvillage.co.nz',
-      name: 'Alex Johnson',
-      unit_number: 'Unit 4',
-      phone: '+64 21 000 4444',
-      role: 'user',
+      id: 'usr-aj',
+      email: 'ajwilsonnz@gmail.com',
+      name: 'Adam Wilson',
+      unit_number: 'Unit 5',
+      phone: '+64 21 000 0000',
+      role: 'admin',
       status: 'active',
       assigned_parks: 1,
       created_at: new Date().toISOString(),
@@ -89,13 +89,13 @@ export async function requireUser(): Promise<User | null> {
 }
 
 export async function requireAdmin(): Promise<User | null> {
-  const user = await getUserFromClerk();
+  const user = await requireUser();
   if (!user || user.role !== 'admin') return null;
   return user;
 }
 
 export async function requireManagement(): Promise<User | null> {
-  const user = await getUserFromClerk();
+  const user = await requireUser();
   if (!user || (user.role !== 'admin' && user.role !== 'management')) return null;
   return user;
 }

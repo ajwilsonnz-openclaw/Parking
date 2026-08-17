@@ -15,6 +15,7 @@ import { useDemoMode } from '@/lib/hooks/useDemoMode';
 import { useApp } from '@/lib/context/AppContext';
 import LoginView from '@/components/views/LoginView';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { OnboardingModal } from '@/components/onboarding/OnboardingModal';
 
 function AuthedShell() {
   const isDemo = useDemoMode();
@@ -23,6 +24,7 @@ function AuthedShell() {
   const [bookingSectionId, setBookingSectionId] = useState<string>('sec_entrance');
   const [showPushGuide, setShowPushGuide] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const [accountSubView, setAccountSubView] = useState<null | 'profile' | 'management' | 'admin'>(null);
 
   const handleNavigate = useCallback((tab: TabId) => {
@@ -58,20 +60,23 @@ function AuthedShell() {
         onOpenNotifications={() => setShowNotifications(true)}
       />
 
-      <main className="flex-1 w-full max-w-lg mx-auto px-3 pt-1 pb-16 relative z-10">
+      {/* Main Content Area */}
+      <main className="flex-1 px-3.5 pt-3 pb-24 max-w-lg mx-auto w-full relative z-10">
         {activeTab === 'home' && (
-          <HomeStatusView
-            onNavigateToBooking={handleNavigateToBooking}
-            onNavigateTab={handleNavigate}
-          />
+          <HomeStatusView onNavigateToBooking={handleNavigateToBooking} />
         )}
+
         {activeTab === 'booking' && (
           <BookingView
             initialSectionId={bookingSectionId}
             onNavigateTab={handleNavigate}
           />
         )}
-        {activeTab === 'status' && <StatusView />}
+
+        {activeTab === 'status' && (
+          <StatusView />
+        )}
+
         {activeTab === 'account' && (
           <>
             {!accountSubView && (
@@ -79,6 +84,7 @@ function AuthedShell() {
                 onOpenManagement={isManagementOrAdmin ? () => setAccountSubView('management') : undefined}
                 onOpenAdmin={currentUser?.role === 'admin' ? () => setAccountSubView('admin') : undefined}
                 onOpenPushGuide={() => setShowPushGuide(true)}
+                onOpenOnboarding={() => setShowOnboarding(true)}
               />
             )}
             {accountSubView === 'management' && <ManagementView onBack={() => setAccountSubView(null)} />}
@@ -87,6 +93,7 @@ function AuthedShell() {
         )}
       </main>
 
+      <OnboardingModal forceOpen={showOnboarding} onClose={() => setShowOnboarding(false)} />
       <PushPermissionGuide isOpen={showPushGuide} onClose={() => setShowPushGuide(false)} />
       <NotificationsSheet isOpen={showNotifications} onClose={() => setShowNotifications(false)} />
 

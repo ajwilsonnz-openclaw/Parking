@@ -10,11 +10,13 @@ import { useAppState, apiPost, apiDelete } from '@/lib/hooks/useAppState';
 const FAV_STORAGE_KEY = 'mv_parking_favs';
 const SESSIONS_STORAGE_KEY = 'mv_parking_local_sessions';
 const GUESTS_STORAGE_KEY = 'mv_parking_local_guests';
+const WHITELIST_STORAGE_KEY = 'mv_parking_local_whitelist';
 
 const CANONICAL_CARPARKS: Carpark[] = Array.from({ length: 23 }, (_, i) => {
-  const num = (i + 1).toString().padStart(2, '0');
-  const sectionId = i < 3 ? 'sec_entrance' : i < 14 ? 'sec_units_1_7' : i < 20 ? 'sec_units_8_13' : 'sec_back';
-  const sectionName = i < 3 ? 'Entrance' : i < 14 ? 'Units 1–7' : i < 20 ? 'Units 8–13' : 'Back of Complex';
+  const spotNum = 23 - i; // 23 down to 1
+  const num = spotNum.toString().padStart(2, '0');
+  const sectionId = spotNum >= 21 ? 'sec_entrance' : spotNum >= 15 ? 'sec_units_8_13' : spotNum >= 4 ? 'sec_units_1_7' : 'sec_back';
+  const sectionName = spotNum >= 21 ? 'Entrance' : spotNum >= 15 ? 'Units 8–13' : spotNum >= 4 ? 'Units 1–7' : 'Back of Complex';
   return {
     id: `cp_v${num}`,
     site_id: 'site_mv',
@@ -127,6 +129,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch { return []; }
   });
 
+  // Local optimistic whitelist — persisted in localStorage
+  const [localWhitelist, setLocalWhitelist] = useState<WhitelistEntry[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const saved = localStorage.getItem(WHITELIST_STORAGE_KEY);
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
+
   useEffect(() => {
     try { localStorage.setItem(SESSIONS_STORAGE_KEY, JSON.stringify(localSessions)); } catch {}
   }, [localSessions]);
@@ -134,6 +145,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     try { localStorage.setItem(GUESTS_STORAGE_KEY, JSON.stringify(localSavedGuests)); } catch {}
   }, [localSavedGuests]);
+
+  useEffect(() => {
+    try { localStorage.setItem(WHITELIST_STORAGE_KEY, JSON.stringify(localWhitelist)); } catch {}
+  }, [localWhitelist]);
 
   // Demo mode via ?demo=1
   const [demoUser, setDemoUser] = useState<User | null>(null);
@@ -157,21 +172,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   const currentUser: User | null = useMemo(() => {
+    if (data?.user) return data.user;
     if (isDemoMode) {
       return (
         demoUser || {
-          id: 'usr-demo',
-          email: 'alex@millenniumvillage.co.nz',
-          name: 'Alex Johnson',
-          unit_number: 'Unit 4',
-          phone: '+64 21 555 0192',
-          role: 'resident',
+          id: 'usr-aj',
+          email: 'ajwilsonnz@gmail.com',
+          name: 'Adam Wilson',
+          unit_number: 'Unit 5',
+          phone: '+64 21 000 0000',
+          role: 'admin',
           assigned_parks: 1,
           created_at: new Date().toISOString(),
         }
       );
     }
-    return data?.user || null;
+    return null;
   }, [data?.user, isDemoMode, demoUser]);
 
   const config: SystemConfig = useMemo(() => {
@@ -234,7 +250,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const vehicles = data?.vehicles || [];
   const demerits = data?.demerits || [];
   const rentals = data?.rentals || [];
-  const whitelist = data?.whitelist || [];
+
+  // Merge server & local whitelist
+  const whitelist: WhitelistEntry[] = useMemo(() => {
+    const serverWl = data?.whitelist || [];
+    const map = new Map<string, WhitelistEntry>();
+    serverWl.forEach((w: any) => map.set(w.id || w.email, w));
+    localWhitelist.forEach((w: any) => map.set(w.id || w.email, w));
+    return Array.from(map.values());
+  }, [data?.whitelist, localWhitelist]);
+
   const units = data?.units || [];
   const notifications = data?.notifications || [];
 
@@ -351,6 +376,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [invalidate]);
 
   const addWhitelistedUser = useCallback(async (email: string, name: string, unitNumber: string, phone: string, role: Role, assignedParks: number = 1) => {
+    const newEntry: WhitelistEntry = {
+      id: `wl-${Date.now()}`,
+      email: email.trim().toLowerCase(),
+      name: name.trim() || email.split('@')[0],
+      unit_number: unitNumber.trim(),
+      phone: phone.trim() || '',
+      role,
+      assigned_parks: assignedParks,
+      added_at: new Date().toISOString(),
+    };
+    setLocalWhitelist((prev) => [...prev.filter((w) => w.email.toLowerCase() !== newEntry.email.toLowerCase()), newEntry]);
+
     try {
       await apiPost('/api/admin/whitelist', { email, name, unit_number: unitNumber, phone, role, assigned_parks: assignedParks });
       invalidate();
@@ -361,6 +398,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [invalidate]);
 
   const removeWhitelistedUser = useCallback(async (whitelistId: string) => {
+    setLocalWhitelist((prev) => prev.filter((w) => w.id !== whitelistId));
     try {
       await apiDelete(`/api/admin/whitelist?id=${encodeURIComponent(whitelistId)}`);
       invalidate();

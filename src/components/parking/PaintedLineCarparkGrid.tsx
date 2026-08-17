@@ -140,7 +140,7 @@ const PaintedStallItem: React.FC<PaintedStallItemProps> = ({
     <button
       type="button"
       onClick={onClick}
-      className="group relative flex flex-col items-center justify-between pt-0 pb-1 h-26 transition-all outline-none"
+      className="group relative flex flex-col items-center justify-between pt-1 pb-1.5 h-[90px] min-h-[90px] max-h-[90px] w-full transition-all outline-none overflow-hidden"
       style={{
         backgroundColor: isSelected ? 'rgba(0,0,0,0.5)' : undefined,
         borderRadius: isSelected ? '0.75rem' : undefined,
@@ -155,10 +155,10 @@ const PaintedStallItem: React.FC<PaintedStallItemProps> = ({
         <div className="absolute top-1.5 bottom-0 right-0 w-[2px] bg-white/20 z-10" />
       )}
 
-      {/* Stall Stencil Number at Top */}
-      <div className="pt-1.5 z-10">
+      {/* Stall Stencil Number at Top (Fixed 14px) */}
+      <div className="h-[14px] flex items-center justify-center z-10">
         <span
-          className="font-mono text-[9.5px] font-black transition-colors"
+          className="font-mono text-[9.5px] font-black leading-none transition-colors"
           style={{
             color: isSelected
               ? 'var(--accent-secondary)'
@@ -171,8 +171,8 @@ const PaintedStallItem: React.FC<PaintedStallItemProps> = ({
         </span>
       </div>
 
-      {/* Middle Bay Content: Parked Car vs Empty Available Bay */}
-      <div className="flex-1 w-full flex items-center justify-center relative my-0.5 z-10 px-0.5">
+      {/* Middle Bay Content: Parked Car vs Empty Available Bay (Fixed 52px) */}
+      <div className="h-[52px] min-h-[52px] max-h-[52px] w-full flex items-center justify-center relative z-10 px-0.5">
         {isOccupied ? (
           /* Parked Top-Down Car facing UP */
           <div className="relative w-full h-full flex flex-col items-center justify-center animate-fade-in">
@@ -180,7 +180,7 @@ const PaintedStallItem: React.FC<PaintedStallItemProps> = ({
             <img
               src="/assets/car_sedan_top.png"
               alt="Parked Vehicle"
-              className="w-[82%] max-w-[38px] h-auto object-contain drop-shadow-[0_4px_8px_rgba(0,0,0,0.7)]"
+              className="w-[82%] max-w-[36px] h-auto object-contain drop-shadow-[0_4px_8px_rgba(0,0,0,0.7)]"
             />
             {/* Photorealistic NZ Plate Badge */}
             <div className="absolute -bottom-0.5 mx-auto z-20">
@@ -208,8 +208,8 @@ const PaintedStallItem: React.FC<PaintedStallItemProps> = ({
         )}
       </div>
 
-      {/* Bottom Sub-info: High-Contrast Remaining Time if occupied */}
-      <div className="w-full flex items-center justify-center h-3.5 z-10">
+      {/* Bottom Sub-info: High-Contrast Remaining Time if occupied (Fixed 14px) */}
+      <div className="h-[14px] w-full flex items-center justify-center z-10">
         {isOccupied && timeRemaining ? (
           <span
             className={`text-[7.5px] font-mono font-black px-1.5 py-0.2 rounded-md shadow-xs leading-none ${
@@ -222,7 +222,7 @@ const PaintedStallItem: React.FC<PaintedStallItemProps> = ({
           </span>
         ) : isSelected ? (
           <span
-            className="text-[7px] font-extrabold uppercase tracking-wider"
+            className="text-[7px] font-extrabold uppercase tracking-wider leading-none"
             style={{ color: 'var(--accent-secondary)' }}
           >
             Selected
