@@ -60,6 +60,7 @@ interface AppContextType {
     savedGuestId?: string
   ) => Promise<boolean>;
   releaseSpot: (sessionId: string) => Promise<void>;
+  extendSession: (sessionId: string, additionalHours: number) => Promise<void>;
 
   addSavedGuest: (guest: { name: string; plate: string; phone?: string; make_model_color?: string }) => Promise<void>;
   removeSavedGuest: (guestId: string) => Promise<void>;
@@ -68,6 +69,7 @@ interface AppContextType {
   removeVehicle: (vehicleId: string) => Promise<void>;
 
   addWhitelistedUser: (email: string, name: string, unitNumber: string, phone: string, role: Role, assignedParks?: number) => Promise<void>;
+  updateWhitelistedUser: (id: string, email: string, name: string, phone: string, role: Role) => Promise<void>;
   removeWhitelistedUser: (whitelistId: string) => Promise<void>;
 
   issueDemerit: (
@@ -208,18 +210,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   }, [data?.config]);
 
-  // Merge server & local sessions
+  // Merge server & local sessions (Strictly deduplicated by spot and session ID)
   const sessions: ParkingSession[] = useMemo(() => {
     const serverSessions = data?.sessions || [];
     const map = new Map<string, ParkingSession>();
-    serverSessions.forEach((s: any) => map.set(s.id, s));
-    localSessions.forEach((s: any) => map.set(s.id, s));
+    const seenSpots = new Set<string>();
 
     const nowMs = Date.now();
-    return Array.from(map.values()).filter((s) => {
+
+    // 1. Process server active sessions first
+    serverSessions.forEach((s: any) => {
       const endMs = new Date(s.expected_end_time).getTime();
-      return s.is_active && endMs > nowMs && !s.end_time;
+      if (s.is_active && endMs > nowMs && !s.end_time) {
+        map.set(s.id, s);
+        if (s.spot_number) seenSpots.add(s.spot_number.replace('-', '').toUpperCase());
+        if (s.carpark_id) seenSpots.add(s.carpark_id);
+      }
     });
+
+    // 2. Merge local optimistic sessions only if spot is not already populated by server
+    localSessions.forEach((s: any) => {
+      const endMs = new Date(s.expected_end_time).getTime();
+      if (s.is_active && endMs > nowMs && !s.end_time) {
+        const spotKey = s.spot_number ? s.spot_number.replace('-', '').toUpperCase() : '';
+        const carparkKey = s.carpark_id || '';
+        if ((!spotKey || !seenSpots.has(spotKey)) && (!carparkKey || !seenSpots.has(carparkKey)) && !map.has(s.id)) {
+          map.set(s.id, s);
+          if (spotKey) seenSpots.add(spotKey);
+          if (carparkKey) seenSpots.add(carparkKey);
+        }
+      }
+    });
+
+    return Array.from(map.values());
   }, [data?.sessions, localSessions]);
 
   // Merge server & local saved guests
@@ -326,9 +349,35 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const releaseSpot = useCallback(async (sessionId: string) => {
     setLocalSessions((prev) => prev.filter((s) => s.id !== sessionId));
     try {
-      await apiPost(`/api/sessions/${sessionId}/release`, {});
+      await apiPost(`/api/sessions/${encodeURIComponent(sessionId)}/release`, {});
       invalidate();
-    } catch (e: any) { console.error(e); }
+    } catch (e: any) {
+      console.warn('Release spot API sync notice:', e?.message);
+    }
+  }, [invalidate]);
+
+  const extendSession = useCallback(async (sessionId: string, additionalHours: number) => {
+    setLocalSessions((prev) =>
+      prev.map((s) => {
+        if (s.id === sessionId) {
+          const currentEnd = new Date(s.expected_end_time).getTime();
+          const newEnd = new Date(currentEnd + additionalHours * 3600000).toISOString();
+          return { ...s, expected_end_time: newEnd };
+        }
+        return s;
+      })
+    );
+
+    try {
+      await apiPost('/api/sessions', {
+        action: 'extend',
+        session_id: sessionId,
+        additional_hours: additionalHours,
+      });
+      invalidate();
+    } catch (e: any) {
+      console.warn('Extend session API sync notice:', e?.message);
+    }
   }, [invalidate]);
 
   const addSavedGuest = useCallback(async (guest: { name: string; plate: string; phone?: string; make_model_color?: string }) => {
@@ -390,6 +439,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     try {
       await apiPost('/api/admin/whitelist', { email, name, unit_number: unitNumber, phone, role, assigned_parks: assignedParks });
+      invalidate();
+    } catch (e: any) {
+      console.error(e);
+      throw e;
+    }
+  }, [invalidate]);
+
+  const updateWhitelistedUser = useCallback(async (id: string, email: string, name: string, phone: string, role: Role) => {
+    setLocalWhitelist((prev) =>
+      prev.map((w) =>
+        w.id === id || w.email.toLowerCase() === email.toLowerCase()
+          ? { ...w, email: email.trim().toLowerCase(), name: name.trim(), phone: phone.trim(), role }
+          : w
+      )
+    );
+
+    try {
+      await apiPost('/api/admin/whitelist', { id, email, name, phone, role });
       invalidate();
     } catch (e: any) {
       console.error(e);
@@ -512,11 +579,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     favourites,
     bookSpot,
     releaseSpot,
+    extendSession,
     addSavedGuest,
     removeSavedGuest,
     addVehicle,
     removeVehicle,
     addWhitelistedUser,
+    updateWhitelistedUser,
     removeWhitelistedUser,
     issueDemerit,
     bootRequest,

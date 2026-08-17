@@ -50,15 +50,53 @@ export const PaintedLineCarparkGrid: React.FC<PaintedLineCarparkGridProps> = ({
   }, [spots, columnsCount]);
 
   return (
-    <div className="w-full space-y-4 py-1 select-none">
+    <div className="w-full space-y-5 py-1 select-none">
       {rows.map((rowSpots, rowIndex) => (
         <div key={`row-${rowIndex}`} className="relative w-full">
-          {/* Continuous Top Painted Baseline Stripe */}
-          <div className="absolute top-1.5 inset-x-0 h-[2px] bg-white/20 z-0 rounded-full" />
-
-          {/* Row of Stalls */}
+          {/* Numbers Placed Strictly Above Horizontal Baseline */}
           <div
-            className="grid w-full gap-0 z-10 relative"
+            className="grid w-full gap-0 pb-1"
+            style={{
+              gridTemplateColumns: `repeat(${columnsCount}, minmax(0, 1fr))`,
+            }}
+          >
+            {rowSpots.map((spot) => {
+              const rawNumber = (spot?.spot_number || '').replace(/^V-?/i, '').padStart(2, '0');
+              const isSelected = selectedSpotId === spot.id;
+              const rawSpotNo = spot.spot_number.replace('-', '');
+              const normalizedSpot = 'V' + (spot?.spot_number || '').replace(/^V-?/i, '').padStart(2, '0');
+              const isOccupied = !!(
+                sessionMap.get(spot.id) ||
+                sessionMap.get(spot.spot_number) ||
+                sessionMap.get(rawSpotNo) ||
+                sessionMap.get(normalizedSpot)
+              );
+
+              return (
+                <div key={`num-${spot.id}`} className="flex items-center justify-center h-[16px]">
+                  <span
+                    className="font-mono text-[10px] font-black leading-none transition-colors"
+                    style={{
+                      color: isSelected
+                        ? 'var(--accent-secondary)'
+                        : isOccupied
+                        ? '#94a3b8'
+                        : '#cbd5e1',
+                    }}
+                  >
+                    {rawNumber}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Continuous Top Painted Baseline Stripe */}
+          <div className="w-full h-[2px] bg-white/20 rounded-full" />
+
+          {/* Row of Stalls Beneath Line */}
+          <div
+            className="grid w-full gap-0 relative"
             style={{
               gridTemplateColumns: `repeat(${columnsCount}, minmax(0, 1fr))`,
             }}
@@ -140,39 +178,23 @@ const PaintedStallItem: React.FC<PaintedStallItemProps> = ({
     <button
       type="button"
       onClick={onClick}
-      className="group relative flex flex-col items-center justify-between pt-1 pb-1.5 h-[90px] min-h-[90px] max-h-[90px] w-full transition-all outline-none overflow-hidden"
+      className="group relative flex flex-col items-center justify-between py-1.5 h-[76px] min-h-[76px] max-h-[76px] w-full transition-all outline-none overflow-hidden"
       style={{
         backgroundColor: isSelected ? 'rgba(0,0,0,0.5)' : undefined,
-        borderRadius: isSelected ? '0.75rem' : undefined,
+        borderRadius: isSelected ? '0.65rem' : undefined,
         boxShadow: isSelected ? '0 0 14px var(--ambient-glow)' : undefined,
       }}
     >
-      {/* Left Painted Vertical Boundary Line (Minimal overhang) */}
-      <div className="absolute top-1.5 bottom-0 left-0 w-[2px] bg-white/20 z-10" />
+      {/* Left Painted Vertical Boundary Line */}
+      <div className="absolute top-0 bottom-0 left-0 w-[2px] bg-white/20 z-10" />
 
       {/* Right Painted Vertical Boundary Line (for last item in row) */}
       {isLastInRow && (
-        <div className="absolute top-1.5 bottom-0 right-0 w-[2px] bg-white/20 z-10" />
+        <div className="absolute top-0 bottom-0 right-0 w-[2px] bg-white/20 z-10" />
       )}
 
-      {/* Stall Stencil Number at Top (Fixed 14px) */}
-      <div className="h-[14px] flex items-center justify-center z-10">
-        <span
-          className="font-mono text-[9.5px] font-black leading-none transition-colors"
-          style={{
-            color: isSelected
-              ? 'var(--accent-secondary)'
-              : isOccupied
-              ? '#64748b'
-              : '#cbd5e1',
-          }}
-        >
-          {rawNumber}
-        </span>
-      </div>
-
-      {/* Middle Bay Content: Parked Car vs Empty Available Bay (Fixed 52px) */}
-      <div className="h-[52px] min-h-[52px] max-h-[52px] w-full flex items-center justify-center relative z-10 px-0.5">
+      {/* Middle Bay Content: Parked Car vs Empty Available Bay (Fixed 54px) */}
+      <div className="h-[54px] min-h-[54px] max-h-[54px] w-full flex items-center justify-center relative z-10 px-0.5">
         {isOccupied ? (
           /* Parked Top-Down Car facing UP */
           <div className="relative w-full h-full flex flex-col items-center justify-center animate-fade-in">
