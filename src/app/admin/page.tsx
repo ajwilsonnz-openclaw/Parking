@@ -8,12 +8,8 @@ import {
   BarChart3,
   Settings,
   ArrowLeft,
-  ShieldAlert,
-  Server,
-  Zap,
-  Lock,
+  Building2,
   CheckCircle2,
-  HardDrive,
 } from 'lucide-react';
 import { useApp } from '@/lib/context/AppContext';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -22,10 +18,11 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { D1Studio } from '@/components/admin/D1Studio';
 import { CloudflareUsageMeter } from '@/components/admin/CloudflareUsageMeter';
+import { UnitsQuotaManager } from '@/components/admin/UnitsQuotaManager';
 
 export default function AdminPage() {
   const { currentUser, config, updateConfig, refetch } = useApp();
-  const [activeTab, setActiveTab] = useState<'d1_studio' | 'cloudflare_meter' | 'settings'>('d1_studio');
+  const [activeTab, setActiveTab] = useState<'units' | 'd1_studio' | 'cloudflare_meter' | 'settings'>('units');
 
   // Config State
   const [maxStayHours, setMaxStayHours] = useState<number>(config?.max_visitor_hours || 24);
@@ -101,6 +98,17 @@ export default function AdminPage() {
         <div className="flex items-center justify-between border-b border-white/10 pb-3">
           <div className="flex items-center gap-2">
             <button
+              onClick={() => setActiveTab('units')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                activeTab === 'units'
+                  ? 'bg-rose-600 text-white shadow-md'
+                  : 'text-slate-400 hover:text-white bg-black/30'
+              }`}
+            >
+              <Building2 className="w-4 h-4" />
+              <span>Units & Park Quotas</span>
+            </button>
+            <button
               onClick={() => setActiveTab('d1_studio')}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
                 activeTab === 'd1_studio'
@@ -136,7 +144,14 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* TAB 1: D1 DATABASE STUDIO */}
+        {/* TAB 1: UNITS & PARK QUOTAS */}
+        {activeTab === 'units' && (
+          <div>
+            <UnitsQuotaManager />
+          </div>
+        )}
+
+        {/* TAB 2: D1 DATABASE STUDIO */}
         {activeTab === 'd1_studio' && (
           <div>
             <D1Studio />

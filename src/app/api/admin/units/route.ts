@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireUser } from '@/lib/auth';
+import { requireAdmin, requireManagement } from '@/lib/auth';
 import { queryDb, execDb, ensureSchema } from '@/lib/db';
 
 export const runtime = 'edge';
@@ -7,8 +7,8 @@ export const runtime = 'edge';
 export async function GET(req: NextRequest) {
   await ensureSchema().catch(() => {});
 
-  const user = await requireUser();
-  if (!user || (user.role !== 'admin' && user.role !== 'management')) {
+  const user = await requireManagement(req);
+  if (!user) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
@@ -19,9 +19,9 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   await ensureSchema().catch(() => {});
 
-  const user = await requireUser();
-  if (!user || (user.role !== 'admin' && user.role !== 'management')) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  const user = await requireAdmin(req);
+  if (!user) {
+    return NextResponse.json({ error: 'Forbidden. Admin quota privileges required' }, { status: 403 });
   }
 
   const { unit_number, assigned_parks, notes } = await req.json();
@@ -47,9 +47,9 @@ export async function POST(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   await ensureSchema().catch(() => {});
 
-  const user = await requireUser();
-  if (!user || (user.role !== 'admin' && user.role !== 'management')) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  const user = await requireAdmin(req);
+  if (!user) {
+    return NextResponse.json({ error: 'Forbidden. Admin quota privileges required' }, { status: 403 });
   }
 
   const { id, unit_number, assigned_parks, notes } = await req.json();
@@ -69,9 +69,9 @@ export async function PUT(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   await ensureSchema().catch(() => {});
 
-  const user = await requireUser();
-  if (!user || (user.role !== 'admin' && user.role !== 'management')) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  const user = await requireAdmin(req);
+  if (!user) {
+    return NextResponse.json({ error: 'Forbidden. Admin quota privileges required' }, { status: 403 });
   }
 
   const id = req.nextUrl.searchParams.get('id');

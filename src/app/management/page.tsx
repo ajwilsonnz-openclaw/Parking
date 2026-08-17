@@ -54,12 +54,19 @@ export default function ManagementPage() {
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
   const [wlEmail, setWlEmail] = useState<string>('');
   const [wlName, setWlName] = useState<string>('');
-  const [wlUnit, setWlUnit] = useState<string>('');
+  const [wlUnit, setWlUnit] = useState<string>(units[0]?.unit_number || 'Unit 1');
   const [wlPhone, setWlPhone] = useState<string>('');
   const [wlRole, setWlRole] = useState<'user' | 'management' | 'admin'>('user');
-  const [wlParks, setWlParks] = useState<number>(1);
+  const [wlParks, setWlParks] = useState<number>(units[0]?.assigned_parks || 1);
   const [isSubmittingWl, setIsSubmittingWl] = useState<boolean>(false);
   const [syncNotice, setSyncNotice] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (!wlUnit && units.length > 0) {
+      setWlUnit(units[0].unit_number);
+      setWlParks(units[0].assigned_parks || 1);
+    }
+  }, [units, wlUnit]);
 
   // Demerit Form State
   const [demeritUnit, setDemeritUnit] = useState<string>('');
@@ -594,50 +601,60 @@ export default function ManagementPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[11px] font-bold block mb-1 text-slate-300">
-                    Unit Number *
-                  </label>
-                  <Input
-                    type="text"
-                    placeholder="e.g. Unit 5"
-                    value={wlUnit}
-                    onChange={(e) => setWlUnit(e.target.value)}
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="text-[11px] font-bold block mb-1 text-slate-300">
-                    Assigned Parks
-                  </label>
-                  <Input
-                    type="number"
-                    min={1}
-                    max={5}
-                    value={wlParks}
-                    onChange={(e) => setWlParks(parseInt(e.target.value) || 1)}
-                  />
-                </div>
-              </div>
-
+              {/* Preconfigured Unit Selection */}
               <div>
-                <label className="text-[11px] font-bold block mb-1 text-slate-300">
-                  Access Role
+                <label className="text-[11px] font-bold block mb-1 text-slate-300 flex items-center justify-between">
+                  <span>Assign to Preconfigured Unit *</span>
+                  <span className="text-[10px] text-blue-400 font-normal">Multiple residents per unit allowed</span>
                 </label>
                 <select
-                  value={wlRole}
-                  onChange={(e) => setWlRole(e.target.value as any)}
+                  value={wlUnit}
+                  onChange={(e) => {
+                    const selected = e.target.value;
+                    setWlUnit(selected);
+                    const match = (units.length > 0 ? units : Array.from({ length: 27 }, (_, i) => ({ id: `unit-${i + 1}`, unit_number: `Unit ${i + 1}`, assigned_parks: i === 0 ? 2 : 1 }))).find(u => u.unit_number === selected);
+                    if (match) setWlParks(match.assigned_parks || 1);
+                  }}
                   className="w-full h-9 rounded-xl border border-white/15 bg-black/40 px-3 text-xs text-white"
+                  required
                 >
-                  <option value="user">User (Resident)</option>
-                  <option value="management">Management</option>
-                  <option value="admin">Admin</option>
+                  {(units.length > 0 ? units : Array.from({ length: 27 }, (_, i) => ({ id: `unit-${i + 1}`, unit_number: `Unit ${i + 1}`, assigned_parks: i === 0 ? 2 : 1 }))).map((u) => (
+                    <option key={u.id || u.unit_number} value={u.unit_number}>
+                      {u.unit_number} — {u.assigned_parks || 1} {u.assigned_parks === 1 ? 'Park' : 'Parks'} quota
+                    </option>
+                  ))}
                 </select>
               </div>
 
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] font-bold block mb-1 text-slate-300">
+                    Unit Park Quota (Admin Set)
+                  </label>
+                  <div className="flex items-center gap-1.5 h-9 px-3 rounded-xl border border-white/10 bg-white/5 text-xs font-bold text-slate-300">
+                    <Building2 className="w-3.5 h-3.5 text-slate-400" />
+                    <span>{wlParks} {wlParks === 1 ? 'Park' : 'Parks'}</span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold block mb-1 text-slate-300">
+                    Access Role
+                  </label>
+                  <select
+                    value={wlRole}
+                    onChange={(e) => setWlRole(e.target.value as any)}
+                    className="w-full h-9 rounded-xl border border-white/15 bg-black/40 px-3 text-xs text-white"
+                  >
+                    <option value="user">User (Resident)</option>
+                    <option value="management">Management</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </div>
+              </div>
+
               <div className="p-3 rounded-xl bg-blue-950/40 border border-blue-500/20 text-blue-300 text-[11px]">
-                Upon saving, this email will be allowed to sign in through Clerk immediately.
+                Upon saving, this email will be linked to {wlUnit || 'the unit'} and allowed to sign in through Clerk immediately.
               </div>
 
               <div className="flex justify-end gap-2 pt-2">
