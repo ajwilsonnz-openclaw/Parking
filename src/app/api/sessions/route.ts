@@ -1,10 +1,11 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { requireUser } from '@/lib/auth';
-import { queryDb, execDb } from '@/lib/db';
+import { queryDb, execDb, ensureSchema } from '@/lib/db';
 
 export const runtime = 'edge';
 
 export async function POST(req: NextRequest) {
+  await ensureSchema().catch(() => {});
   const user = await requireUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -16,13 +17,13 @@ export async function POST(req: NextRequest) {
 
   if (sessionType === 'resident_excess') {
     const owns = await queryDb(
-      "SELECT id FROM unit_vehicles WHERE user_id = ? AND plate_number = ? AND status = 'approved'",
-      [user.id, vehiclePlate]
+      "SELECT id FROM unit_vehicles WHERE (user_id = ? OR unit_number = ?) AND plate_number = ? AND status = 'approved'",
+      [user.id, user.unit_number, vehiclePlate]
     );
     if (!owns.length) return NextResponse.json({ error: 'Resident excess must use your own approved vehicle' }, { status: 400 });
   }
 
-  const active = await queryDb('SELECT id FROM parking_sessions WHERE carpark_id = ? AND is_active = 1', [carparkId]);
+  const active = await queryDb('SELECT id FROM parking_sessions WHERE (carpark_id = ? OR spot_id = ?) AND is_active = 1', [carparkId, carparkId]);
   if (active.length) return NextResponse.json({ error: 'Spot not available' }, { status: 409 });
 
   const startTime = new Date();
@@ -31,12 +32,12 @@ export async function POST(req: NextRequest) {
 
   await execDb(
     `INSERT INTO parking_sessions
-      (id, carpark_id, spot_number, user_id, unit_number, vehicle_plate, session_type, start_time, expected_end_time, is_active, visitor_name, visitor_phone, saved_guest_id)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-    [sessionId, carparkId, spotNumber, user.id, user.unit_number, vehiclePlate, sessionType, startTime.toISOString(), endTime.toISOString(), 1, visitorName || null, visitorPhone || null, savedGuestId || null]
+      (id, carpark_id, spot_id, spot_number, user_id, created_by_user_id, unit_number, vehicle_plate, session_type, start_time, expected_end_time, is_active, visitor_name, visitor_phone, saved_guest_id)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    [sessionId, carparkId, carparkId, spotNumber, user.id, user.id, user.unit_number, vehiclePlate, sessionType, startTime.toISOString(), endTime.toISOString(), 1, visitorName || null, visitorPhone || null, savedGuestId || null]
   );
 
-  await execDb('UPDATE carparks SET status = ? WHERE id = ?', ['occupied', carparkId]);
+  await execDb('UPDATE carparks SET status = ? WHERE id = ? OR spot_number = ?', ['occupied', carparkId, spotNumber]);
 
   return NextResponse.json({ success: true, id: sessionId });
 }

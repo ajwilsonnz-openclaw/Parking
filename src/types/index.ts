@@ -64,6 +64,7 @@ export type SessionType = 'visitor' | 'resident_excess' | 'rented_private';
 export interface ParkingSession {
   id: string;
   spot_id: string;
+  carpark_id?: string;
   spot_number: string;
   unit_number: string;
   vehicle_plate: string;
@@ -73,9 +74,11 @@ export interface ParkingSession {
   end_time?: string;
   is_active: boolean;
   boot_requested?: boolean;
+  user_id?: string;
   created_by_user_id: string;
   visitor_name?: string;
   visitor_phone?: string;
+  saved_guest_id?: string;
 }
 
 export interface SpotRental {

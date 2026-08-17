@@ -100,7 +100,24 @@ export async function GET(req: NextRequest) {
       { id: 'cp_v23', site_id: 'site_mv', section_id: 'sec_back', section: 'Back of Complex', spot_number: 'V23', status: 'available' },
     ];
 
-    const finalCarparks = carparks && carparks.length > 0 ? carparks : DEFAULT_CARPARKS;
+    const activeSessionMap = new Map<string, any>();
+    (sessionsRaw || []).forEach((s: any) => {
+      const nowMs = Date.now();
+      const endMs = new Date(s.expected_end_time).getTime();
+      if (s.is_active && endMs > nowMs && !s.end_time) {
+        if (s.carpark_id) activeSessionMap.set(s.carpark_id, s);
+        if (s.spot_id) activeSessionMap.set(s.spot_id, s);
+        if (s.spot_number) activeSessionMap.set(s.spot_number, s);
+      }
+    });
+
+    const finalCarparks = (carparks && carparks.length > 0 ? carparks : DEFAULT_CARPARKS).map((cp: any) => {
+      const session = activeSessionMap.get(cp.id) || activeSessionMap.get(cp.spot_number);
+      return {
+        ...cp,
+        status: session ? 'occupied' : 'available',
+      };
+    });
     const finalSections = sectionsRaw && sectionsRaw.length > 0 ? sectionsRaw : DEFAULT_SECTIONS;
 
     return NextResponse.json({

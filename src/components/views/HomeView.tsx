@@ -39,38 +39,44 @@ export const HomeView: React.FC<HomeViewProps> = ({ onNavigateTab }) => {
 
   // Group carparks dynamically by section
   const sectionGroups = useMemo(() => {
-    if (sections && sections.length > 0) {
-      return sections.map((sec) => ({
-        id: sec.id,
-        name: sec.name,
-        description: sec.description,
-        spots: carparks.filter(
-          (c) => c.section_id === sec.id || c.section === sec.name
-        ),
-      }));
+    let allParks = carparks;
+    if (!allParks || allParks.length === 0) {
+      allParks = Array.from({ length: 23 }, (_, i) => {
+        const num = (i + 1).toString().padStart(2, '0');
+        return {
+          id: `cp_v${num}`,
+          site_id: 'site_mv',
+          spot_number: `V${num}`,
+          section_id: i < 3 ? 'sec_entrance' : i < 14 ? 'sec_units_1_7' : i < 20 ? 'sec_units_8_13' : 'sec_back',
+          section: i < 3 ? 'Entrance' : i < 14 ? 'Units 1–7' : i < 20 ? 'Units 8–13' : 'Back of Complex',
+          status: 'available',
+          is_rentable_private: false,
+        };
+      });
     }
 
-    // Fallback default sections if DB empty
-    const entrance = carparks.filter((c) => ['V01', 'V02', 'V03', 'V-01', 'V-02', 'V-03'].includes(c.spot_number));
-    const units1_7 = carparks.filter((c) => {
-      const num = parseInt(c.spot_number.replace(/^V-?/i, ''), 10);
-      return num >= 4 && num <= 14;
-    });
-    const units8_13 = carparks.filter((c) => {
-      const num = parseInt(c.spot_number.replace(/^V-?/i, ''), 10);
-      return num >= 15 && num <= 20;
-    });
-    const back = carparks.filter((c) => {
-      const num = parseInt(c.spot_number.replace(/^V-?/i, ''), 10);
-      return num >= 21 && num <= 23;
-    });
-
-    return [
-      { id: 'sec_entrance', name: 'Entrance', description: 'Main entrance area', spots: entrance.length ? entrance : carparks.slice(0, 3) },
-      { id: 'sec_units_1_7', name: 'Units 1–7', description: 'Front townhouse wing', spots: units1_7.length ? units1_7 : carparks.slice(3, 14) },
-      { id: 'sec_units_8_13', name: 'Units 8–13', description: 'Middle townhouse wing', spots: units8_13.length ? units8_13 : carparks.slice(14, 20) },
-      { id: 'sec_back', name: 'Back of Complex', description: 'Rear courtyard area', spots: back.length ? back : carparks.slice(20, 23) },
+    const defaultDefs = [
+      { id: 'sec_entrance', name: 'Entrance', min: 1, max: 3 },
+      { id: 'sec_units_1_7', name: 'Units 1–7', min: 4, max: 14 },
+      { id: 'sec_units_8_13', name: 'Units 8–13', min: 15, max: 20 },
+      { id: 'sec_back', name: 'Back of Complex', min: 21, max: 99 },
     ];
+
+    return defaultDefs.map((def) => {
+      const matchingSpots = allParks.filter((c) => {
+        if (c.section_id === def.id || (c.section && c.section.toLowerCase().includes(def.name.toLowerCase()))) {
+          return true;
+        }
+        const num = parseInt((c?.spot_number || '').replace(/^V-?/i, ''), 10);
+        return !isNaN(num) && num >= def.min && num <= def.max;
+      });
+
+      return {
+        id: def.id,
+        name: def.name,
+        spots: matchingSpots,
+      };
+    });
   }, [sections, carparks]);
 
   const totalAvailableCount = useMemo(() => {

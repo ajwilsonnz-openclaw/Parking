@@ -67,7 +67,25 @@ export async function getUserFromClerk(): Promise<User | null> {
 
 // ─── Auth guards ───────────────────────────────────────────────
 export async function requireUser(): Promise<User | null> {
-  return getUserFromClerk();
+  const user = await getUserFromClerk().catch(() => null);
+  if (user) return user;
+
+  // Fallback for local development or demo mode
+  if (process.env.NODE_ENV === 'development' || !process.env.CLERK_SECRET_KEY) {
+    return {
+      id: 'usr-alex',
+      email: 'alex@millenniumvillage.co.nz',
+      name: 'Alex Johnson',
+      unit_number: 'Unit 4',
+      phone: '+64 21 000 4444',
+      role: 'user',
+      status: 'active',
+      assigned_parks: 1,
+      created_at: new Date().toISOString(),
+    };
+  }
+
+  return null;
 }
 
 export async function requireAdmin(): Promise<User | null> {
