@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Inter, Sora } from 'next/font/google';
 import './globals.css';
 
@@ -9,6 +9,14 @@ import { AppProvider } from '@/lib/context/AppContext';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 const sora = Sora({ subsets: ['latin'], variable: '--font-sora' });
+
+export const viewport: Viewport = {
+  themeColor: '#10151A',
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+};
 
 export const metadata: Metadata = {
   title: 'Millennium Village Parking',
@@ -42,7 +50,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
-      <body className="antialiased min-h-screen bg-bg text-ink pb-24 md:pb-8">
+      <body className="antialiased min-h-screen bg-[var(--app-bg,#10151A)] text-slate-100 selection:bg-slate-300 selection:text-black">
         <ConditionalClerkProvider>
           <ThemeProvider>
             <ServiceWorkerRegister />

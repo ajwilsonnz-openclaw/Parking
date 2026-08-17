@@ -94,14 +94,23 @@ export const TactileTimePicker: React.FC<TactileTimePickerProps> = ({ onTimeChan
   };
 
   return (
-    <div className="space-y-2 select-none">
+    <div className="space-y-1.5 select-none">
       <div className="flex items-center justify-between">
-        <span className="text-[11px] font-black uppercase tracking-wider text-slate-500">
-          Time
+        <span
+          className="text-[10px] font-extrabold uppercase tracking-wider"
+          style={{ color: 'var(--text-muted)' }}
+        >
+          Duration / End Time
         </span>
       </div>
 
-      <div className="flex items-center justify-between gap-3 bg-slate-50/80 p-3 rounded-2xl border border-slate-200/90">
+      <div
+        className="flex items-center justify-between gap-3 p-2.5 rounded-2xl border"
+        style={{
+          backgroundColor: 'rgba(0,0,0,0.4)',
+          borderColor: 'var(--card-border)',
+        }}
+      >
         {/* Hour & Minute Stepper Grid */}
         <div className="flex items-center gap-1.5">
           {/* Hour Column */}
@@ -109,43 +118,84 @@ export const TactileTimePicker: React.FC<TactileTimePickerProps> = ({ onTimeChan
             <button
               type="button"
               onClick={incrementHour}
-              className="w-8 h-8 rounded-full bg-white border border-slate-200 text-slate-600 hover:text-slate-900 hover:border-slate-300 shadow-sm flex items-center justify-center active:scale-90 transition-transform"
+              className="w-7 h-7 rounded-full border flex items-center justify-center active:scale-90 transition-all hover:text-white"
+              style={{
+                backgroundColor: 'rgba(0,0,0,0.5)',
+                borderColor: 'var(--card-border)',
+                color: 'var(--accent-secondary)',
+                boxShadow: '0 0 8px var(--ambient-glow)',
+              }}
               aria-label="Increase hour"
             >
               <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
             </button>
-            <div className="w-11 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center font-mono font-black text-base text-slate-900 shadow-xs">
+            <div
+              className="w-10 h-9 rounded-xl border flex items-center justify-center font-mono font-black text-sm text-white shadow-xs"
+              style={{
+                backgroundColor: 'rgba(0,0,0,0.6)',
+                borderColor: 'var(--card-border)',
+              }}
+            >
               {hour}
             </div>
             <button
               type="button"
               onClick={decrementHour}
-              className="w-8 h-8 rounded-full bg-white border border-slate-200 text-slate-600 hover:text-slate-900 hover:border-slate-300 shadow-sm flex items-center justify-center active:scale-90 transition-transform"
+              className="w-7 h-7 rounded-full border flex items-center justify-center active:scale-90 transition-all hover:text-white"
+              style={{
+                backgroundColor: 'rgba(0,0,0,0.5)',
+                borderColor: 'var(--card-border)',
+                color: 'var(--accent-secondary)',
+                boxShadow: '0 0 8px var(--ambient-glow)',
+              }}
               aria-label="Decrease hour"
             >
               <Minus className="w-3.5 h-3.5 stroke-[2.5]" />
             </button>
           </div>
 
-          <span className="font-mono font-black text-slate-400 text-lg mb-0.5">:</span>
+          <span
+            className="font-mono font-black text-base mb-0.5 opacity-60"
+            style={{ color: 'var(--accent-secondary)' }}
+          >
+            :
+          </span>
 
           {/* Minute Column */}
           <div className="flex flex-col items-center gap-1">
             <button
               type="button"
               onClick={incrementMinute}
-              className="w-8 h-8 rounded-full bg-white border border-slate-200 text-slate-600 hover:text-slate-900 hover:border-slate-300 shadow-sm flex items-center justify-center active:scale-90 transition-transform"
+              className="w-7 h-7 rounded-full border flex items-center justify-center active:scale-90 transition-all hover:text-white"
+              style={{
+                backgroundColor: 'rgba(0,0,0,0.5)',
+                borderColor: 'var(--card-border)',
+                color: 'var(--accent-secondary)',
+                boxShadow: '0 0 8px var(--ambient-glow)',
+              }}
               aria-label="Increase minutes"
             >
               <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
             </button>
-            <div className="w-11 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center font-mono font-black text-base text-slate-900 shadow-xs">
+            <div
+              className="w-10 h-9 rounded-xl border flex items-center justify-center font-mono font-black text-sm text-white shadow-xs"
+              style={{
+                backgroundColor: 'rgba(0,0,0,0.6)',
+                borderColor: 'var(--card-border)',
+              }}
+            >
               {minute.toString().padStart(2, '0')}
             </div>
             <button
               type="button"
               onClick={decrementMinute}
-              className="w-8 h-8 rounded-full bg-white border border-slate-200 text-slate-600 hover:text-slate-900 hover:border-slate-300 shadow-sm flex items-center justify-center active:scale-90 transition-transform"
+              className="w-7 h-7 rounded-full border flex items-center justify-center active:scale-90 transition-all hover:text-white"
+              style={{
+                backgroundColor: 'rgba(0,0,0,0.5)',
+                borderColor: 'var(--card-border)',
+                color: 'var(--accent-secondary)',
+                boxShadow: '0 0 8px var(--ambient-glow)',
+              }}
               aria-label="Decrease minutes"
             >
               <Minus className="w-3.5 h-3.5 stroke-[2.5]" />
@@ -153,29 +203,37 @@ export const TactileTimePicker: React.FC<TactileTimePickerProps> = ({ onTimeChan
           </div>
         </div>
 
-        {/* AM / PM Toggle Pills */}
-        <div className="flex items-center gap-1.5">
+        {/* AM / PM Segment Toggle */}
+        <div
+          className="flex p-1 rounded-xl border"
+          style={{
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            borderColor: 'var(--card-border)',
+          }}
+        >
           <button
             type="button"
             onClick={() => setPeriod('am')}
-            className={`px-3.5 py-2.5 rounded-xl font-mono text-xs font-black transition-all ${
-              period === 'am'
-                ? 'bg-amber-100/90 text-amber-950 border border-amber-300 shadow-xs ring-1 ring-amber-400/50'
-                : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-50'
-            }`}
+            className="py-2 px-3 rounded-lg text-xs font-black transition-all"
+            style={{
+              background: period === 'am' ? 'var(--accent-gradient)' : 'transparent',
+              color: period === 'am' ? '#020617' : 'var(--text-muted)',
+              boxShadow: period === 'am' ? '0 0 10px var(--ambient-glow)' : 'none',
+            }}
           >
-            am
+            AM
           </button>
           <button
             type="button"
             onClick={() => setPeriod('pm')}
-            className={`px-3.5 py-2.5 rounded-xl font-mono text-xs font-black transition-all ${
-              period === 'pm'
-                ? 'bg-amber-100/90 text-amber-950 border border-amber-300 shadow-xs ring-1 ring-amber-400/50'
-                : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-50'
-            }`}
+            className="py-2 px-3 rounded-lg text-xs font-black transition-all"
+            style={{
+              background: period === 'pm' ? 'var(--accent-gradient)' : 'transparent',
+              color: period === 'pm' ? '#020617' : 'var(--text-muted)',
+              boxShadow: period === 'pm' ? '0 0 10px var(--ambient-glow)' : 'none',
+            }}
           >
-            pm
+            PM
           </button>
         </div>
       </div>

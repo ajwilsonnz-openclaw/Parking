@@ -3,8 +3,8 @@
 import React, { useState, useCallback, Suspense, useEffect } from 'react';
 import { Header } from '@/components/navigation/Header';
 import { MobileTabBar, TabId } from '@/components/navigation/MobileTabBar';
-import { HomeView } from '@/components/views/HomeView';
-import { BookingsView } from '@/components/views/BookingsView';
+import { HomeStatusView } from '@/components/views/HomeStatusView';
+import { BookingView } from '@/components/views/BookingView';
 import { StatusView } from '@/components/views/StatusView';
 import { AccountView } from '@/components/views/AccountView';
 import { AdminView } from '@/components/views/AdminView';
@@ -20,6 +20,7 @@ function AuthedShell() {
   const isDemo = useDemoMode();
   const { currentUser } = useApp();
   const [activeTab, setActiveTab] = useState<TabId>('home');
+  const [bookingSectionId, setBookingSectionId] = useState<string>('sec_entrance');
   const [showPushGuide, setShowPushGuide] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [accountSubView, setAccountSubView] = useState<null | 'profile' | 'management' | 'admin'>(null);
@@ -29,18 +30,47 @@ function AuthedShell() {
     setAccountSubView(null);
   }, []);
 
+  const handleNavigateToBooking = useCallback((sectionId?: string) => {
+    if (sectionId) setBookingSectionId(sectionId);
+    setActiveTab('booking');
+    setAccountSubView(null);
+  }, []);
+
   const isManagementOrAdmin = currentUser?.role === 'management' || currentUser?.role === 'admin';
 
+  const tabTitle = activeTab === 'home'
+    ? 'Millennium Village Parking'
+    : activeTab === 'booking'
+    ? 'Booking'
+    : activeTab === 'status'
+    ? 'Status'
+    : 'Account';
+
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-[var(--app-bg,#07130D)] text-slate-100 relative overflow-x-hidden transition-colors duration-300">
+      {/* Ambient Top Dynamic Radial Glow */}
+      <div className="fixed inset-0 pointer-events-none bg-[radial-gradient(ellipse_80%_60%_at_50%_-10%,var(--ambient-glow,rgba(16,185,129,0.22)),transparent_70%)] z-0" />
+
       <Header
+        title={tabTitle}
+        isDemo={isDemo}
         onOpenPushGuide={() => setShowPushGuide(true)}
         onOpenNotifications={() => setShowNotifications(true)}
       />
 
-      <main className="flex-1 w-full max-w-lg mx-auto px-4 pt-3 pb-32">
-        {activeTab === 'home' && <HomeView onNavigateTab={handleNavigate} />}
-        {activeTab === 'bookings' && <BookingsView />}
+      <main className="flex-1 w-full max-w-lg mx-auto px-3 pt-1 pb-16 relative z-10">
+        {activeTab === 'home' && (
+          <HomeStatusView
+            onNavigateToBooking={handleNavigateToBooking}
+            onNavigateTab={handleNavigate}
+          />
+        )}
+        {activeTab === 'booking' && (
+          <BookingView
+            initialSectionId={bookingSectionId}
+            onNavigateTab={handleNavigate}
+          />
+        )}
         {activeTab === 'status' && <StatusView />}
         {activeTab === 'account' && (
           <>
@@ -61,12 +91,6 @@ function AuthedShell() {
       <NotificationsSheet isOpen={showNotifications} onClose={() => setShowNotifications(false)} />
 
       <MobileTabBar activeTab={activeTab} setActiveTab={handleNavigate} />
-
-      {isDemo && (
-        <div className="fixed top-2 right-2 z-50 px-2 py-1 rounded-full bg-warning-soft text-warning text-[10px] font-black uppercase tracking-wider border border-warning/25 shadow">
-          Demo Mode
-        </div>
-      )}
     </div>
   );
 }
@@ -91,23 +115,19 @@ function Shell() {
   }, [searchParams, router]);
 
   if (!mounted) {
-    return <div className="min-h-screen bg-slate-50" />;
+    return <div className="min-h-screen bg-[#07130D]" />;
   }
 
   if (isDemoParam || isAuthed) {
     return <AuthedShell />;
   }
 
-  if (isLoading) {
-    return <div className="min-h-screen bg-slate-50" />;
-  }
-
   return <LoginView />;
 }
 
-export default function Home() {
+export default function Page() {
   return (
-    <Suspense fallback={<div className="min-h-screen" style={{ backgroundColor: 'var(--bg-app)' }} />}>
+    <Suspense fallback={<div className="min-h-screen bg-[#07130D]" />}>
       <Shell />
     </Suspense>
   );

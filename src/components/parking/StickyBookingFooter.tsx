@@ -1,23 +1,15 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
-import { motion } from 'framer-motion';
-import {
-  Car,
-  Plus,
-  CheckCircle2,
-  X,
-  ArrowRight,
-  Users
-} from 'lucide-react';
-import { useApp } from '@/lib/context/AppContext';
-import { Carpark, UnitVehicle, SavedGuest } from '@/types';
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Carpark, Vehicle, SavedGuest } from '@/types';
 import { TactileTimePicker } from './TactileTimePicker';
+import { Users, Plus, Car, CheckCircle2, ArrowRight, X } from 'lucide-react';
 
 interface StickyBookingFooterProps {
   selectedSpot: Carpark | null;
-  vehicles: UnitVehicle[];
-  savedGuests?: SavedGuest[];
+  vehicles: Vehicle[];
+  savedGuests: SavedGuest[];
   onClearSelection: () => void;
   onConfirmBooking: (params: {
     spot: Carpark;
@@ -25,133 +17,147 @@ interface StickyBookingFooterProps {
     durationHours: number;
     visitorName?: string;
     savedGuestId?: string;
+    saveForFuture?: boolean;
   }) => Promise<void>;
-  isSubmitting: boolean;
+  isSubmitting?: boolean;
 }
-
-type CarSourceMode = 'saved' | 'new' | 'resident';
 
 export const StickyBookingFooter: React.FC<StickyBookingFooterProps> = ({
   selectedSpot,
   vehicles,
-  savedGuests = [],
+  savedGuests,
   onClearSelection,
   onConfirmBooking,
-  isSubmitting,
+  isSubmitting = false,
 }) => {
-  const { addSavedGuest } = useApp();
+  // Car Selection Mode: 'saved' | 'new' | 'resident'
+  const [carMode, setCarMode] = useState<'saved' | 'new' | 'resident'>('saved');
 
-  // Mode selection: default to 'saved' if saved guests exist, else 'new'
-  const [carMode, setCarMode] = useState<CarSourceMode>(() =>
-    savedGuests.length > 0 ? 'saved' : 'new'
-  );
+  // Input states
+  const [selectedGuestId, setSelectedGuestId] = useState<string>('');
+  const [newPlate, setNewPlate] = useState<string>('');
+  const [newVisitorName, setNewVisitorName] = useState<string>('');
+  const [saveForFuture, setSaveForFuture] = useState<boolean>(true);
+  const [selectedResidentPlate, setSelectedResidentPlate] = useState<string>('');
 
-  // Selected saved guest
-  const [selectedGuestId, setSelectedGuestId] = useState<string>(
-    savedGuests.length > 0 ? savedGuests[0].id : ''
-  );
-
-  // New guest inputs
-  const [newVisitorName, setNewVisitorName] = useState('');
-  const [newPlate, setNewPlate] = useState('');
-  const [saveForFuture, setSaveForFuture] = useState(true);
-
-  // Resident vehicle selection
-  const [selectedResidentPlate, setSelectedResidentPlate] = useState<string>(() => {
-    const primary = vehicles.find((v) => v.is_primary) || vehicles[0];
-    return primary ? primary.plate_number : '';
-  });
-
-  // Tactile Stepper Time State
-  const [selectedDurationHours, setSelectedDurationHours] = useState<number>(1);
+  // Time & Duration state
+  const [durationHours, setDurationHours] = useState<number>(1);
   const [selectedTimeLabel, setSelectedTimeLabel] = useState<string>('');
+  const [bookingSuccess, setBookingSuccess] = useState<boolean>(false);
 
-  const [bookingSuccess, setBookingSuccess] = useState(false);
+  // Initialize selections when selectedSpot or savedGuests changes
+  useEffect(() => {
+    if (savedGuests && savedGuests.length > 0) {
+      setCarMode('saved');
+      setSelectedGuestId(savedGuests[0].id);
+    } else {
+      setCarMode('new');
+    }
 
-  const handleTimeChange = useCallback(
-    (params: { hoursFromNow: number; formattedTime: string; targetDate: Date }) => {
-      setSelectedDurationHours(params.hoursFromNow);
-      setSelectedTimeLabel(params.formattedTime);
-    },
-    []
-  );
+    if (vehicles && vehicles.length > 0) {
+      setSelectedResidentPlate(vehicles[0].plate_number);
+    }
+  }, [savedGuests, vehicles, selectedSpot]);
 
   if (!selectedSpot) return null;
 
-  const rawNumber = selectedSpot.spot_number.replace('-', '').toUpperCase();
-  const spotDisplayName = rawNumber.startsWith('V')
-    ? `Visitor ${rawNumber.replace(/^V0*/, '')}`
-    : `Visitor ${rawNumber}`;
+  const rawNumber = (selectedSpot?.spot_number || '').replace(/^V-?/i, '').padStart(2, '0');
+  const spotDisplayName = `Visitor ${parseInt(rawNumber, 10)}`;
 
-  // Resolve active car info
+  // Determine active plate to submit
   let activePlate = '';
   let activeVisitorName = '';
-  let activeGuestId: string | undefined = undefined;
+  let activeGuestId: string | undefined;
 
   if (carMode === 'saved') {
-    const guest = savedGuests.find((g) => g.id === selectedGuestId) || savedGuests[0];
-    if (guest) {
-      activePlate = guest.plate;
-      activeVisitorName = guest.name;
-      activeGuestId = guest.id;
+    const found = savedGuests.find((g) => g.id === selectedGuestId);
+    if (found) {
+      activePlate = found.plate;
+      activeVisitorName = found.name;
+      activeGuestId = found.id;
     }
   } else if (carMode === 'new') {
     activePlate = newPlate.trim().toUpperCase();
     activeVisitorName = newVisitorName.trim();
-  } else {
-    activePlate = selectedResidentPlate.trim().toUpperCase();
+  } else if (carMode === 'resident') {
+    activePlate = selectedResidentPlate;
     activeVisitorName = 'Resident Vehicle';
   }
 
-  const handleStartParking = async () => {
-    if (!activePlate) return;
-    try {
-      // If user entered a new visitor and checked "Save for future"
-      if (carMode === 'new' && saveForFuture && activePlate && activeVisitorName) {
-        addSavedGuest({
-          name: activeVisitorName,
-          plate: activePlate,
-        }).catch(() => {});
-      }
+  const handleTimeChange = (params: {
+    hoursFromNow: number;
+    formattedTime: string;
+    targetDate: Date;
+  }) => {
+    setDurationHours(params.hoursFromNow);
+    setSelectedTimeLabel(params.formattedTime);
+  };
 
+  const handleStartParking = async () => {
+    if (!activePlate) {
+      alert('Please enter or select a vehicle license plate.');
+      return;
+    }
+
+    try {
       await onConfirmBooking({
         spot: selectedSpot,
         plateNumber: activePlate,
-        durationHours: selectedDurationHours,
-        visitorName: activeVisitorName || undefined,
+        durationHours,
+        visitorName: activeVisitorName,
         savedGuestId: activeGuestId,
+        saveForFuture: carMode === 'new' ? saveForFuture : false,
       });
+
       setBookingSuccess(true);
       setTimeout(() => {
         setBookingSuccess(false);
         onClearSelection();
-      }, 1400);
-    } catch (err) {
-      // Error handled by parent
+      }, 1200);
+    } catch (err: any) {
+      alert(err.message || 'Failed to complete booking');
     }
   };
 
   return (
-    <div className="fixed bottom-14 inset-x-0 z-40 max-w-lg mx-auto p-3 pointer-events-none">
+    <div className="fixed inset-x-0 bottom-16 z-30 max-w-lg mx-auto px-3 pointer-events-none select-none">
       <motion.div
         initial={{ y: 80, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 80, opacity: 0 }}
         transition={{ type: 'spring', stiffness: 400, damping: 32 }}
-        className="card p-4 bg-white/98 backdrop-blur-2xl border border-slate-200/90 shadow-2xl rounded-3xl pointer-events-auto space-y-3.5"
+        className="p-4 backdrop-blur-2xl rounded-3xl pointer-events-auto space-y-3.5 text-slate-100 border transition-all"
+        style={{
+          backgroundColor: 'var(--card-bg)',
+          borderColor: 'var(--card-border)',
+          boxShadow: '0 8px 36px rgba(0,0,0,0.8)',
+        }}
       >
         {/* Top Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-mono font-black text-xs shadow-md shadow-emerald-600/30">
-              {rawNumber}
+            <div
+              className="w-8 h-8 rounded-xl text-slate-950 flex items-center justify-center font-mono font-black text-xs"
+              style={{
+                background: 'var(--accent-gradient)',
+                boxShadow: '0 0 12px var(--ambient-glow)',
+              }}
+            >
+              V{rawNumber}
             </div>
             <div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-sm font-extrabold text-slate-900 leading-tight">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-black text-white leading-tight">
                   {spotDisplayName}
                 </span>
-                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 uppercase">
+                <span
+                  className="text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider border"
+                  style={{
+                    backgroundColor: 'rgba(0,0,0,0.4)',
+                    borderColor: 'var(--card-border)',
+                    color: 'var(--accent-secondary)',
+                  }}
+                >
                   {selectedSpot.section || 'Complex'}
                 </span>
               </div>
@@ -160,31 +166,45 @@ export const StickyBookingFooter: React.FC<StickyBookingFooterProps> = ({
 
           <button
             onClick={onClearSelection}
-            className="p-1 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+            className="p-1.5 rounded-full hover:text-white transition-colors"
+            style={{ color: 'var(--text-muted)' }}
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Car Selection Segment Tabs */}
-        <div className="space-y-2 pt-1 border-t border-slate-100">
+        <div
+          className="space-y-2 pt-1 border-t"
+          style={{ borderColor: 'var(--card-border)' }}
+        >
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+            <span
+              className="text-[10px] font-extrabold uppercase tracking-wider"
+              style={{ color: 'var(--text-muted)' }}
+            >
               Select Vehicle
             </span>
           </div>
 
           {/* Mode Switcher Pills */}
-          <div className="grid grid-cols-3 gap-1 bg-slate-100 p-1 rounded-xl">
+          <div
+            className="grid grid-cols-3 gap-1 p-1 rounded-xl border"
+            style={{
+              backgroundColor: 'rgba(0,0,0,0.4)',
+              borderColor: 'var(--card-border)',
+            }}
+          >
             {savedGuests.length > 0 && (
               <button
                 type="button"
                 onClick={() => setCarMode('saved')}
-                className={`py-1.5 px-2 rounded-lg text-xs font-black transition-all flex items-center justify-center gap-1 ${
-                  carMode === 'saved'
-                    ? 'bg-white text-slate-900 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-900'
-                }`}
+                className="py-1.5 px-2 rounded-lg text-xs font-black transition-all flex items-center justify-center gap-1"
+                style={{
+                  background: carMode === 'saved' ? 'var(--accent-gradient)' : 'transparent',
+                  color: carMode === 'saved' ? '#020617' : 'var(--text-muted)',
+                  boxShadow: carMode === 'saved' ? '0 0 12px var(--ambient-glow)' : 'none',
+                }}
               >
                 <Users className="w-3 h-3" />
                 <span>Saved ({savedGuests.length})</span>
@@ -195,10 +215,13 @@ export const StickyBookingFooter: React.FC<StickyBookingFooterProps> = ({
               type="button"
               onClick={() => setCarMode('new')}
               className={`py-1.5 px-2 rounded-lg text-xs font-black transition-all flex items-center justify-center gap-1 ${
-                carMode === 'new'
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-900'
-              } ${savedGuests.length === 0 ? 'col-span-2' : ''}`}
+                savedGuests.length === 0 ? 'col-span-2' : ''
+              }`}
+              style={{
+                background: carMode === 'new' ? 'var(--accent-gradient)' : 'transparent',
+                color: carMode === 'new' ? '#020617' : 'var(--text-muted)',
+                boxShadow: carMode === 'new' ? '0 0 12px var(--ambient-glow)' : 'none',
+              }}
             >
               <Plus className="w-3 h-3" />
               <span>New Visitor</span>
@@ -207,11 +230,12 @@ export const StickyBookingFooter: React.FC<StickyBookingFooterProps> = ({
             <button
               type="button"
               onClick={() => setCarMode('resident')}
-              className={`py-1.5 px-2 rounded-lg text-xs font-black transition-all flex items-center justify-center gap-1 ${
-                carMode === 'resident'
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-900'
-              }`}
+              className="py-1.5 px-2 rounded-lg text-xs font-black transition-all flex items-center justify-center gap-1"
+              style={{
+                background: carMode === 'resident' ? 'var(--accent-gradient)' : 'transparent',
+                color: carMode === 'resident' ? '#020617' : 'var(--text-muted)',
+                boxShadow: carMode === 'resident' ? '0 0 12px var(--ambient-glow)' : 'none',
+              }}
             >
               <Car className="w-3 h-3" />
               <span>My Car</span>
@@ -221,21 +245,30 @@ export const StickyBookingFooter: React.FC<StickyBookingFooterProps> = ({
           {/* Mode Details Form */}
           {carMode === 'saved' && savedGuests.length > 0 && (
             <div className="flex gap-1.5 overflow-x-auto no-scrollbar py-1">
-              {savedGuests.map((guest) => (
-                <button
-                  key={guest.id}
-                  type="button"
-                  onClick={() => setSelectedGuestId(guest.id)}
-                  className={`px-3 py-1.5 rounded-xl text-left border shrink-0 transition-all ${
-                    selectedGuestId === guest.id
-                      ? 'bg-emerald-50 border-emerald-400 text-emerald-950 font-bold'
-                      : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
-                  }`}
-                >
-                  <div className="text-xs font-extrabold">{guest.name}</div>
-                  <div className="font-mono text-[10px] text-slate-500">{guest.plate}</div>
-                </button>
-              ))}
+              {savedGuests.map((guest) => {
+                const isSelected = selectedGuestId === guest.id;
+                return (
+                  <button
+                    key={guest.id}
+                    type="button"
+                    onClick={() => setSelectedGuestId(guest.id)}
+                    className="px-3 py-1.5 rounded-xl text-left border shrink-0 transition-all"
+                    style={{
+                      backgroundColor: isSelected ? 'rgba(0,0,0,0.5)' : 'rgba(0,0,0,0.25)',
+                      borderColor: isSelected ? 'var(--accent-secondary)' : 'var(--card-border)',
+                      boxShadow: isSelected ? '0 0 10px var(--ambient-glow)' : 'none',
+                    }}
+                  >
+                    <div className="text-xs font-extrabold text-white">{guest.name}</div>
+                    <div
+                      className="font-mono text-[10px]"
+                      style={{ color: 'var(--accent-secondary)' }}
+                    >
+                      {guest.plate}
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           )}
 
@@ -243,41 +276,62 @@ export const StickyBookingFooter: React.FC<StickyBookingFooterProps> = ({
             <div className="space-y-2 animate-fade-in">
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-[10px] font-bold text-slate-500 block mb-0.5">
-                    Visitor Name
-                  </label>
-                  <input
-                    type="text"
-                    value={newVisitorName}
-                    onChange={(e) => setNewVisitorName(e.target.value)}
-                    placeholder="e.g. John Smith"
-                    className="input w-full py-1.5 px-2.5 text-xs text-slate-900"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] font-bold text-slate-500 block mb-0.5">
-                    License Plate
+                  <label
+                    className="text-[10px] font-bold block mb-0.5"
+                    style={{ color: 'var(--accent-secondary)' }}
+                  >
+                    License Plate <span className="text-rose-400 font-extrabold">* Required</span>
                   </label>
                   <input
                     type="text"
                     value={newPlate}
                     onChange={(e) => setNewPlate(e.target.value.toUpperCase())}
                     placeholder="e.g. ABC123"
-                    className="input w-full py-1.5 px-2.5 text-xs font-mono font-bold uppercase text-slate-900"
+                    className="w-full py-1.5 px-2.5 text-xs font-mono font-bold uppercase text-white rounded-xl focus:outline-none transition-all"
+                    style={{
+                      backgroundColor: 'rgba(0,0,0,0.5)',
+                      border: '1px solid var(--card-border)',
+                    }}
                     autoFocus
+                  />
+                </div>
+                <div>
+                  <label
+                    className="text-[10px] font-bold block mb-0.5"
+                    style={{ color: 'var(--accent-secondary)' }}
+                  >
+                    Visitor Name <span className="text-slate-500 font-normal">(Optional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={newVisitorName}
+                    onChange={(e) => setNewVisitorName(e.target.value)}
+                    placeholder="e.g. John Smith"
+                    className="w-full py-1.5 px-2.5 text-xs text-white rounded-xl focus:outline-none transition-all"
+                    style={{
+                      backgroundColor: 'rgba(0,0,0,0.5)',
+                      border: '1px solid var(--card-border)',
+                    }}
                   />
                 </div>
               </div>
 
               {/* Save for Future Checkbox */}
-              <label className="flex items-center gap-2 cursor-pointer select-none px-0.5">
+              <label className="flex items-center gap-2 cursor-pointer pt-0.5">
                 <input
                   type="checkbox"
                   checked={saveForFuture}
                   onChange={(e) => setSaveForFuture(e.target.checked)}
-                  className="w-3.5 h-3.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                  className="rounded bg-black/40 w-3.5 h-3.5"
+                  style={{
+                    accentColor: 'var(--accent-primary)',
+                    borderColor: 'var(--card-border)',
+                  }}
                 />
-                <span className="text-[11px] font-medium text-slate-600">
+                <span
+                  className="text-[11px] font-medium"
+                  style={{ color: 'var(--text-muted)' }}
+                >
                   Save this visitor vehicle for future bookings
                 </span>
               </label>
@@ -286,27 +340,39 @@ export const StickyBookingFooter: React.FC<StickyBookingFooterProps> = ({
 
           {carMode === 'resident' && (
             <div className="flex gap-1.5 overflow-x-auto no-scrollbar py-1">
-              {vehicles.map((v) => (
-                <button
-                  key={v.id}
-                  type="button"
-                  onClick={() => setSelectedResidentPlate(v.plate_number)}
-                  className={`px-3 py-1.5 rounded-xl text-left border shrink-0 transition-all ${
-                    selectedResidentPlate === v.plate_number
-                      ? 'bg-emerald-50 border-emerald-400 text-emerald-950 font-bold'
-                      : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
-                  }`}
-                >
-                  <div className="text-xs font-extrabold">{v.make_model_color || 'Resident Car'}</div>
-                  <div className="font-mono text-[10px] text-slate-500">{v.plate_number}</div>
-                </button>
-              ))}
+              {vehicles.map((v) => {
+                const isSelected = selectedResidentPlate === v.plate_number;
+                return (
+                  <button
+                    key={v.id}
+                    type="button"
+                    onClick={() => setSelectedResidentPlate(v.plate_number)}
+                    className="px-3 py-1.5 rounded-xl text-left border shrink-0 transition-all"
+                    style={{
+                      backgroundColor: isSelected ? 'rgba(0,0,0,0.5)' : 'rgba(0,0,0,0.25)',
+                      borderColor: isSelected ? 'var(--accent-secondary)' : 'var(--card-border)',
+                      boxShadow: isSelected ? '0 0 10px var(--ambient-glow)' : 'none',
+                    }}
+                  >
+                    <div className="text-xs font-extrabold text-white">{v.make_model_color || 'Resident Car'}</div>
+                    <div
+                      className="font-mono text-[10px]"
+                      style={{ color: 'var(--accent-secondary)' }}
+                    >
+                      {v.plate_number}
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>
 
         {/* Tactile Time Stepper Picker */}
-        <div className="pt-1 border-t border-slate-100">
+        <div
+          className="pt-1 border-t"
+          style={{ borderColor: 'var(--card-border)' }}
+        >
           <TactileTimePicker onTimeChange={handleTimeChange} />
         </div>
 
@@ -315,11 +381,11 @@ export const StickyBookingFooter: React.FC<StickyBookingFooterProps> = ({
           type="button"
           onClick={handleStartParking}
           disabled={isSubmitting || !activePlate || bookingSuccess}
-          className={`w-full py-3.5 rounded-2xl text-xs font-extrabold flex items-center justify-center gap-2 shadow-lg transition-all ${
-            bookingSuccess
-              ? 'bg-emerald-600 text-white'
-              : 'bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white shadow-emerald-600/30'
-          } disabled:opacity-50`}
+          className="w-full py-3.5 rounded-2xl text-xs font-black flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50 text-slate-950"
+          style={{
+            background: 'var(--accent-gradient)',
+            boxShadow: '0 0 25px var(--ambient-glow)',
+          }}
         >
           {isSubmitting ? (
             <span>Confirming Reservation...</span>
@@ -331,7 +397,7 @@ export const StickyBookingFooter: React.FC<StickyBookingFooterProps> = ({
           ) : (
             <>
               <span>
-                Confirm {rawNumber} (Until {selectedTimeLabel || 'Selected Time'})
+                Confirm V{rawNumber} (Until {selectedTimeLabel || 'Selected Time'})
               </span>
               <ArrowRight className="w-4 h-4" />
             </>

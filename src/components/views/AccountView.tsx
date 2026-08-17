@@ -2,10 +2,10 @@
 
 import React, { useState } from 'react';
 import { useApp } from '@/lib/context/AppContext';
-import { useTheme } from '@/lib/theme/ThemeProvider';
+import { useTheme, PALETTES } from '@/lib/theme/ThemeProvider';
 import Link from 'next/link';
 import {
-  User, Award, ChevronRight, Smartphone, Moon, Sun, Monitor, LogOut, Shield, Sliders, Trash2, Users, Key, Plus, Car, Check, X, Edit2, Sparkles, MapPin,
+  User, Award, ChevronRight, Smartphone, LogOut, Shield, Sliders, Trash2, Users, Key, Plus, Car, Check, X, Edit2, Sparkles, MapPin,
 } from 'lucide-react';
 import { PlateCard } from '@/components/ui/PlateCard';
 import { useInstallPrompt } from '@/lib/hooks/useInstallPrompt';
@@ -20,7 +20,7 @@ interface AccountViewProps {
 
 export const AccountView: React.FC<AccountViewProps> = ({ onOpenManagement, onOpenAdmin, onOpenPushGuide }) => {
   const { currentUser, vehicles, demerits, carparks, logout, savedGuests, removeSavedGuest, addVehicle, removeVehicle, units, refetch } = useApp();
-  const { theme, setTheme } = useTheme();
+  const { palette, paletteConfig, setPalette } = useTheme();
   const { canInstall, isInstalled, isIos, install } = useInstallPrompt();
   const { signOut } = useAuth();
   const [showRentalModal, setShowRentalModal] = useState(false);
@@ -109,11 +109,20 @@ export const AccountView: React.FC<AccountViewProps> = ({ onOpenManagement, onOp
     <div className="space-y-5 animate-fade-in max-w-lg mx-auto pb-32">
       {/* Profile header */}
       <div className="flex flex-col items-center justify-center text-center py-4">
-        <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-[#0066ff] to-[#0052cc] text-white flex items-center justify-center shadow-lg shadow-blue-600/30 mb-3">
-          <User className="w-10 h-10" />
+        <div
+          className="w-20 h-20 rounded-3xl text-slate-950 flex items-center justify-center mb-3 transition-all"
+          style={{
+            background: 'var(--accent-gradient)',
+            boxShadow: '0 0 25px var(--ambient-glow)',
+          }}
+        >
+          <User className="w-10 h-10 stroke-[2.5]" />
         </div>
-        <h2 className="text-xl font-extrabold text-ink tracking-tight font-display">{currentUser?.name}</h2>
-        <div className="text-xs font-bold text-accent uppercase tracking-widest mt-0.5">
+        <h2 className="text-xl font-extrabold text-white tracking-tight font-display">{currentUser?.name}</h2>
+        <div
+          className="text-xs font-bold uppercase tracking-widest mt-0.5"
+          style={{ color: 'var(--accent-secondary)' }}
+        >
           {currentUser?.role} · {unitNumber}
         </div>
       </div>
@@ -121,16 +130,16 @@ export const AccountView: React.FC<AccountViewProps> = ({ onOpenManagement, onOp
       {/* KPIs */}
       <div className="grid grid-cols-3 gap-2.5">
         <div className="card p-3 text-center">
-          <span className="text-[9px] font-extrabold uppercase tracking-wider text-ink-tertiary block mb-1">Unit</span>
-          <span className="text-xl font-black text-ink">{currentUser?.unit_number?.replace(/^Unit\s+/i, '') || '-'}</span>
+          <span className="text-[9px] font-extrabold uppercase tracking-wider text-slate-400 block mb-1">Unit</span>
+          <span className="text-xl font-black text-white">{currentUser?.unit_number?.replace(/^Unit\s+/i, '') || '-'}</span>
         </div>
         <div className="card p-3 text-center">
-          <span className="text-[9px] font-extrabold uppercase tracking-wider text-ink-tertiary block mb-1">Assigned Parks</span>
-          <span className="text-xl font-black text-accent">{assignedParksCount}</span>
+          <span className="text-[9px] font-extrabold uppercase tracking-wider text-slate-400 block mb-1">Assigned Parks</span>
+          <span className="text-xl font-black" style={{ color: 'var(--accent-secondary)' }}>{assignedParksCount}</span>
         </div>
         <div className="card p-3 text-center">
-          <span className="text-[9px] font-extrabold uppercase tracking-wider text-ink-tertiary block mb-1">Demerits</span>
-          <span className={`text-xl font-black ${totalDemeritPoints > 0 ? 'text-warning' : 'text-success'}`}>{totalDemeritPoints}</span>
+          <span className="text-[9px] font-extrabold uppercase tracking-wider text-slate-400 block mb-1">Demerits</span>
+          <span className={`text-xl font-black ${totalDemeritPoints > 0 ? 'text-amber-400' : 'text-slate-300'}`}>{totalDemeritPoints}</span>
         </div>
       </div>
 
@@ -138,16 +147,23 @@ export const AccountView: React.FC<AccountViewProps> = ({ onOpenManagement, onOp
       <div className="card p-4 space-y-3">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0 flex-1">
-            <div className="icon-tile w-10 h-10 shrink-0"><User className="w-5 h-5" /></div>
+            <div className="w-10 h-10 rounded-2xl bg-black/40 border flex items-center justify-center shrink-0" style={{ borderColor: 'var(--card-border)', color: 'var(--accent-secondary)' }}>
+              <User className="w-5 h-5" />
+            </div>
             <div className="min-w-0 flex-1">
-              <span className="text-[10px] font-extrabold uppercase tracking-wider text-ink-tertiary block">Resident Account</span>
-              <span className="text-sm font-bold text-ink truncate block">{unitNumber} · {currentUser?.phone || 'No phone set'}</span>
-              <span className="text-[11px] text-ink-secondary truncate block">{currentUser?.email}</span>
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">Resident Account</span>
+              <span className="text-sm font-bold text-white truncate block">{unitNumber} · {currentUser?.phone || 'No phone set'}</span>
+              <span className="text-[11px] text-slate-400 truncate block">{currentUser?.email}</span>
             </div>
           </div>
           <button
             onClick={handleOpenEditProfile}
-            className="btn-secondary text-xs px-3 py-1.5 flex items-center gap-1.5 shrink-0"
+            className="py-1.5 px-3 rounded-xl border hover:text-white transition-colors text-xs font-bold flex items-center gap-1.5 shrink-0"
+            style={{
+              backgroundColor: 'rgba(0,0,0,0.4)',
+              borderColor: 'var(--card-border)',
+              color: 'var(--accent-secondary)',
+            }}
           >
             <Edit2 className="w-3.5 h-3.5" /> Edit Profile
           </button>
@@ -226,27 +242,7 @@ export const AccountView: React.FC<AccountViewProps> = ({ onOpenManagement, onOp
         )}
       </div>
 
-      {/* Interactive Carpark Map Sandbox Button */}
-      <Link
-        href="/sandbox/carparks"
-        className="card p-3.5 flex items-center justify-between bg-gradient-to-r from-blue-950/40 via-indigo-950/30 to-slate-900 border border-blue-500/30 hover:border-blue-400/60 transition-all active:scale-[0.98] group"
-      >
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-blue-600/20 border border-blue-500/30 text-blue-400 flex items-center justify-center shrink-0">
-            <Sparkles className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-black text-ink">Interactive Carpark Map</span>
-              <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-blue-600/20 text-blue-400 border border-blue-500/30">Sandbox</span>
-            </div>
-            <p className="text-[11px] text-ink-secondary font-medium mt-0.5">
-              Live vector satellite map for visitor &amp; resident bays
-            </p>
-          </div>
-        </div>
-        <ChevronRight className="w-4 h-4 text-ink-tertiary group-hover:text-ink group-hover:translate-x-0.5 transition-all" />
-      </Link>
+
 
       {/* Admin / Portal access */}
       {isManagementOrAdmin && (
@@ -352,34 +348,81 @@ export const AccountView: React.FC<AccountViewProps> = ({ onOpenManagement, onOp
         )}
       </div>
 
-      {/* Theme selection */}
-      <div className="card p-4 space-y-3">
-        <h3 className="section-title">App Theme</h3>
-        <div className="grid grid-cols-3 gap-2">
-          <button
-            onClick={() => setTheme('light')}
-            className={`p-3 rounded-2xl border text-xs font-bold flex flex-col items-center gap-1.5 transition-all ${
-              theme === 'light' ? 'bg-accent-soft border-accent text-accent' : 'border-border text-ink-secondary'
-            }`}
+      {/* Theme / Palette Selection (Named Custom Palettes) */}
+      <div className="card p-4 space-y-3 shadow-lg">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-black text-white">Color Palette</h3>
+            <p className="text-[11px] font-medium" style={{ color: 'var(--text-muted)' }}>Select your preferred app styling theme</p>
+          </div>
+          <span
+            className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full border"
+            style={{
+              backgroundColor: 'rgba(0,0,0,0.4)',
+              borderColor: 'var(--card-border)',
+              color: 'var(--accent-secondary)',
+            }}
           >
-            <Sun className="w-4 h-4" /> Light
-          </button>
-          <button
-            onClick={() => setTheme('dark')}
-            className={`p-3 rounded-2xl border text-xs font-bold flex flex-col items-center gap-1.5 transition-all ${
-              theme === 'dark' ? 'bg-accent-soft border-accent text-accent' : 'border-border text-ink-secondary'
-            }`}
-          >
-            <Moon className="w-4 h-4" /> Dark
-          </button>
-          <button
-            onClick={() => setTheme('system')}
-            className={`p-3 rounded-2xl border text-xs font-bold flex flex-col items-center gap-1.5 transition-all ${
-              theme === 'system' ? 'bg-accent-soft border-accent text-accent' : 'border-border text-ink-secondary'
-            }`}
-          >
-            <Monitor className="w-4 h-4" /> System
-          </button>
+            {paletteConfig.name}
+          </span>
+        </div>
+
+        <div className="space-y-2 pt-1">
+          {(Object.values(PALETTES) as typeof PALETTES[keyof typeof PALETTES][]).map((p) => {
+            const isSelected = palette === p.id;
+            return (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => setPalette(p.id)}
+                className="w-full p-2.5 rounded-2xl border text-left transition-all relative flex items-center justify-between gap-3"
+                style={{
+                  backgroundColor: isSelected ? 'rgba(0,0,0,0.5)' : 'rgba(0,0,0,0.25)',
+                  borderColor: isSelected ? 'var(--accent-secondary)' : 'var(--card-border)',
+                  boxShadow: isSelected ? '0 0 16px var(--ambient-glow)' : 'none',
+                }}
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="text-xs font-black text-white flex items-center gap-1.5">
+                    <span>{p.name}</span>
+                  </div>
+                  <span
+                    className="text-[10px] font-medium truncate block"
+                    style={{ color: 'var(--text-muted)' }}
+                  >
+                    {p.subtitle}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  {/* Color Swatches */}
+                  <div className="flex items-center gap-1">
+                    {p.swatches.map((color, idx) => (
+                      <div
+                        key={idx}
+                        className="w-4 h-4 rounded-full border border-white/20 shadow-xs"
+                        style={{ backgroundColor: color }}
+                      />
+                    ))}
+                  </div>
+
+                  {isSelected ? (
+                    <div
+                      className="w-5 h-5 rounded-full text-slate-950 flex items-center justify-center shadow-xs"
+                      style={{ background: 'var(--accent-gradient)' }}
+                    >
+                      <Check className="w-3 h-3 stroke-[3]" />
+                    </div>
+                  ) : (
+                    <div
+                      className="w-5 h-5 rounded-full border"
+                      style={{ borderColor: 'var(--card-border)' }}
+                    />
+                  )}
+                </div>
+              </button>
+            );
+          })}
         </div>
       </div>
 

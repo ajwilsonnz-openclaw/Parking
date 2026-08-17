@@ -22,6 +22,8 @@ export interface UnitVehicle {
   status: 'pending' | 'approved' | 'rejected';
 }
 
+export type Vehicle = UnitVehicle;
+
 export interface AssignedSpot {
   id: string;
   unit_number: string;
