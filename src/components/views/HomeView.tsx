@@ -125,9 +125,6 @@ export const HomeView: React.FC<HomeViewProps> = ({ onNavigateTab }) => {
 
   return (
     <div className="min-h-[calc(100dvh-6rem)] flex flex-col max-w-lg mx-auto pb-36 animate-fade-in space-y-3.5 px-1">
-      {/* PWA Install Alert */}
-      <InstallPromptCard />
-
       {/* Top Action & Status Bar */}
       <div className="flex items-center justify-between px-1 pt-1">
         <div>

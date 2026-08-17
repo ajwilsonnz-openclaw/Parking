@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Car,
@@ -10,10 +10,7 @@ import {
   CheckCircle2,
   X,
   ArrowRight,
-  Sparkles,
-  Users,
-  BookmarkPlus,
-  Sliders
+  Users
 } from 'lucide-react';
 import { useApp } from '@/lib/context/AppContext';
 import { Carpark, UnitVehicle, SavedGuest } from '@/types';
@@ -44,6 +41,7 @@ export const StickyBookingFooter: React.FC<StickyBookingFooterProps> = ({
   isSubmitting,
 }) => {
   const { addSavedGuest } = useApp();
+  const timeInputRef = useRef<HTMLInputElement>(null);
 
   // Mode selection: default to 'saved' if saved guests exist, else 'new'
   const [carMode, setCarMode] = useState<CarSourceMode>(() =>
@@ -66,7 +64,7 @@ export const StickyBookingFooter: React.FC<StickyBookingFooterProps> = ({
     return primary ? primary.plate_number : '';
   });
 
-  // End time presets & custom picker
+  // End time presets
   const timePresets = useMemo(() => {
     const now = new Date();
     const presets: { label: string; hoursFromNow: number; timeStr: string }[] = [];
@@ -101,15 +99,16 @@ export const StickyBookingFooter: React.FC<StickyBookingFooterProps> = ({
         { label: '2 Hours', hoursFromNow: 2, timeStr: '2 Hours' },
         { label: '4 Hours', hoursFromNow: 4, timeStr: '4 Hours' },
         { label: '8 Hours', hoursFromNow: 8, timeStr: '8 Hours' },
-        { label: '24 Hours', hoursFromNow: 24, timeStr: '24 Hours (Max)' },
       ];
     }
 
-    return presets.slice(0, 4);
+    return presets.slice(0, 3);
   }, []);
 
-  const [isCustomTime, setIsCustomTime] = useState(false);
-  const [customTimeValue, setCustomTimeValue] = useState<string>('18:00');
+  const [isCustomSelected, setIsCustomSelected] = useState(false);
+  const [customDisplayTime, setCustomDisplayTime] = useState<string>('');
+  const [customInputValue, setCustomInputValue] = useState<string>('18:00');
+
   const [selectedDurationHours, setSelectedDurationHours] = useState<number>(() =>
     timePresets.length > 0 ? timePresets[0].hoursFromNow : 2
   );
@@ -119,10 +118,10 @@ export const StickyBookingFooter: React.FC<StickyBookingFooterProps> = ({
 
   const [bookingSuccess, setBookingSuccess] = useState(false);
 
-  // Handle custom time change
-  const handleCustomTimeChange = (timeStr: string) => {
-    setCustomTimeValue(timeStr);
+  // Handle native time input change
+  const handleNativeTimeChange = (timeStr: string) => {
     if (!timeStr) return;
+    setCustomInputValue(timeStr);
     const [hours, minutes] = timeStr.split(':').map(Number);
     const now = new Date();
     const target = new Date(now);
@@ -138,7 +137,23 @@ export const StickyBookingFooter: React.FC<StickyBookingFooterProps> = ({
     setSelectedDurationHours(clampedHours);
 
     const formatted = target.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    setCustomDisplayTime(formatted);
     setSelectedPresetLabel(formatted);
+    setIsCustomSelected(true);
+  };
+
+  const openTimePicker = () => {
+    if (timeInputRef.current) {
+      try {
+        if ('showPicker' in HTMLInputElement.prototype) {
+          timeInputRef.current.showPicker();
+        } else {
+          timeInputRef.current.focus();
+        }
+      } catch {
+        timeInputRef.current.focus();
+      }
+    }
   };
 
   if (!selectedSpot) return null;
@@ -370,71 +385,66 @@ export const StickyBookingFooter: React.FC<StickyBookingFooterProps> = ({
           )}
         </div>
 
-        {/* End Time Selection & Specific Time Picker */}
+        {/* End Time Selection with Seamless Native Time Picker Pill */}
         <div className="space-y-1.5 pt-1 border-t border-slate-100">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
               Book Until
             </span>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  const nextCustom = !isCustomTime;
-                  setIsCustomTime(nextCustom);
-                  if (nextCustom) {
-                    handleCustomTimeChange(customTimeValue);
-                  } else if (timePresets.length > 0) {
-                    setSelectedDurationHours(timePresets[0].hoursFromNow);
-                    setSelectedPresetLabel(timePresets[0].label);
-                  }
-                }}
-                className="text-[10px] font-extrabold text-blue-600 hover:text-blue-700 flex items-center gap-1 transition-colors"
-              >
-                <Clock className="w-3 h-3" />
-                <span>{isCustomTime ? 'Quick Presets' : 'Choose Specific Time'}</span>
-              </button>
-              <span className="text-[11px] font-extrabold text-emerald-700">
-                {selectedPresetLabel}
-              </span>
-            </div>
+            <span className="text-[11px] font-extrabold text-emerald-700">
+              {selectedPresetLabel}
+            </span>
           </div>
 
-          {/* Time Selection Mode: Presets vs Specific Time Input */}
-          {!isCustomTime ? (
-            <div className="grid grid-cols-4 gap-1.5">
-              {timePresets.map((preset) => (
-                <button
-                  key={preset.label}
-                  type="button"
-                  onClick={() => {
-                    setSelectedDurationHours(preset.hoursFromNow);
-                    setSelectedPresetLabel(preset.label);
-                  }}
-                  className={`py-1.5 rounded-xl text-xs font-black transition-all ${
-                    !isCustomTime && selectedPresetLabel === preset.label
-                      ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
-                  {preset.label}
-                </button>
-              ))}
-            </div>
-          ) : (
-            <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200 animate-fade-in">
-              <Clock className="w-4 h-4 text-slate-500" />
+          {/* 4 Clean Action Pills: Presets + Seamless Custom Time Picker */}
+          <div className="grid grid-cols-4 gap-1.5">
+            {timePresets.map((preset) => (
+              <button
+                key={preset.label}
+                type="button"
+                onClick={() => {
+                  setIsCustomSelected(false);
+                  setSelectedDurationHours(preset.hoursFromNow);
+                  setSelectedPresetLabel(preset.label);
+                }}
+                className={`py-2 rounded-xl text-xs font-black transition-all ${
+                  !isCustomSelected && selectedPresetLabel === preset.label
+                    ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                {preset.label}
+              </button>
+            ))}
+
+            {/* Seamless Native Time Picker Pill */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={openTimePicker}
+                className={`w-full py-2 px-1 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1 ${
+                  isCustomSelected
+                    ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                <Clock className="w-3 h-3 shrink-0" />
+                <span className="truncate">
+                  {isCustomSelected && customDisplayTime ? customDisplayTime : 'Other...'}
+                </span>
+              </button>
+
+              {/* Native Mobile/Browser Time Input */}
               <input
+                ref={timeInputRef}
                 type="time"
-                value={customTimeValue}
-                onChange={(e) => handleCustomTimeChange(e.target.value)}
-                className="input py-1 px-2 text-xs font-bold text-slate-900 flex-1"
+                value={customInputValue}
+                onChange={(e) => handleNativeTimeChange(e.target.value)}
+                className="absolute inset-0 opacity-0 w-full h-full cursor-pointer pointer-events-auto"
+                aria-label="Choose specific time"
               />
-              <span className="text-[11px] font-bold text-slate-500">
-                ({selectedDurationHours}h total)
-              </span>
             </div>
-          )}
+          </div>
         </div>
 
         {/* Primary Action Button */}
