@@ -9,11 +9,11 @@ export async function POST(req: NextRequest) {
   const user = await requireUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { name, phone, unit_number } = await req.json();
-  if (!name || !name.trim()) return NextResponse.json({ error: 'Name required' }, { status: 400 });
+  const body = await req.json();
+  const { name, phone, unit_number } = body;
 
-  const cleanName = String(name).trim();
-  const cleanPhone = phone ? String(phone).trim() : null;
+  const cleanName = name ? String(name).trim() : user.name;
+  const cleanPhone = phone !== undefined ? (phone ? String(phone).trim() : null) : user.phone;
   const cleanUnit = unit_number ? String(unit_number).trim() : user.unit_number;
 
   await execDb(

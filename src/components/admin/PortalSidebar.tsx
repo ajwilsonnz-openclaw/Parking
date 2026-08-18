@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   Users,
   Car,
@@ -16,9 +16,11 @@ import {
   Sliders,
   LogOut,
   ChevronRight,
+  ParkingSquare,
 } from 'lucide-react';
 import { useApp } from '@/lib/context/AppContext';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 
 interface PortalSidebarProps {
   currentTab: string;
@@ -28,7 +30,7 @@ interface PortalSidebarProps {
 export function PortalSidebar({ currentTab, onTabChange }: PortalSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { currentUser, sessions, whitelist, units } = useApp();
+  const { currentUser, sessions, whitelist, units, carparks, logout } = useApp();
 
   const isAdmin = currentUser?.role === 'admin' || currentUser?.email === 'ajwilsonnz@gmail.com';
   const isMgmt = isAdmin || currentUser?.role === 'management';
@@ -36,12 +38,20 @@ export function PortalSidebar({ currentTab, onTabChange }: PortalSidebarProps) {
   const activeSessionsCount = sessions.filter((s) => s.is_active).length;
   const residentsCount = whitelist.length;
   const unitsCount = units.length || 27;
+  const carparksCount = carparks.length || 23;
 
   const handleNav = (targetPath: string, tab: string) => {
     if (pathname === targetPath && onTabChange) {
       onTabChange(tab);
     } else {
       router.push(`${targetPath}?tab=${tab}`);
+    }
+  };
+
+  const handleLogout = async () => {
+    if (confirm('Are you sure you want to log out of the management portal?')) {
+      await logout();
+      router.push('/');
     }
   };
 
@@ -69,7 +79,7 @@ export function PortalSidebar({ currentTab, onTabChange }: PortalSidebarProps) {
               variant={isAdmin ? 'destructive' : 'secondary'}
               className="text-[9px] px-1.5 py-0 h-4 font-black"
             >
-              {isAdmin ? 'Super Admin' : 'Manager'}
+              {isAdmin ? 'Admin' : 'Manager'}
             </Badge>
           </div>
           <div className="text-[10px] text-slate-400 font-mono flex items-center justify-between">
@@ -118,7 +128,7 @@ export function PortalSidebar({ currentTab, onTabChange }: PortalSidebarProps) {
             </div>
             {activeSessionsCount > 0 && (
               <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-mono">
-                {activeSessionsCount} active
+                {activeSessionsCount}
               </span>
             )}
           </button>
@@ -139,13 +149,31 @@ export function PortalSidebar({ currentTab, onTabChange }: PortalSidebarProps) {
           </button>
         </div>
 
-        {/* Navigation Group 2: Super Admin (Visible to Admins) */}
+        {/* Navigation Group 2: Admin Systems (Visible to Admins) */}
         {isAdmin && (
           <div className="space-y-1 pt-3 border-t border-white/10">
             <div className="px-2 pb-1 text-[10px] font-black uppercase tracking-wider text-rose-400 flex items-center justify-between">
-              <span>Super Admin Systems</span>
+              <span>Admin Systems</span>
               <Sliders className="w-3 h-3 text-rose-400" />
             </div>
+
+            <button
+              type="button"
+              onClick={() => handleNav('/admin', 'carparks')}
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all text-left ${
+                pathname === '/admin' && currentTab === 'carparks'
+                  ? 'bg-rose-600 text-white shadow-md'
+                  : 'text-slate-300 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <ParkingSquare className="w-4 h-4 shrink-0 opacity-80" />
+                <span>Carparks & Sections</span>
+              </div>
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-black/40 text-slate-300">
+                {carparksCount}
+              </span>
+            </button>
 
             <button
               type="button"
@@ -225,6 +253,17 @@ export function PortalSidebar({ currentTab, onTabChange }: PortalSidebarProps) {
           </div>
           <ChevronRight className="w-3.5 h-3.5 opacity-50" />
         </Link>
+
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 transition-all text-left"
+        >
+          <div className="flex items-center gap-2">
+            <LogOut className="w-4 h-4" />
+            <span>Sign Out</span>
+          </div>
+        </button>
       </div>
     </aside>
   );

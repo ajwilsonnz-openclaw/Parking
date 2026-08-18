@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, Suspense } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Users,
   Car,
@@ -20,6 +20,7 @@ import {
   Phone,
   ShieldCheck,
   Clock,
+  LogOut,
   X,
 } from 'lucide-react';
 import { useApp } from '@/lib/context/AppContext';
@@ -39,6 +40,7 @@ import { PlateCard } from '@/components/ui/PlateCard';
 import { PortalSidebar } from '@/components/admin/PortalSidebar';
 
 function ManagementContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const tabParam = searchParams.get('tab');
 
@@ -49,6 +51,7 @@ function ManagementContent() {
     carparks,
     demerits,
     units,
+    logout,
     refetch,
     addWhitelistedUser,
     updateWhitelistedUser,
@@ -234,7 +237,7 @@ function ManagementContent() {
             </Badge>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
             <div className="text-right">
               <span className="text-xs font-bold block text-white">
                 {currentUser?.name || 'Adam Wilson'}
@@ -243,6 +246,21 @@ function ManagementContent() {
                 {currentUser?.email} • {currentUser?.unit_number}
               </span>
             </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={async () => {
+                if (confirm('Are you sure you want to sign out?')) {
+                  await logout();
+                  router.push('/');
+                }
+              }}
+              className="text-xs font-bold gap-1.5 border-rose-500/30 text-rose-400 hover:bg-rose-500/10"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span>Log Out</span>
+            </Button>
           </div>
         </header>
 

@@ -49,15 +49,14 @@ export const BookingView: React.FC<BookingViewProps> = () => {
     ];
 
     return defaultDefs.map((def) => {
+      // Strictly map each spot to its unique matching section by spot number
       const matchingSpots = allParks.filter((c) => {
         const num = parseInt((c?.spot_number || '').replace(/^V-?/i, ''), 10);
-        if (!isNaN(num) && num >= def.min && num <= def.max) {
-          return true;
+        if (!isNaN(num)) {
+          return num >= def.min && num <= def.max;
         }
-        if (c.section_id === def.id || (c.section && c.section.toLowerCase().includes(def.name.toLowerCase()))) {
-          return true;
-        }
-        return false;
+        // Fallback for custom named bays without numbers
+        return c.section_id === def.id || (c.section && c.section.toLowerCase().trim() === def.name.toLowerCase().trim());
       });
 
       // Sort descending within section (23 -> 22 -> 21, etc.)

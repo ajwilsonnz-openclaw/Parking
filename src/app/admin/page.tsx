@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Sliders,
   Database,
@@ -10,6 +10,8 @@ import {
   Settings,
   Building2,
   CheckCircle2,
+  LogOut,
+  ParkingSquare,
 } from 'lucide-react';
 import { useApp } from '@/lib/context/AppContext';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -19,17 +21,19 @@ import { Input } from '@/components/ui/input';
 import { D1Studio } from '@/components/admin/D1Studio';
 import { CloudflareUsageMeter } from '@/components/admin/CloudflareUsageMeter';
 import { UnitsQuotaManager } from '@/components/admin/UnitsQuotaManager';
+import { CarparksSectionsManager } from '@/components/admin/CarparksSectionsManager';
 import { PortalSidebar } from '@/components/admin/PortalSidebar';
 
 function AdminContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const tabParam = searchParams.get('tab');
 
-  const { currentUser, config, updateConfig, refetch } = useApp();
-  const [activeTab, setActiveTab] = useState<'units' | 'd1_studio' | 'cloudflare_meter' | 'settings'>('units');
+  const { currentUser, config, updateConfig, logout, refetch } = useApp();
+  const [activeTab, setActiveTab] = useState<'carparks' | 'units' | 'd1_studio' | 'cloudflare_meter' | 'settings'>('carparks');
 
   useEffect(() => {
-    if (tabParam === 'units' || tabParam === 'd1_studio' || tabParam === 'cloudflare_meter' || tabParam === 'settings') {
+    if (tabParam === 'carparks' || tabParam === 'units' || tabParam === 'd1_studio' || tabParam === 'cloudflare_meter' || tabParam === 'settings') {
       setActiveTab(tabParam);
     }
   }, [tabParam]);
@@ -60,6 +64,13 @@ function AdminContent() {
     }
   };
 
+  const handleLogout = async () => {
+    if (confirm('Are you sure you want to sign out?')) {
+      await logout();
+      router.push('/');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[var(--app-bg,#10151A)] text-slate-100 flex">
       {/* Universal Desktop Portal Sidebar */}
@@ -72,14 +83,14 @@ function AdminContent() {
           <div className="flex items-center gap-3">
             <Sliders className="w-5 h-5 text-rose-400" />
             <h1 className="text-sm font-black text-white">
-              Super Admin & Database Studio
+              Admin & Database Studio
             </h1>
             <Badge variant="destructive" className="text-xs">
-              Super Admin
+              Admin
             </Badge>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
             <div className="text-right">
               <span className="text-xs font-bold block text-white">
                 {currentUser?.name || 'Adam Wilson'}
@@ -88,11 +99,28 @@ function AdminContent() {
                 {currentUser?.email} • {currentUser?.unit_number}
               </span>
             </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleLogout}
+              className="text-xs font-bold gap-1.5 border-rose-500/30 text-rose-400 hover:bg-rose-500/10"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span>Log Out</span>
+            </Button>
           </div>
         </header>
 
         {/* Main Container */}
         <main className="flex-1 max-w-7xl mx-auto w-full p-6 space-y-6">
+          {/* TAB 0: CARPARKS & SECTIONS */}
+          {activeTab === 'carparks' && (
+            <div>
+              <CarparksSectionsManager />
+            </div>
+          )}
+
           {/* TAB 1: UNITS & PARK QUOTAS */}
           {activeTab === 'units' && (
             <div>
@@ -200,7 +228,7 @@ function AdminContent() {
 
 export default function AdminPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#10151A] text-white p-8">Loading Super Admin Portal...</div>}>
+    <Suspense fallback={<div className="min-h-screen bg-[#10151A] text-white p-8">Loading Admin Portal...</div>}>
       <AdminContent />
     </Suspense>
   );
