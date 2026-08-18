@@ -133,11 +133,23 @@ function applyPaletteToDOM(paletteId: PaletteId) {
 
   document.body.style.backgroundColor = cfg.bgApp;
 
-  // Update theme-color meta tag
-  const metaThemeColor = document.querySelector('meta[name="theme-color"]');
-  if (metaThemeColor) {
-    metaThemeColor.setAttribute('content', cfg.bgApp);
+  // Dynamically create or update theme-color meta tag for Android status & navigation bar
+  let metaThemeColor = document.querySelector('meta[name="theme-color"]');
+  if (!metaThemeColor) {
+    metaThemeColor = document.createElement('meta');
+    metaThemeColor.setAttribute('name', 'theme-color');
+    document.head.appendChild(metaThemeColor);
   }
+  metaThemeColor.setAttribute('content', cfg.bgApp);
+
+  // Update apple mobile status bar style
+  let metaStatusBar = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
+  if (!metaStatusBar) {
+    metaStatusBar = document.createElement('meta');
+    metaStatusBar.setAttribute('name', 'apple-mobile-web-app-status-bar-style');
+    document.head.appendChild(metaStatusBar);
+  }
+  metaStatusBar.setAttribute('content', 'black-translucent');
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
@@ -213,6 +225,8 @@ export const themeInitScript = `
     root.style.setProperty('--ambient-glow', cfg.ambientGlow);
     root.style.setProperty('--text-heading', cfg.textHeading);
     root.style.setProperty('--text-muted', cfg.textMuted);
+    var meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', cfg.bgApp);
   } catch (e) {}
 })();
 `;

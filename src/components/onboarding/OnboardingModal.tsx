@@ -15,6 +15,8 @@ import {
   Sparkles,
   X,
   AlertCircle,
+  Plus,
+  Trash2,
 } from 'lucide-react';
 import { PlateCard } from '@/components/ui/PlateCard';
 import { useInstallPrompt } from '@/lib/hooks/useInstallPrompt';
@@ -22,6 +24,11 @@ import { useApp } from '@/lib/context/AppContext';
 import { Button } from '@/components/ui/button';
 
 const ONBOARDING_STORAGE_KEY = 'mv_onboarded_v3';
+
+interface OnboardingVehicle {
+  plate: string;
+  makeModel: string;
+}
 
 interface OnboardingModalProps {
   forceOpen?: boolean;
@@ -42,10 +49,12 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
   const [pushStatus, setPushStatus] = useState<'default' | 'granted' | 'denied'>('default');
   const [isSubscribingPush, setIsSubscribingPush] = useState<boolean>(false);
 
-  // Vehicle / Unit profile setup state
-  const [unitNumber, setUnitNumber] = useState<string>(currentUser?.unit_number?.replace(/^Unit\s+/i, '') || '5');
-  const [plateNumber, setPlateNumber] = useState<string>('HZZ303');
-  const [makeModel, setMakeModel] = useState<string>('Grey Sedan');
+  // Unit profile & Multi-Vehicle setup state
+  const rawUnit = currentUser?.unit_number || 'Unit 5';
+  const [unitNumber, setUnitNumber] = useState<string>(rawUnit.startsWith('Unit') ? rawUnit : `Unit ${rawUnit}`);
+  const [vehiclesList, setVehiclesList] = useState<OnboardingVehicle[]>([
+    { plate: 'HZZ303', makeModel: 'Grey Sedan' },
+  ]);
   const [isSavingProfile, setIsSavingProfile] = useState<boolean>(false);
 
   useEffect(() => {
@@ -82,6 +91,21 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
     if (step > 1) {
       setStep((s) => s - 1);
     }
+  };
+
+  const handleAddVehicleRow = () => {
+    setVehiclesList((prev) => [...prev, { plate: '', makeModel: '' }]);
+  };
+
+  const handleRemoveVehicleRow = (index: number) => {
+    if (vehiclesList.length <= 1) return;
+    setVehiclesList((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleUpdateVehicle = (index: number, field: keyof OnboardingVehicle, value: string) => {
+    setVehiclesList((prev) =>
+      prev.map((v, i) => (i === index ? { ...v, [field]: value } : v))
+    );
   };
 
   const handleRequestPush = async () => {
@@ -121,19 +145,26 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
   const handleComplete = async () => {
     setIsSavingProfile(true);
     try {
-      if (plateNumber.trim()) {
-        await addVehicle(plateNumber.trim().toUpperCase(), makeModel.trim()).catch(() => {});
+      // Save all vehicles in list
+      for (const v of vehiclesList) {
+        if (v.plate.trim()) {
+          await addVehicle(v.plate.trim().toUpperCase(), v.makeModel.trim()).catch(() => {});
+        }
       }
+
+      const formattedUnit = unitNumber.trim().startsWith('Unit') ? unitNumber.trim() : `Unit ${unitNumber.trim()}`;
+
       // Multi-layer persistence to ensure user NEVER has to do it again
       if (typeof window !== 'undefined') {
         localStorage.setItem(ONBOARDING_STORAGE_KEY, 'true');
         localStorage.setItem('mvp_onboarded_v2', 'true');
         document.cookie = 'mv_onboarded=true; path=/; max-age=31536000; SameSite=Lax';
       }
+
       await fetch('/api/me/profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ onboarded: true }),
+        body: JSON.stringify({ unit_number: formattedUnit, onboarded: true }),
       }).catch(() => {});
     } catch {}
 
@@ -161,14 +192,14 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.92, opacity: 0, y: 20 }}
           transition={{ type: 'spring', stiffness: 350, damping: 28 }}
-          className="relative w-full max-w-md rounded-3xl p-6 shadow-[0_12px_40px_rgba(0,0,0,0.85)] border z-10 text-slate-100 flex flex-col justify-between overflow-hidden min-h-[460px]"
+          className="relative w-full max-w-md rounded-3xl p-6 shadow-[0_12px_40px_rgba(0,0,0,0.85)] border z-10 text-slate-100 flex flex-col justify-between overflow-hidden min-h-[490px] max-h-[90vh]"
           style={{
             backgroundColor: 'var(--card-bg, #182028)',
             borderColor: 'var(--card-border, rgba(109,129,150,0.32))',
           }}
         >
           {/* Top Progress Bar & Header */}
-          <div>
+          <div className="overflow-y-auto pr-1 flex-1">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-1.5">
                 {[1, 2, 3].map((i) => (
@@ -342,7 +373,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
               </motion.div>
             )}
 
-            {/* Step 3: Resident Vehicle Setup */}
+            {/* Step 3: Resident Unit & Multi-Vehicle Setup */}
             {step === 3 && (
               <motion.div
                 initial={{ opacity: 0, x: 20 }}
@@ -362,77 +393,107 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                   </div>
                   <div>
                     <h3 className="text-base font-black text-white tracking-tight">
-                      Confirm Unit & Vehicle
+                      Confirm Unit & Vehicles
                     </h3>
                     <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                      Pre-populates your bookings and visitor passes
+                      Register all household cars for quick visitor & excess bookings
                     </p>
                   </div>
                 </div>
 
                 <div
-                  className="rounded-2xl p-4 border space-y-3"
+                  className="rounded-2xl p-4 border space-y-3.5"
                   style={{
                     backgroundColor: 'rgba(0,0,0,0.35)',
                     borderColor: 'var(--card-border)',
                   }}
                 >
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="text-[10px] font-bold block mb-1 text-slate-300">
-                        Unit Number
-                      </label>
-                      <input
-                        type="text"
-                        value={unitNumber}
-                        onChange={(e) => setUnitNumber(e.target.value)}
-                        placeholder="e.g. 5"
-                        className="w-full py-1.5 px-3 text-xs text-white rounded-xl focus:outline-none border bg-black/40 font-bold"
-                        style={{ borderColor: 'var(--card-border)' }}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-bold block mb-1 text-slate-300">
-                        Primary License Plate
-                      </label>
-                      <input
-                        type="text"
-                        value={plateNumber}
-                        onChange={(e) => setPlateNumber(e.target.value.toUpperCase())}
-                        placeholder="e.g. HZZ303"
-                        className="w-full py-1.5 px-3 text-xs font-mono font-bold uppercase text-white rounded-xl focus:outline-none border bg-black/40"
-                        style={{ borderColor: 'var(--card-border)' }}
-                      />
-                    </div>
-                  </div>
-
                   <div>
                     <label className="text-[10px] font-bold block mb-1 text-slate-300">
-                      Vehicle Description
+                      Unit Address
                     </label>
                     <input
                       type="text"
-                      value={makeModel}
-                      onChange={(e) => setMakeModel(e.target.value)}
-                      placeholder="e.g. Silver Mazda CX-5"
-                      className="w-full py-1.5 px-3 text-xs text-white rounded-xl focus:outline-none border bg-black/40"
+                      value={unitNumber}
+                      onChange={(e) => setUnitNumber(e.target.value)}
+                      placeholder="e.g. Unit 5"
+                      className="w-full py-2 px-3 text-xs text-white rounded-xl focus:outline-none border bg-black/40 font-bold"
                       style={{ borderColor: 'var(--card-border)' }}
                     />
                   </div>
 
-                  {plateNumber.trim() && (
-                    <div className="flex items-center justify-between pt-1">
-                      <span className="text-[10px] text-slate-400">Plate Preview:</span>
-                      <PlateCard plate={plateNumber.trim().toUpperCase()} size="xs" showScrews={true} />
+                  {/* Dynamic Multi-Vehicle List */}
+                  <div className="space-y-2.5 pt-1 border-t border-white/10">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-300">
+                        Household Vehicles ({vehiclesList.length})
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleAddVehicleRow}
+                        className="text-[11px] font-bold text-blue-400 hover:text-blue-300 flex items-center gap-1"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Add Car</span>
+                      </button>
                     </div>
-                  )}
+
+                    {vehiclesList.map((vehicle, idx) => (
+                      <div key={idx} className="p-3 rounded-xl bg-black/40 border border-white/5 space-y-2 relative">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-mono text-slate-400">Vehicle #{idx + 1}</span>
+                          {vehiclesList.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveVehicleRow(idx)}
+                              className="text-slate-400 hover:text-rose-400 transition-colors"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="text-[9px] font-bold block mb-0.5 text-slate-400">License Plate</label>
+                            <input
+                              type="text"
+                              value={vehicle.plate}
+                              onChange={(e) => handleUpdateVehicle(idx, 'plate', e.target.value.toUpperCase())}
+                              placeholder="e.g. HZZ303"
+                              className="w-full py-1.5 px-2.5 text-xs font-mono font-bold uppercase text-white rounded-lg focus:outline-none border bg-black/50"
+                              style={{ borderColor: 'var(--card-border)' }}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[9px] font-bold block mb-0.5 text-slate-400">Description</label>
+                            <input
+                              type="text"
+                              value={vehicle.makeModel}
+                              onChange={(e) => handleUpdateVehicle(idx, 'makeModel', e.target.value)}
+                              placeholder="e.g. Grey Mazda CX-5"
+                              className="w-full py-1.5 px-2.5 text-xs text-white rounded-lg focus:outline-none border bg-black/50"
+                              style={{ borderColor: 'var(--card-border)' }}
+                            />
+                          </div>
+                        </div>
+
+                        {vehicle.plate.trim() && (
+                          <div className="flex items-center justify-between pt-1">
+                            <span className="text-[9px] text-slate-500">Plate Preview:</span>
+                            <PlateCard plate={vehicle.plate.trim().toUpperCase()} size="micro" showScrews={true} />
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </motion.div>
             )}
           </div>
 
           {/* Bottom Actions Row */}
-          <div className="flex items-center justify-between pt-4 border-t mt-4" style={{ borderColor: 'var(--card-border)' }}>
+          <div className="flex items-center justify-between pt-3 border-t mt-3" style={{ borderColor: 'var(--card-border)' }}>
             {step > 1 ? (
               <button
                 type="button"

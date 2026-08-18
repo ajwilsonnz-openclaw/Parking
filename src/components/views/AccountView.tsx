@@ -44,11 +44,12 @@ export const AccountView: React.FC<AccountViewProps> = ({
   const [newMakeModel, setNewMakeModel] = useState('');
   const [isAddingVehicle, setIsAddingVehicle] = useState(false);
 
-  const unitNumber = currentUser?.unit_number || 'Unit 5';
-  const unitVehicles = vehicles.filter((v) => v.unit_number === unitNumber || v.user_id === currentUser?.id);
-  const unitDemerits = demerits.filter((d) => d.unit_number === unitNumber);
+  const rawUnit = currentUser?.unit_number || 'Unit 5';
+  const unitNumber = rawUnit.startsWith('Unit') ? rawUnit : `Unit ${rawUnit}`;
+  const unitVehicles = vehicles.filter((v) => v.unit_number === unitNumber || v.unit_number === rawUnit || v.user_id === currentUser?.id);
+  const unitDemerits = demerits.filter((d) => d.unit_number === unitNumber || d.unit_number === rawUnit);
   const totalDemeritPoints = unitDemerits.reduce((s, d) => s + d.demerit_points, 0);
-  const mySpot = carparks.find((c) => c.owner_unit_number === unitNumber);
+  const mySpot = carparks.find((c) => c.owner_unit_number === unitNumber || c.owner_unit_number === rawUnit);
   const assignedParksCount = currentUser?.assigned_parks || 1;
 
   const isManagementOrAdmin = currentUser?.role === 'management' || currentUser?.role === 'admin';
@@ -63,7 +64,7 @@ export const AccountView: React.FC<AccountViewProps> = ({
   const handleOpenEditProfile = () => {
     setEditName(currentUser?.name || '');
     setEditPhone(currentUser?.phone || '');
-    setEditUnit(currentUser?.unit_number || '');
+    setEditUnit(unitNumber);
     setShowEditProfileModal(true);
   };
 
@@ -78,7 +79,7 @@ export const AccountView: React.FC<AccountViewProps> = ({
         body: JSON.stringify({
           name: editName.trim(),
           phone: editPhone.trim() || null,
-          unit_number: editUnit.trim() || currentUser?.unit_number,
+          unit_number: editUnit.trim().startsWith('Unit') ? editUnit.trim() : `Unit ${editUnit.trim()}`,
         }),
       });
       setShowEditProfileModal(false);
@@ -137,7 +138,7 @@ export const AccountView: React.FC<AccountViewProps> = ({
       <div className="grid grid-cols-3 gap-2.5">
         <div className="card p-3 text-center">
           <span className="text-[9px] font-extrabold uppercase tracking-wider text-slate-400 block mb-1">Unit</span>
-          <span className="text-xl font-black text-white">{currentUser?.unit_number?.replace(/^Unit\s+/i, '') || '-'}</span>
+          <span className="text-lg font-black text-white">{unitNumber}</span>
         </div>
         <div className="card p-3 text-center">
           <span className="text-[9px] font-extrabold uppercase tracking-wider text-slate-400 block mb-1">Assigned Parks</span>

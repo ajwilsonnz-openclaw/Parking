@@ -210,13 +210,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   }, [data?.config]);
 
+  const [currentTime, setCurrentTime] = useState<number>(Date.now());
+
+  // Active interval ticker to ensure expired sessions immediately free up spots live
+  useEffect(() => {
+    const t = setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 5000);
+    return () => clearInterval(t);
+  }, []);
+
   // Merge server & local sessions (Strictly deduplicated by spot and session ID)
   const sessions: ParkingSession[] = useMemo(() => {
     const serverSessions = data?.sessions || [];
     const map = new Map<string, ParkingSession>();
     const seenSpots = new Set<string>();
 
-    const nowMs = Date.now();
+    const nowMs = currentTime;
 
     // 1. Process server active sessions first
     serverSessions.forEach((s: any) => {
@@ -243,7 +253,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
 
     return Array.from(map.values());
-  }, [data?.sessions, localSessions]);
+  }, [data?.sessions, localSessions, currentTime]);
 
   // Merge server & local saved guests
   const savedGuests: SavedGuest[] = useMemo(() => {
